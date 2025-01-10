@@ -21,6 +21,13 @@
 #include <iostream>
 
 
+using namespace std::chrono_literals;
+
+/**
+ * Builds a "nice" version string.
+ * @param major Major version. If 0, the version is considered unknown.
+ * @param minor Minor version. If 0, only the major version is printed.
+ */
 inline static std::string version(int major, int minor) {
 	if (major == 0) {
 		return "Unknown";
@@ -28,7 +35,11 @@ inline static std::string version(int major, int minor) {
 	return (minor == 0) ? std::to_string(major) : std::format("{}.{}", major, minor);
 }
 
-static void handleOpen(SIMCONNECT_RECV_OPEN& msg) {
+
+/**
+ * Handles the SIMCONNECT_RECV_OPEN message.
+ */
+static void handleOpen(const SIMCONNECT_RECV_OPEN& msg) {
 	std::cout << "Connected to " << msg.szApplicationName
 		<< " version " << version(msg.dwApplicationVersionMajor, msg.dwApplicationVersionMinor) << std::endl
 		<< "  build " << version(msg.dwApplicationBuildMajor, msg.dwApplicationBuildMinor) << std::endl
@@ -36,30 +47,34 @@ static void handleOpen(SIMCONNECT_RECV_OPEN& msg) {
 		<< "  build " << version(msg.dwSimConnectBuildMajor, msg.dwSimConnectBuildMinor) << std::endl;
 }
 
-static void handleClose(SIMCONNECT_RECV_QUIT& msg) {
+
+/**
+ * Handles the SIMCONNECT_RECV_QUIT message.
+ */
+static void handleClose(const SIMCONNECT_RECV_QUIT& msg) {
 	std::cout << "Simulator shutting down.\n";
 }
+
+
 
 int main() {
 	SimConnect::WindowsEventConnection connection;
 	SimConnect::WindowsEventHandler handler(connection);
+	handler.autoClosing(true);
+
 	bool connected{ false };
 
-	handler.setDefaultHandler([](SIMCONNECT_RECV* msg, DWORD len) {
+	handler.setDefaultHandler([](const SIMCONNECT_RECV* msg, DWORD len) {
 			std::cerr << std::format("Ignoring message of type {} (length {} bytes)\n", msg->dwID, len);
 		});
-	handler.registerHandler(SIMCONNECT_RECV_ID_OPEN, [](SIMCONNECT_RECV* msg, DWORD len) {
-			handleOpen(*reinterpret_cast<SIMCONNECT_RECV_OPEN*>(msg));
-		});
-	handler.registerHandler(SIMCONNECT_RECV_ID_QUIT, [&connected](SIMCONNECT_RECV* msg, DWORD len) {
-			handleClose(*reinterpret_cast<SIMCONNECT_RECV_QUIT*>(msg));
-			connected = false;
-		});
+	handler.registerHandler<SIMCONNECT_RECV_OPEN>(SIMCONNECT_RECV_ID_OPEN, handleOpen);
+	handler.registerHandler<SIMCONNECT_RECV_QUIT>(SIMCONNECT_RECV_ID_QUIT, handleClose);
 
-	connected = connection.open();
-	while (connected) {
-		std::cout << "Handling messages\n";
-		handler.handle(10s);
+	if (connection.open()) {
+		while (connection.isOpen()) {
+			std::cout << "Handling messages\n";
+			handler.handle(10s);
+		}
 	}
 	return 0;
 }

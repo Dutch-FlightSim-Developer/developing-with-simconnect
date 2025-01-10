@@ -31,7 +31,8 @@ inline static std::string version(int major, int minor) {
 	return (minor == 0) ? std::to_string(major) : std::format("{}.{}", major, minor);
 }
 
-static void handleOpen(SIMCONNECT_RECV_OPEN& msg) {
+
+static void handleOpen(const SIMCONNECT_RECV_OPEN& msg) {
 	std::cout << "Connected to " << msg.szApplicationName
 		<< " version " << version(msg.dwApplicationVersionMajor, msg.dwApplicationVersionMinor) << std::endl
 		<< "  build " << version(msg.dwApplicationBuildMajor, msg.dwApplicationBuildMinor) << std::endl
@@ -39,30 +40,34 @@ static void handleOpen(SIMCONNECT_RECV_OPEN& msg) {
 		<< "  build " << version(msg.dwSimConnectBuildMajor, msg.dwSimConnectBuildMinor) << std::endl;
 }
 
-static void handleClose(SIMCONNECT_RECV_QUIT& msg) {
+
+static void handleClose(const SIMCONNECT_RECV_QUIT& msg) {
 	std::cout << "Simulator shutting down.\n";
 }
+
 
 int main() {
 	SimConnect::SimpleConnection connection;
 	SimConnect::PollingHandler handler(connection);
-	bool connected{ false };
+	handler.autoClosing(true);
 
-	handler.setDefaultHandler([](SIMCONNECT_RECV* msg, DWORD len) {
+	handler.setDefaultHandler([](const SIMCONNECT_RECV* msg, DWORD len) {
 			std::cerr << std::format("Ignoring message of type {} (length {} bytes)\n", msg->dwID, len);
 		});
-	handler.registerHandler(SIMCONNECT_RECV_ID_OPEN, [](SIMCONNECT_RECV* msg, DWORD len) {
-			handleOpen(*reinterpret_cast<SIMCONNECT_RECV_OPEN*>(msg));
-		});
-	handler.registerHandler(SIMCONNECT_RECV_ID_QUIT, [&connected](SIMCONNECT_RECV* msg, DWORD len) {
-			handleClose(*reinterpret_cast<SIMCONNECT_RECV_QUIT*>(msg));
-			connected = false;
-		});
+	handler.registerHandler<SIMCONNECT_RECV_OPEN>(SIMCONNECT_RECV_ID_OPEN, handleOpen);
+	handler.registerHandler<SIMCONNECT_RECV_QUIT>(SIMCONNECT_RECV_ID_QUIT, handleClose);
 
-	connected = connection.open();
-	while (connected) {
-		std::cout << "Handling messages\n";
-		handler.handle(10s);
+	std::cout << "Opening connection to the simulator.\n";
+	if (connection.open()) {
+		std::cout << "Connected to the simulator. Will poll for messages until it quits or you press ^C.\n";
+
+		while (connection.isOpen()) {
+			std::cout << "Handling messages for 10 seconds using polling.\n";
+			handler.handle(10s);
+		}
+	}
+	else {
+		std::cerr << "Failed to open connection to the simulator.\n";
 	}
 	return 0;
 }

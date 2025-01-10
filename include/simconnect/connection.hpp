@@ -17,6 +17,10 @@
 
 #include <simconnect.hpp>
 
+#include <simconnect/events/events.hpp>
+
+#include <atomic>
+
 
 namespace SimConnect {
     
@@ -26,29 +30,38 @@ namespace SimConnect {
 class Connection
 {
 private:
-	std::string clientName;
-	HANDLE hSimConnect{ nullptr };
-	HRESULT hr{ S_OK };
+	std::string clientName_;
+	HANDLE hSimConnect_{ nullptr };
+	HRESULT hr_{ S_OK };
+
+	std::atomic_ulong requestID_{ 0 };
 
 protected:
+	/**
+	 * Opens the connection.
+	 * @param hWnd The window handle to receive the user messages.
+	 * @param userMessageId The user message identifier.
+	 * @param windowsEventHandle The Windows event handle.
+	 * @param configIndex The index of the configuration section to use, defaults to 0 meaning use the default configuration.
+	 */
 	[[nodiscard]]
 	bool callOpen(HWND hWnd = nullptr, DWORD userMessageId = 0, HANDLE windowsEventHandle = nullptr, DWORD configIndex = 0) {
 		if (isOpen()) {
 			return true;
 		}
-		hr = SimConnect_Open(&hSimConnect, clientName.c_str(), hWnd, userMessageId, windowsEventHandle, configIndex);
-		if (SUCCEEDED(hr)) {
+		hr_ = SimConnect_Open(&hSimConnect_, clientName_.c_str(), hWnd, userMessageId, windowsEventHandle, configIndex);
+		if (SUCCEEDED(hr_)) {
 			return true;
 		}
-		if (hr == E_INVALIDARG) {
+		if (hr_ == E_INVALIDARG) { // Special case for bad config index
 			throw BadConfig(std::format("Unknown configuration section {}.", configIndex));
 		}
 		return false;
 	}
 
 public:
-	Connection() : clientName("SimConnect client") {}
-	Connection(std::string name) : clientName(name) {}
+	Connection() : clientName_("SimConnect client") {}
+	Connection(std::string name) : clientName_(name) {}
 	virtual ~Connection() { close(); }
 
 	// We don't want copied or moved Connections.
@@ -58,42 +71,127 @@ public:
 	Connection& operator=(Connection&&) = delete;
 
 	/**
-		* Returns the SimConnect handle.
-		* @returns The SimConnect handle.
-		*/
-	operator HANDLE() const noexcept { return hSimConnect; }
+	 * Returns the name of the client.
+	 * @returns The name of the client.
+	 */
+	[[nodiscard]]
+	const std::string& name() const noexcept { return clientName_; }
 
 	/**
-		* Returns true if the connection is open.
-		* @returns True if the connection is open.
-		*/
-	bool isOpen() const noexcept { return hSimConnect != nullptr; }
+	 * Provides an implicit conversion to the SimConnect handle.
+	 * @returns The SimConnect handle.
+	 */
+	operator HANDLE() const noexcept { return hSimConnect_; }
 
 	/**
-	* Closes the connection.
-	* @throws SimConnectException if the call fails. This should only happen if the handle is invalid.
-		*/
+	 * Returns true if the connection is open.
+	 * @returns True if the connection is open.
+	 */
+	[[nodiscard]]
+	bool isOpen() const noexcept { return hSimConnect_ != nullptr; }
+
+	/**
+	 * Sets the call's result.
+	 * @param hr The HRESULT value.
+	 * @returns The value set.
+	 */
+	HRESULT hr(HRESULT hr) noexcept {
+		hr_ = hr;
+		return hr_;
+	}
+
+
+	/**
+	 * Returns the last error code, or 0 if there was no error.
+	 * @returns The last error code, or 0 if there was no error.
+	 */
+	HRESULT lastResult() const noexcept { return hr_; }
+
+	/**
+	 * Returns true if the last call to SimConnect was successful.
+	 * @returns True if the last call to SimConnect was successful.
+	 */
+	bool succeeded() const noexcept { return SUCCEEDED(lastResult()); }
+
+	/**
+	 * Returns true if the last call to SimConnect failed.
+	 * @returns True if the last call to SimConnect failed.
+	 */
+	bool failed() const noexcept { return FAILED(lastResult()); }
+
+	/**
+	 * Provides an implicit conversion to a `bool` to check the result of the last call to SimConnect.
+	 * @returns True if the last call to SimConnect was successful.
+	 */
+	operator bool() const noexcept { return succeeded(); }
+
+
+	/**
+	 * If the last call to SimConnect was successful, returns the SendID, otherwise returns the last error code.
+	 * @returns The SendID if the last call to SimConnect was successful, otherwise returns the last error code.
+	 */
+	long fetchSendId() const {
+		DWORD sendId{ 0 };
+
+		if (SUCCEEDED(lastResult())) {
+			DWORD sendId{ 0 };
+			SimConnect_GetLastSentPacketID(hSimConnect_, &sendId);
+			return sendId;
+		}
+		return lastResult();
+	}
+
+	// Calls to SimConnect
+
+	// Category "General"
+	//
+	// NOTE There is no call to SimConnect_Open here, as the required parameters depend on the type of connection.
+
+	/**
+	 * Closes the connection.
+	 * @throws SimConnectException if the call fails. This should only happen if the handle is invalid.
+	 */
 	void close() {
-		if (hSimConnect) {
-			hr = SimConnect_Close(hSimConnect);
-			hSimConnect = nullptr;
-			if (FAILED(hr)) {
+		if (hSimConnect_) {
+			hr(SimConnect_Close(hSimConnect_));
+			hSimConnect_ = nullptr;
+			if (FAILED(hr_)) {
 				throw SimConnectException("SimConnect_Close failed");
 			}
 		}
 	}
 
-	/**
-		* Returns the last error code, or 0 if there was no error.
-		* @returns The last error code, or 0 if there was no error.
-		*/
-	HRESULT lastError() const noexcept { return hr; }
 
 	/**
-		* Returns true if the last call to SimConnect was successful.
-		* @returns True if the last call to SimConnect was successful.
-		*/
-	operator bool() const noexcept { return SUCCEEDED(hr); }
+	 * Gets the next incoming message that is waiting.
+	 * @param msgPtr The message.
+	 * @param size The size of the message.
+	 * @returns `S_OK` if successful, `E_FAIL` if none were available.
+	 */
+	int getNextDispatch(SIMCONNECT_RECV*& msgPtr, DWORD& size) {
+		return hr(SimConnect_GetNextDispatch(hSimConnect_, &msgPtr, &size));
+	}
+
+
+	/**
+	 * Requests a system state.
+	 * @param stateName The name of the state to request.
+	 * @returns The request ID used to identify the request.
+	 */
+	int requestSystemState(std::string stateName) {
+		auto reqId{ ++requestID_ };
+
+		hr(SimConnect_RequestSystemState(hSimConnect_, reqId, stateName.c_str()));
+
+		return reqId;
+	}
+
+	// Category "Events and Data"
+
+	HRESULT subscribeToSystemEvent(event event) {
+		return hr(SimConnect_SubscribeToSystemEvent(hSimConnect_, event.id(), event.name().c_str()));
+	}
+
 };
 
 }

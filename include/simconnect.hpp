@@ -25,20 +25,45 @@
 namespace SimConnect
 {
 
-	class SimConnectException : public std::exception
-	{
-	public:
-		SimConnectException(const char* message) : std::exception(message) {}
-	};
 
-	class BadConfig : public SimConnectException
-	{
-	private:
-		static constexpr const char* error = "Bad SimConnect.cfg";
-		std::string msg;
-	public:
-		BadConfig(std::string message) : SimConnectException(error), msg(std::string(error) + ": " + message) {}
-		const char* what() const noexcept override { return msg.c_str(); }
-	};
+/**
+ * An exception thrown by the SimConnect library.
+ */
+class SimConnectException : public std::exception
+{
+private:
+	static constexpr const char* error_ = "SimConnect exception";
+	std::string msg_;
+public:
+	SimConnectException(const char* message) : std::exception(error_), msg_(message) {}
+	SimConnectException(const char* error, std::string message) : std::exception(error), msg_(message) {}
+	const char* what() const noexcept override { return msg_.c_str(); }
+};
 
+
+/**
+ * An exception thrown when the SimConnect.cfg file does not contain the expected data.
+ */
+class BadConfig : public SimConnectException
+{
+private:
+	static constexpr const char* error = "Bad SimConnect.cfg";
+public:
+	BadConfig(std::string message) : SimConnectException(error, std::string(error) + ": " + message) {}
+};
+
+
+/**
+ * An exception thrown when an event id is unknown. Calling `SimConnect::event::get` with an unknown name will simply create a new event.
+ */
+class UnknownEvent : public SimConnectException
+{
+private:
+	static constexpr const char* error = "Unknown event id";
+	int id_;
+public:
+	UnknownEvent(int id) : SimConnectException(error, std::format("Unknown event id {}.", id).c_str()), id_(id) {}
+
+	int id() const noexcept { return id_; }
+};
 }

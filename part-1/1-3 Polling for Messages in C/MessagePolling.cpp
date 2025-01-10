@@ -25,6 +25,12 @@
 static HANDLE hSimConnect;
 static bool connected = false;
 
+
+/**
+ * Connect to Microsoft Flight Simulator.
+ *
+ * @return true on success.
+ */
 bool connect()
 {
 	HRESULT hr;
@@ -38,6 +44,13 @@ bool connect()
 	return connected;
 }
 
+
+/**
+ * Handle messages from the simulator, simply "polling". We first drain the queue of messages, then wait
+ * 100ms before we try again.
+ *
+ * When a message is received, we only handle the "Open" and "Quit" ones.
+ */
 void handle_messages()
 {
 	while (connected) {
@@ -58,6 +71,10 @@ void handle_messages()
 				printf("Simulator stopped stopped.\n");
 				connected = false;
 				break;
+
+			default:
+				printf("Ignoring message of type %d (length %d bytes)\n", pData->dwID, cbData);
+				break;
 			}
 		}
 		if (connected) {
@@ -66,6 +83,10 @@ void handle_messages()
 	}
 }
 
+
+/**
+ * Close the connection.
+ */
 void close()
 {
 	if (FAILED(SimConnect_Close(hSimConnect))) {

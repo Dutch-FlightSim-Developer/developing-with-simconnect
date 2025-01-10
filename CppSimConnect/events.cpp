@@ -14,27 +14,10 @@
  * limitations under the License.
  */
 
-#include <simconnect/simple_connection.hpp>
+#include <simconnect/events/events.hpp>
 
-#include <iostream>
 
-int main(int argc, char* argv[])
-{
-	SimConnect::SimpleConnection simConnect("CleanOpenClose");
+std::atomic_int SimConnect::event::nextId_;
 
-	try {
-		if (simConnect.open()) {	// Try this with open(5) or some other undefined section number...
-			std::cout << "Connected to Flight Simulator!\n";
-
-			simConnect.close();
-			std::cout << "Disconnected from Flight Simulator!\n";
-		}
-		else {
-			std::cout << "Failed to connect to Flight Simulator!\n";
-		}
-	}
-	catch (const SimConnect::SimConnectException& ex) {
-		std::cout << ex.what() << "\n";
-	}
-	return simConnect ? 0 : 1;
-}
+std::map<std::string, int> SimConnect::event::eventsByName_;
+std::map<int, std::string> SimConnect::event::eventsById_;

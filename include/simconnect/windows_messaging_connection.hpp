@@ -19,18 +19,51 @@
 
 namespace SimConnect {
 
+
+/**
+ * A SimConnect connection with support for Windows Messaging.
+ */
 class WindowsMessagingConnection : public Connection {
+	/**
+	 * The Windows handle to the Window whose message queue will receive notifications for incoming messages. 
+	 */
     HWND hWnd_{ nullptr };
+
+	/**
+	 * The message id to use for the notification messages. If 0, SimConnect will not send notifications.
+	 */
     DWORD userMessageId_{ 0 };
 
 public:
 
-    WindowsMessagingConnection() {}
-    WindowsMessagingConnection(std::string name) : Connection(name) {}
-    WindowsMessagingConnection(HWND hWnd, DWORD userMessageId) : hWnd_(hWnd), userMessageId_(userMessageId) {}
-    WindowsMessagingConnection(std::string name, HWND hWnd, DWORD userMessageId) : Connection(name), hWnd_(hWnd), userMessageId_(userMessageId) {}
+	/**
+	 * Constructor, using the default client name.
+	 */
+	WindowsMessagingConnection() : Connection() {}
 
-    ~WindowsMessagingConnection() { }
+	/**
+	 * Constructor.
+	 * @param name The name of the connection.
+	 */
+	WindowsMessagingConnection(std::string name) : Connection(name) {}
+
+	/**
+	 * Constructor, using the default client name.
+	 * @param hWnd The window handle to use for the SIMCONNECT messages.
+	 * @param userMessageId The message id to use for the SIMCONNECT messages.
+	 */
+    WindowsMessagingConnection(HWND hWnd, DWORD userMessageId) : Connection(), hWnd_(hWnd), userMessageId_(userMessageId) {}
+
+	/**
+	 * Constructor.
+	 * @param name The name of the connection.
+	 * @param hWnd The window handle to use for the SIMCONNECT messages.
+	 * @param userMessageId The message id to use for the SIMCONNECT messages.
+	 */
+	WindowsMessagingConnection(std::string name, HWND hWnd, DWORD userMessageId) : Connection(name), hWnd_(hWnd), userMessageId_(userMessageId) {}
+
+
+	virtual ~WindowsMessagingConnection() { }
 
     WindowsMessagingConnection(const WindowsMessagingConnection&) = delete;
     WindowsMessagingConnection(WindowsMessagingConnection&&) = delete;
@@ -39,13 +72,39 @@ public:
 
 
 	/**
-		* Opens the connection.
-		* @param hWnd The window handle to use for the SIMCONNECT messages.
-		* @param userMessageId The message id to use for the SIMCONNECT messages.
-		* @param configIndex The index of the configuration section to use, defaults to 0 meaning use the default configuration.
-		* @returns True if the connection is open.
-		* @throws BadConfig if the configuration does not contain the specified index.
-		*/
+	 * @returns The window handle to use for the SIMCONNECT message notificationss.
+	 */
+	HWND hWND() const noexcept { return hWnd_; }
+
+
+	/**
+	 * Sets the window handle to use for the SIMCONNECT message notifications.
+	 * @param hWnd The window handle to use for the SIMCONNECT messages.
+	 */
+	void hWND(HWND hWnd) noexcept { hWnd_ = hWnd; }
+
+
+	/**
+	 * @returns The message id to use for the SIMCONNECT messages.
+	 */
+	DWORD userMessageId() const noexcept { return userMessageId_; }
+
+
+	/**
+	 * Sets the message id to use for the SIMCONNECT messages.
+	 * @param userMessageId The message id to use for the SIMCONNECT messages.
+	 */
+	void userMessageId(DWORD userMessageId) noexcept { userMessageId_ = userMessageId; }
+
+
+	/**
+	 * Opens the connection, overriding any settings passed to the constructor.
+	 * @param hWnd The window handle to use for the SIMCONNECT messages.
+	 * @param userMessageId The message id to use for the SIMCONNECT messages.
+	 * @param configIndex The optional index of the configuration section to use, defaults to 0 meaning use the default configuration.
+	 * @returns True if the connection is open.
+	 * @throws BadConfig if the configuration does not contain the specified index.
+	 */
 	[[nodiscard]]
 	bool open(HWND hWnd, DWORD userMessageId, int configIndex = 0) {
 		if (isOpen()) {
@@ -57,12 +116,14 @@ public:
         return open(configIndex);
 	}
 
+
 	/**
-		* Opens the connection, optionally for a specific configuration. Will create an event handle if one is not provided.
-		* @param configIndex The index of the configuration section to use, defaults to 0 meaning use the default configuration.
-		* @returns True if the connection is open.
-		* @throws BadConfig if the configuration does not contain the specified index.
-		*/
+	 * Opens the connection, optionally for a specific configuration.
+	 * @param configIndex The index of the configuration section to use, defaults to 0 meaning use the default configuration.
+	 * @returns True if the connection is open.
+	 * @throws SimConnectException if no Window handle or valid message id is set.
+	 * @throws BadConfig if the configuration does not contain the specified index.
+	 */
     [[nodiscard]]
     bool open(int configIndex = 0) {
         if (hWnd_ == nullptr) {

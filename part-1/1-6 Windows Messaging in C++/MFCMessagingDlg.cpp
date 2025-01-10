@@ -23,12 +23,12 @@ CMFCMessagingDlg::CMFCMessagingDlg()
 {
 	m_hIcon = AfxGetApp()->LoadIcon(IDR_MAINFRAME);
 
-	m_handler.registerHandler(
+	m_handler.registerHandlerProc(
 		SIMCONNECT_RECV_ID_OPEN,
-		[this](SIMCONNECT_RECV* msg, [[maybe_unused]] DWORD len) { this->onOpen(*reinterpret_cast<SIMCONNECT_RECV_OPEN*>(msg)); });
-	m_handler.registerHandler(
+		[this](const SIMCONNECT_RECV* msg, [[maybe_unused]] DWORD len) { this->onOpen(*reinterpret_cast<const SIMCONNECT_RECV_OPEN*>(msg)); });
+	m_handler.registerHandlerProc(
 		SIMCONNECT_RECV_ID_QUIT,
-		[this]([[maybe_unused]] SIMCONNECT_RECV* msg, [[maybe_unused]] DWORD len) { this->onQuit(); });
+		[this]([[maybe_unused]] const SIMCONNECT_RECV* msg, [[maybe_unused]] DWORD len) { this->onQuit(); });
 }
 
 CMFCMessagingDlg::CMFCMessagingDlg(CWnd* pParent)
@@ -38,12 +38,12 @@ CMFCMessagingDlg::CMFCMessagingDlg(CWnd* pParent)
 {
 	m_hIcon = AfxGetApp()->LoadIcon(IDR_MAINFRAME);
 
-	m_handler.registerHandler(
+	m_handler.registerHandlerProc(
 		SIMCONNECT_RECV_ID_OPEN,
-		[this](SIMCONNECT_RECV* msg, [[maybe_unused]] DWORD len) { this->onOpen(*reinterpret_cast<SIMCONNECT_RECV_OPEN*>(msg)); });
-	m_handler.registerHandler(
+		[this](const SIMCONNECT_RECV* msg, [[maybe_unused]] DWORD len) { this->onOpen(*reinterpret_cast<const SIMCONNECT_RECV_OPEN*>(msg)); });
+	m_handler.registerHandlerProc(
 		SIMCONNECT_RECV_ID_QUIT,
-		[this]([[maybe_unused]] SIMCONNECT_RECV* msg, [[maybe_unused]] DWORD len) { this->onQuit(); });
+		[this]([[maybe_unused]] const SIMCONNECT_RECV* msg, [[maybe_unused]] DWORD len) { this->onQuit(); });
 }
 
 
@@ -123,7 +123,9 @@ HCURSOR CMFCMessagingDlg::OnQueryDragIcon()
 }
 
 
-
+/**
+ * Somebody clicked "Connect". Note that the button is only enabled while disconnected.
+ */
 void CMFCMessagingDlg::OnBnClickedBtnConnect()
 {
 	if (m_connection.open(m_hWnd, WM_SIMCONNECT)) {
@@ -137,6 +139,9 @@ void CMFCMessagingDlg::OnBnClickedBtnConnect()
 }
 
 
+/**
+ * Somebody clicked "Disconnect". Note that the button is only enabled while connected.
+ */
 void CMFCMessagingDlg::OnBnClickedBtnDisconnect()
 {
 	m_connection.close();
@@ -153,14 +158,24 @@ void CMFCMessagingDlg::OnBnClickedBtnDisconnect()
 	SetUnknown(m_simConnectBuild);
 }
 
+
+/**
+ * WM_SIMCONNECT message handler.
+ */
 LRESULT CMFCMessagingDlg::OnSimConnectMessage(WPARAM wParam, LPARAM lParam) {
 	m_handler.dispatch();
 	return 0;
 }
 
-//
-// Build a string version of the given major and minor numbers.
-// 
+
+/**
+ * Builds a version string from major and minor version numbers.
+ *
+ * @param buf the buffer to print to.
+ * @param bufSize the size of the buffer.
+ * @param major the major version number.
+ * @param minor the minor version number.
+ */
 static const char* BuildVersionString(char* buf, unsigned bufSize, int major, int minor) {
 	if (major == 0) {
 		strncpy_s(buf, bufSize, "Unknown", bufSize - 1);
@@ -174,7 +189,11 @@ static const char* BuildVersionString(char* buf, unsigned bufSize, int major, in
 	return buf;
 }
 
-void CMFCMessagingDlg::onOpen(SIMCONNECT_RECV_OPEN& msg) {
+
+/**
+ * Handles the SIMCONNECT_RECV_OPEN message.
+ */
+void CMFCMessagingDlg::onOpen(const SIMCONNECT_RECV_OPEN& msg) {
 	m_conStatus.SetWindowTextW(L"Connected, open received.");
 
 	CString simName, simVersion, simBuild, simType, scnVersion, scnBuild;
@@ -210,6 +229,10 @@ void CMFCMessagingDlg::onOpen(SIMCONNECT_RECV_OPEN& msg) {
 	SetText(m_simConnectBuild, scnBuild);
 }
 
+
+/**
+ * Handles the SIMCONNECT_RECV_QUIT message.
+ */
 void CMFCMessagingDlg::onQuit() {
 	m_conStatus.SetWindowTextW(L"Disconnected, quit received.");
 

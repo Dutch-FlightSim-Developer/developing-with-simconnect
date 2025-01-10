@@ -36,7 +36,7 @@ class CMFCMessagingDlg : public CDialogEx
 		control.EnableWindow(TRUE);
 	}
 
-	void onOpen(SIMCONNECT_RECV_OPEN& msg);
+	void onOpen(const SIMCONNECT_RECV_OPEN& msg);
 	void onQuit();
 
 	// Construction

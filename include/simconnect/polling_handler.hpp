@@ -24,7 +24,9 @@
 namespace SimConnect {
 
 /**
- * A SimConnect message handler.
+ * A SimConnect message handler that employs polling.
+ * 
+ * **NOTE** This is not a good way to handle SimConnect messages.
  */
 template <class C>
 class PollingHandler : public Handler<C, PollingHandler<C>>

@@ -21,7 +21,8 @@
 namespace SimConnect {
 
 /**
- * A SimConnect message handler.
+ * A Simple SimConnect message handler. This handler has no blocking handler, so it will not wait for messages.
+ * @tparam C The SimConnect connection type.
  */
 template <class C>
 class SimpleHandler : public Handler<C, SimpleHandler<C>>

@@ -21,6 +21,9 @@
 namespace SimConnect {
  
 
+/**
+ * A SimConnect connection with no support for Windows Messaging or Events.
+ */
 class SimpleConnection : public Connection
 {
 public:
@@ -35,11 +38,11 @@ public:
 
 
 	/**
-		* Opens the connection, optionally for a specific configuration.
-		* @param configIndex The index of the configuration section to use, defaults to 0 meaning use the default configuration.
-		* @returns True if the connection is open.
-		* @throws BadConfig if the configuration does not contain the specified index.
-		*/
+	 * Opens the connection, optionally for a specific configuration.
+	 * @param configIndex The index of the configuration section to use, defaults to 0 meaning use the default configuration.
+	 * @returns True if the connection is open.
+	 * @throws BadConfig if the configuration does not contain the specified index.
+	 */
 	[[nodiscard]]
 	bool open(int configIndex = 0) {
 		return callOpen(nullptr, 0, nullptr, configIndex);

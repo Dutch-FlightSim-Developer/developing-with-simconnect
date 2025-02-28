@@ -15,8 +15,10 @@
  * limitations under the License.
  */
 
+#pragma warning(push, 3)
 #include <Windows.h>
 #include <SimConnect.h>
+#pragma warning(pop)
 
 #include <exception>
 #include <format>

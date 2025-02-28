@@ -30,15 +30,68 @@ namespace SimConnect {
 class Connection
 {
 private:
-	std::string clientName_;
-	HANDLE hSimConnect_{ nullptr };
-	HRESULT hr_{ S_OK };
+	std::string clientName_;			///< The name of the client.
+	HANDLE hSimConnect_{ nullptr };		///< The SimConnect handle, if connected.
+	HRESULT hr_{ S_OK };				///< The last error code.
 
-	std::atomic_ulong requestID_{ 0 };
+	std::atomic_ulong requestID_{ 0 };	///< The request ID for the next request.
+
+public:
+	/**
+	 * Returns the name of the client.
+	 * @returns The name of the client.
+	 */
+	[[nodiscard]]
+	const std::string& name() const noexcept { return clientName_; }
+
+
+	/**
+	 * Returns true if the connection is open.
+	 * @returns True if the connection is open.
+	 */
+	[[nodiscard]]
+	bool isOpen() const noexcept { return hSimConnect_ != nullptr; }
+
+
+	/**
+	 * Returns the last error code, or 0 if there was no error.
+	 * 
+	 * @returns The last error code, or 0 if there was no error.
+	 */
+	HRESULT hr() const noexcept { return hr_; }
+
+
+	/**
+	 * Records an HRESULT.
+	 * 
+	 * @param hr The HRESULT value.
+	 * @returns The HRESULT value.
+	 */
+	HRESULT hr(HRESULT hr) noexcept {
+		hr_ = hr;
+		return hr_;
+	}
+
+
+	/**
+	 * Returns true if the last call to SimConnect was successful.
+	 * 
+	 * @returns True if the last call to SimConnect was successful.
+	 */
+	bool succeeded() const noexcept { return SUCCEEDED(hr()); }
+
+
+    /**
+	 * Returns true if the last call to SimConnect failed.
+	 * @returns True if the last call to SimConnect failed.
+	 */
+	bool failed() const noexcept { return FAILED(hr()); }
+
 
 protected:
 	/**
 	 * Opens the connection.
+	 * 
 	 * @param hWnd The window handle to receive the user messages.
 	 * @param userMessageId The user message identifier.
 	 * @param windowsEventHandle The Windows event handle.
@@ -49,8 +102,8 @@ protected:
 		if (isOpen()) {
 			return true;
 		}
-		hr_ = SimConnect_Open(&hSimConnect_, clientName_.c_str(), hWnd, userMessageId, windowsEventHandle, configIndex);
-		if (SUCCEEDED(hr_)) {
+		hr(SimConnect_Open(&hSimConnect_, clientName_.c_str(), hWnd, userMessageId, windowsEventHandle, configIndex));
+		if (succeeded()) {
 			return true;
 		}
 		if (hr_ == E_INVALIDARG) { // Special case for bad config index
@@ -59,10 +112,16 @@ protected:
 		return false;
 	}
 
+
+	/**
+	 * Assure we close the connection to SimConnect cleanly.
+	 */
+	~Connection() { close(); }
+
+
 public:
 	Connection() : clientName_("SimConnect client") {}
 	Connection(std::string name) : clientName_(name) {}
-	virtual ~Connection() { close(); }
 
 	// We don't want copied or moved Connections.
 	Connection(const Connection&) = delete;
@@ -70,12 +129,6 @@ public:
 	Connection& operator=(const Connection&) = delete;
 	Connection& operator=(Connection&&) = delete;
 
-	/**
-	 * Returns the name of the client.
-	 * @returns The name of the client.
-	 */
-	[[nodiscard]]
-	const std::string& name() const noexcept { return clientName_; }
 
 	/**
 	 * Provides an implicit conversion to the SimConnect handle.
@@ -83,41 +136,17 @@ public:
 	 */
 	operator HANDLE() const noexcept { return hSimConnect_; }
 
-	/**
-	 * Returns true if the connection is open.
-	 * @returns True if the connection is open.
-	 */
-	[[nodiscard]]
-	bool isOpen() const noexcept { return hSimConnect_ != nullptr; }
 
 	/**
-	 * Sets the call's result.
+	 * Records an HRESULT in an assignment operator.
+	 * 
 	 * @param hr The HRESULT value.
-	 * @returns The value set.
+	 * @returns a reference to the connection. (by convention)
 	 */
-	HRESULT hr(HRESULT hr) noexcept {
+	Connection& operator=(HRESULT hr) noexcept {
 		hr_ = hr;
-		return hr_;
+		return *this;
 	}
-
-
-	/**
-	 * Returns the last error code, or 0 if there was no error.
-	 * @returns The last error code, or 0 if there was no error.
-	 */
-	HRESULT lastResult() const noexcept { return hr_; }
-
-	/**
-	 * Returns true if the last call to SimConnect was successful.
-	 * @returns True if the last call to SimConnect was successful.
-	 */
-	bool succeeded() const noexcept { return SUCCEEDED(lastResult()); }
-
-	/**
-	 * Returns true if the last call to SimConnect failed.
-	 * @returns True if the last call to SimConnect failed.
-	 */
-	bool failed() const noexcept { return FAILED(lastResult()); }
 
 	/**
 	 * Provides an implicit conversion to a `bool` to check the result of the last call to SimConnect.
@@ -133,13 +162,14 @@ public:
 	long fetchSendId() const {
 		DWORD sendId{ 0 };
 
-		if (SUCCEEDED(lastResult())) {
+		if (SUCCEEDED(hr())) {
 			DWORD sendId{ 0 };
 			SimConnect_GetLastSentPacketID(hSimConnect_, &sendId);
 			return sendId;
 		}
-		return lastResult();
+		return hr();
 	}
+
 
 	// Calls to SimConnect
 
@@ -152,7 +182,7 @@ public:
 	 * @throws SimConnectException if the call fails. This should only happen if the handle is invalid.
 	 */
 	void close() {
-		if (hSimConnect_) {
+		if (isOpen()) {
 			hr(SimConnect_Close(hSimConnect_));
 			hSimConnect_ = nullptr;
 			if (FAILED(hr_)) {
@@ -164,6 +194,7 @@ public:
 
 	/**
 	 * Gets the next incoming message that is waiting.
+	 * 
 	 * @param msgPtr The message.
 	 * @param size The size of the message.
 	 * @returns `S_OK` if successful, `E_FAIL` if none were available.

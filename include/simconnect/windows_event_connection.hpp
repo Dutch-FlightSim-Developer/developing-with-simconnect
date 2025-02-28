@@ -62,7 +62,7 @@ public:
 	 */
     WindowsEventConnection(std::string name, HANDLE eventHandle) : Connection(name), eventHandle_(eventHandle) {}
 
-    virtual ~WindowsEventConnection() {
+    ~WindowsEventConnection() {
         if (eventHandle_ != nullptr) {
             CloseHandle(eventHandle_);
         }

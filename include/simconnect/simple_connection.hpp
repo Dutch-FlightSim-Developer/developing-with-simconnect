@@ -27,11 +27,24 @@ namespace SimConnect {
 class SimpleConnection : public Connection
 {
 public:
+	/**
+	 * Constructor, using the default client name.
+	 */
 	SimpleConnection() : Connection() {}
-	SimpleConnection(std::string name) : Connection(name) {}
-	virtual ~SimpleConnection() {}
 
-	SimpleConnection(const SimpleConnection&) = delete;
+
+	/**
+	 * Constructor.
+	 * @param name The name of the connection.
+	 */
+    SimpleConnection(std::string name) : Connection(name) {}
+
+
+    ~SimpleConnection() {}
+
+    // We don't want copied or moved Connections.
+
+    SimpleConnection(const SimpleConnection&) = delete;
 	SimpleConnection(SimpleConnection&&) = delete;
 	SimpleConnection& operator=(const SimpleConnection&) = delete;
 	SimpleConnection& operator=(SimpleConnection&&) = delete;

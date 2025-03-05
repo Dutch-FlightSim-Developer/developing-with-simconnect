@@ -58,6 +58,7 @@ public:
 	 * 
 	 * @returns The last error code, or 0 if there was no error.
 	 */
+	[[nodiscard]]
 	HRESULT hr() const noexcept { return hr_; }
 
 
@@ -78,6 +79,7 @@ public:
 	 * 
 	 * @returns True if the last call to SimConnect was successful.
 	 */
+	[[nodiscard]]
 	bool succeeded() const noexcept { return SUCCEEDED(hr()); }
 
 
@@ -85,6 +87,7 @@ public:
 	 * Returns true if the last call to SimConnect failed.
 	 * @returns True if the last call to SimConnect failed.
 	 */
+	[[nodiscard]]
 	bool failed() const noexcept { return FAILED(hr()); }
 
 
@@ -98,18 +101,16 @@ protected:
 	 * @param configIndex The index of the configuration section to use, defaults to 0 meaning use the default configuration.
 	 */
 	[[nodiscard]]
-	bool callOpen(HWND hWnd = nullptr, DWORD userMessageId = 0, HANDLE windowsEventHandle = nullptr, DWORD configIndex = 0) {
+	bool callOpen(HWND hWnd, DWORD userMessageId, HANDLE windowsEventHandle, DWORD configIndex = 0) {
 		if (isOpen()) {
 			return true;
 		}
 		hr(SimConnect_Open(&hSimConnect_, clientName_.c_str(), hWnd, userMessageId, windowsEventHandle, configIndex));
-		if (succeeded()) {
-			return true;
-		}
+
 		if (hr_ == E_INVALIDARG) { // Special case for bad config index
 			throw BadConfig(std::format("Unknown configuration section {}.", configIndex));
 		}
-		return false;
+		return succeeded();
 	}
 
 
@@ -134,6 +135,7 @@ public:
 	 * Provides an implicit conversion to the SimConnect handle.
 	 * @returns The SimConnect handle.
 	 */
+	[[nodiscard]]
 	operator HANDLE() const noexcept { return hSimConnect_; }
 
 
@@ -152,6 +154,7 @@ public:
 	 * Provides an implicit conversion to a `bool` to check the result of the last call to SimConnect.
 	 * @returns True if the last call to SimConnect was successful.
 	 */
+	[[nodiscard]]
 	operator bool() const noexcept { return succeeded(); }
 
 
@@ -159,6 +162,7 @@ public:
 	 * If the last call to SimConnect was successful, returns the SendID, otherwise returns the last error code.
 	 * @returns The SendID if the last call to SimConnect was successful, otherwise returns the last error code.
 	 */
+	[[nodiscard]]
 	long fetchSendId() const {
 		DWORD sendId{ 0 };
 
@@ -199,8 +203,11 @@ public:
 	 * @param size The size of the message.
 	 * @returns `S_OK` if successful, `E_FAIL` if none were available.
 	 */
-	int getNextDispatch(SIMCONNECT_RECV*& msgPtr, DWORD& size) {
-		return hr(SimConnect_GetNextDispatch(hSimConnect_, &msgPtr, &size));
+	[[nodiscard]]
+	bool getNextDispatch(SIMCONNECT_RECV*& msgPtr, DWORD& size) {
+		hr(SimConnect_GetNextDispatch(hSimConnect_, &msgPtr, &size));
+
+		return succeeded();
 	}
 
 
@@ -209,6 +216,7 @@ public:
 	 * @param stateName The name of the state to request.
 	 * @returns The request ID used to identify the request.
 	 */
+	[[nodiscard]]
 	int requestSystemState(std::string stateName) {
 		auto reqId{ ++requestID_ };
 
@@ -219,8 +227,11 @@ public:
 
 	// Category "Events and Data"
 
-	HRESULT subscribeToSystemEvent(event event) {
-		return hr(SimConnect_SubscribeToSystemEvent(hSimConnect_, event.id(), event.name().c_str()));
+	[[nodiscard]]
+	bool subscribeToSystemEvent(event event) {
+		hr(SimConnect_SubscribeToSystemEvent(hSimConnect_, event.id(), event.name().c_str()));
+
+		return succeeded();
 	}
 
 };

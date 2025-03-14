@@ -104,12 +104,14 @@
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <ClCompile>
-      <WarningLevel>Level3</WarningLevel>
+      <WarningLevel>Level4</WarningLevel>
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <AdditionalIncludeDirectories>..\..\include;$(MSFS2024_SDK)\SimConnect SDK\include</AdditionalIncludeDirectories>
       <LanguageStandard>stdcpp20</LanguageStandard>
+      <LanguageStandard_C>stdc17</LanguageStandard_C>
+      <TreatWarningAsError>true</TreatWarningAsError>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -136,7 +138,7 @@
     <ClCompile Include="SubscribeToSystemEvent.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\..\CppSimConnect\CppSimConnect.vcxproj">
+    <ProjectReference Include="..\..\src\CppSimConnect.vcxproj">
       <Project>{3a82c8a2-ed97-4b6b-a1ce-d148ec5033a6}</Project>
     </ProjectReference>
   </ItemGroup>

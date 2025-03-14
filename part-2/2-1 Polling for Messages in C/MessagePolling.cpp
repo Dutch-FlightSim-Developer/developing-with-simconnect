@@ -15,15 +15,17 @@
  */
 
 
+#pragma warning(push, 3)
 #include <windows.h>
 #include <tchar.h>
 #include <stdio.h>
 
 #include "SimConnect.h"
+#pragma warning(pop)
 
 
-static HANDLE hSimConnect;
-static bool connected = false;
+static HANDLE hSimConnect{ nullptr };
+static bool connected{ false };
 
 
 /**
@@ -54,21 +56,22 @@ bool connect()
 void handle_messages()
 {
 	while (connected) {
-		SIMCONNECT_RECV* pData;
-		DWORD cbData;
-		HRESULT hr;
+		SIMCONNECT_RECV* pData{ nullptr };
+		DWORD cbData{ 0 };
+		HRESULT hr{ S_OK };
+
 		while (SUCCEEDED(hr = SimConnect_GetNextDispatch(hSimConnect, &pData, &cbData))) {
 			switch (pData->dwID) {
 			case SIMCONNECT_RECV_ID_OPEN:
-			{
-				SIMCONNECT_RECV_OPEN* pOpen = (SIMCONNECT_RECV_OPEN*)pData;
-				printf("Connected to '%s' version %d.%d (build %d.%d)\n", pOpen->szApplicationName, pOpen->dwApplicationVersionMajor, pOpen->dwApplicationVersionMinor, pOpen->dwApplicationBuildMajor, pOpen->dwApplicationBuildMinor);
-				printf("  using SimConnect version %d.%d (build %d.%d)\n", pOpen->dwSimConnectVersionMajor, pOpen->dwSimConnectVersionMinor, pOpen->dwSimConnectBuildMajor, pOpen->dwSimConnectBuildMinor);
+				{
+					SIMCONNECT_RECV_OPEN* pOpen = (SIMCONNECT_RECV_OPEN*)pData;
+					printf("Connected to '%s' version %d.%d (build %d.%d)\n", pOpen->szApplicationName, pOpen->dwApplicationVersionMajor, pOpen->dwApplicationVersionMinor, pOpen->dwApplicationBuildMajor, pOpen->dwApplicationBuildMinor);
+					printf("  using SimConnect version %d.%d (build %d.%d)\n", pOpen->dwSimConnectVersionMajor, pOpen->dwSimConnectVersionMinor, pOpen->dwSimConnectBuildMajor, pOpen->dwSimConnectBuildMinor);
+				}
 				break;
-			}
 
 			case SIMCONNECT_RECV_ID_QUIT:
-				printf("Simulator stopped stopped.\n");
+				printf("Simulator shutting down.\n");
 				connected = false;
 				break;
 
@@ -78,7 +81,7 @@ void handle_messages()
 			}
 		}
 		if (connected) {
-			Sleep(100);
+			Sleep(100);		// Try to convince our protection we're not malware
 		}
 	}
 }
@@ -94,6 +97,10 @@ void close()
 	}
 }
 
+
+/**
+ * Run our test.
+ */
 int main()
 {
 	if (connect()) {

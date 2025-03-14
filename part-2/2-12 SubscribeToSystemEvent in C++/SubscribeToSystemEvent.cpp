@@ -55,7 +55,7 @@ static void handleOpen(const SIMCONNECT_RECV_OPEN& msg) {
 /**
  * Handle the SIMCONNECT_RECV_QUIT message.
  */
-static void handleClose(const SIMCONNECT_RECV_QUIT& msg) {
+static void handleClose([[maybe_unused]] const SIMCONNECT_RECV_QUIT& msg) {
 	std::cout << "Simulator shutting down.\n";
 }
 

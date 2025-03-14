@@ -18,6 +18,7 @@
 #include <simconnect.hpp>
 
 #include <simconnect/events/events.hpp>
+#include <simconnect/requests.hpp>
 
 #include <atomic>
 
@@ -34,7 +35,6 @@ private:
 	HANDLE hSimConnect_{ nullptr };		///< The SimConnect handle, if connected.
 	HRESULT hr_{ S_OK };				///< The last error code.
 
-	std::atomic_ulong requestID_{ 0 };	///< The request ID for the next request.
 
 public:
 	/**
@@ -164,8 +164,6 @@ public:
 	 */
 	[[nodiscard]]
 	long fetchSendId() const {
-		DWORD sendId{ 0 };
-
 		if (SUCCEEDED(hr())) {
 			DWORD sendId{ 0 };
 			SimConnect_GetLastSentPacketID(hSimConnect_, &sendId);
@@ -211,18 +209,32 @@ public:
 	}
 
 
+    /**
+     * Request IDs are managed by the Requests class.
+     * 
+     * @returns The Requests object.
+     */
+    [[nodiscard]]
+    Requests& requests() {
+        static Requests requests;
+
+        return requests;
+    }
+
+
 	/**
 	 * Requests a system state.
 	 * @param stateName The name of the state to request.
 	 * @returns The request ID used to identify the request.
 	 */
-	[[nodiscard]]
-	int requestSystemState(std::string stateName) {
-		auto reqId{ ++requestID_ };
+	int requestSystemState(std::string stateName, unsigned long requestId = 0) {
+		if (requestId == 0) {
+			requestId = requests().nextRequestID();
+		}
 
-		hr(SimConnect_RequestSystemState(hSimConnect_, reqId, stateName.c_str()));
+		hr(SimConnect_RequestSystemState(hSimConnect_, requestId, stateName.c_str()));
 
-		return reqId;
+		return requestId;
 	}
 
 	// Category "Events and Data"

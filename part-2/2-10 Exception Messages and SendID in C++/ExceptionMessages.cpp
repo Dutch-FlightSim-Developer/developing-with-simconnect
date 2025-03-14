@@ -16,6 +16,7 @@
 
 #include <simconnect/windows_event_connection.hpp>
 #include <simconnect/windows_event_handler.hpp>
+#include <simconnect/request_handler.hpp>
 
 #include <format>
 #include <iostream>
@@ -201,32 +202,14 @@ static void handleOpen(const SIMCONNECT_RECV_OPEN& msg) {
 		<< "  build " << version(msg.dwSimConnectBuildMajor, msg.dwSimConnectBuildMinor) << std::endl;
 }
 
-static void handleClose(const SIMCONNECT_RECV_QUIT& msg) {
+static void handleClose([[maybe_unused]] const SIMCONNECT_RECV_QUIT& msg) {
 	std::cout << "Simulator shutting down.\n";
 }
 
-static HRESULT requestSystemState(SimConnect::Connection& connection, const char* stateName) {
-	static DWORD requestID{ 0 };
-
-	auto hr = SimConnect_RequestSystemState(connection, ++requestID, stateName);
-	if (SUCCEEDED(hr)) {
-		std::cout << std::format("Requested system state '{}' using request ID {}\n", stateName, requestID);
-	}
-	else {
-		std::cerr << std::format("Failed to request system state '{}': {}\n", stateName, hr);
-	}
-	return hr;
-}
-
-static void handleSystemState(const SIMCONNECT_RECV_SYSTEM_STATE& msg) {
-	std::cout << std::format("Received system state for request {}: {}, {}, '{}'\n", (int)msg.dwRequestID, msg.dwInteger, msg.fFloat, msg.szString);
-}
 
 auto main() -> int {
 	SimConnect::WindowsEventConnection connection;
 	SimConnect::WindowsEventHandler handler(connection);
-	handler.autoClosing(true);
-
 	handler.autoClosing(true);
 
 	handler.setDefaultHandler([](const SIMCONNECT_RECV* msg, DWORD len) {
@@ -235,27 +218,44 @@ auto main() -> int {
 	handler.registerHandler<SIMCONNECT_RECV_EXCEPTION>(SIMCONNECT_RECV_ID_EXCEPTION, handleException);
 	handler.registerHandler<SIMCONNECT_RECV_OPEN>(SIMCONNECT_RECV_ID_OPEN, handleOpen);
 	handler.registerHandler<SIMCONNECT_RECV_QUIT>(SIMCONNECT_RECV_ID_QUIT, handleClose);
-	handler.registerHandler<SIMCONNECT_RECV_SYSTEM_STATE>(SIMCONNECT_RECV_ID_SYSTEM_STATE, handleSystemState);
 
 	std::cout << "Opening connection\n";
 	if (connection.open()) {
-		std::cout << "\n\nRequesting system states\n";
-		requestSystemState(connection, "AircraftLoaded");
-		requestSystemState(connection, "DialogMode");
-		requestSystemState(connection, "FlightLoaded");
-		requestSystemState(connection, "FlightPlan");
-		requestSystemState(connection, "Sim");
-		requestSystemState(connection, "SimLoaded"); // Will cause an exception message
+		SimConnect::RequestHandler requestHandler;
+		requestHandler.enable(handler, SIMCONNECT_RECV_ID_SYSTEM_STATE);
 
-		std::cout << "\n\nHandling messages\n";
-		handler.handle(10s);
+		requestHandler.requestSystemState(connection, "AircraftLoaded",
+			[](std::string aircraft) {
+				std::cout << std::format("Currently loaded aircraft '{}'.\n", aircraft);
+			});
 
-		std::cout << "\n\nRequesting invalid system state again\n";
-		connection.hr(requestSystemState(connection, "SimLoaded")); // Will cause an exception message
-		std::cout << std::format("Last send ID: {}\n", connection.fetchSendId());
+		requestHandler.requestSystemState(connection, "DialogMode",
+			SimConnect::wrap<bool>([](bool inDialog) {
+				std::cout << (inDialog ? "The user is now in a dialog.\n" : "The user is now NOT in a dialog.\n");
+				}));
 
-		std::cout << "\n\nHandling messages\n";
-		handler.handle(10s);
+		requestHandler.requestSystemState(connection, "FlightLoaded",
+			[](std::string flight) {
+				std::cout << std::format("Currently loaded flight '{}'.\n", flight);
+			});
+
+		requestHandler.requestSystemState(connection, "FlightPlan",
+			[](std::string flightPlan) {
+				std::cout << std::format("Currently loaded flightplan '{}'.\n", flightPlan);
+			});
+
+		requestHandler.requestSystemState(connection, "Sim",
+			SimConnect::wrap<bool>([](bool flying) {
+				std::cout << (flying ? "The user is now in control of the aircraft.\n" : "The user is now navigating the UI.\n");
+				}));
+
+		requestHandler.requestSystemState(connection, "SimLoaded",
+			[](std::string simulator) {
+				std::cout << std::format("Currently loaded simulator '{}'.\n", simulator);
+			}); // Will cause an exception message
+
+		std::cout << "Handling messages\n";
+		handler.handle(30s);
 	}
 	else {
 		std::cerr << "Failed to open connection\n";

@@ -73,21 +73,58 @@ protected:
      */
     Handler(C& connection) : connection_(connection) {};
 
+public:
+    ~Handler() = default;
 
+    // No copies or moves
+    Handler(const Handler&) = delete;
+    Handler(Handler&&) = delete;
+    Handler& operator=(const Handler&) = delete;
+    Handler& operator=(Handler&&) = delete;
+
+
+    /**
+     * @returns True if the connection will be automatically closed when the handler receives a QUIT message.
+     */
+    bool isAutoClosing() const noexcept { return autoClosing_; }
+
+
+    /**
+     * Returns the default message handler.
+     * 
+     * @returns The default message handler.
+     */
+    const HandlerProc& defaultHandler() const noexcept { return defaultHandler_; }
+
+
+    /**
+     * Returns the message handler for the specified message type.
+     * 
+     * @param id The message type id.
+     * @returns The message handler for the specified message type.
+     */
+    const HandlerProc& getHandler(SIMCONNECT_RECV_ID id) const noexcept { return handlers_[id]; }
+
+protected:
     /**
      * Dispatches a SimConnect message to the correct handler.
 	 * @param msg The message to dispatch.
 	 * @param size The size of the message.
      */
     void dispatch(const SIMCONNECT_RECV* msg, DWORD size) {
-        if (handlers_[msg->dwID]) {
-            handlers_[msg->dwID](msg, size);
+        auto& handler = handlers_[msg->dwID];
+        if (handler) {
+            handler(msg, size);
         }
-        else if (defaultHandler_) {
-            defaultHandler_(msg, size);
+        else {
+            auto& defHandler = defaultHandler();
+            if (defHandler) {
+                defHandler(msg, size);
+            }
         }
         // else ignore. (no specific handler, nor a default one)
-        if (autoClosing_ && msg->dwID == SIMCONNECT_RECV_ID::SIMCONNECT_RECV_ID_QUIT) {
+
+        if (isAutoClosing() && msg->dwID == SIMCONNECT_RECV_ID::SIMCONNECT_RECV_ID_QUIT) {
 			connection_.close();
 		}
     }
@@ -100,17 +137,12 @@ protected:
         SIMCONNECT_RECV* msg = nullptr;
         DWORD size = 0;
 
-        while (SUCCEEDED(connection_.getNextDispatch(msg, size))) {
+        while (connection_.getNextDispatch(msg, size)) {
             dispatch(msg, size);
         }
     }
 
 public:
-
-    /**
-     * @returns True if the connection will be automatically closed when the handler receives a QUIT message.
-     */
-    bool isAutoClosing() const noexcept { return autoClosing_; }
 
 
     /**
@@ -118,7 +150,6 @@ public:
      * @param autoClosing True to automatically close the connection when the handler receives a QUIT message.
      */
     void autoClosing(bool autoClosing) noexcept { autoClosing_ = autoClosing; }
-
 
     /**
      * Sets the default message handler.
@@ -147,7 +178,7 @@ public:
      */
     template <DerivedFromSimConnectRecv M>
     void registerHandler(SIMCONNECT_RECV_ID id, std::function<void(const M&)> handler) {
-        registerHandlerProc(id, [handler](const SIMCONNECT_RECV* msg, DWORD size) { handler(*reinterpret_cast<const M*>(msg)); });
+        registerHandlerProc(id, [handler](const SIMCONNECT_RECV* msg, [[maybe_unused]] DWORD size) { handler(*reinterpret_cast<const M*>(msg)); });
     }
 
 

@@ -8,7 +8,7 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "SubscribeToSystemEvent", "S
 		{3A82C8A2-ED97-4B6B-A1CE-D148EC5033A6} = {3A82C8A2-ED97-4B6B-A1CE-D148EC5033A6}
 	EndProjectSection
 EndProject
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "CppSimConnect", "..\..\CppSimConnect\CppSimConnect.vcxproj", "{3A82C8A2-ED97-4B6B-A1CE-D148EC5033A6}"
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "CppSimConnect", "..\..\src\CppSimConnect.vcxproj", "{3A82C8A2-ED97-4B6B-A1CE-D148EC5033A6}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

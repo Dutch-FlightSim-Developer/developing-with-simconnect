@@ -43,9 +43,6 @@ public:
         const auto deadline = std::chrono::steady_clock::now() + duration;
         do {
             if (connection_.checkForMessage(std::chrono::duration_cast<std::chrono::milliseconds>(deadline - std::chrono::steady_clock::now()))) {
-                SIMCONNECT_RECV* msg = nullptr;
-                DWORD size = 0;
-
                 dispatchWaitingMessages();
             }
         } while (deadline > std::chrono::steady_clock::now());

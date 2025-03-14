@@ -23,6 +23,8 @@
 #include <exception>
 #include <format>
 #include <string>
+#include <functional>
+
 
 namespace SimConnect
 {
@@ -68,4 +70,18 @@ public:
 
 	int id() const noexcept { return id_; }
 };
+
+
+/**
+ * This wraps a lambda to solve ambiguity issues, when you have both void(bool) and void(int) or some such overloads.
+ * 
+ * @tparam T The parameter type. This should be the only one you must explicitly name.
+ * @tparam F The actual Lambda or function pointer type.
+ * @return An explicitly cast std::function<void(T)> value.
+ */
+template<typename T, typename F>
+std::function<void(T)> wrap(F&& f) {
+	return std::function<void(T)>(std::forward<F>(f));
+}
+
 }

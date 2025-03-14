@@ -24,6 +24,13 @@
 using namespace std::chrono_literals;
 
 
+/**
+ * Return a formatted string of the version. if the major number is 0, it returns "Unknown". The lower number is ignored if 0.
+ * 
+ * @param major The major version number.
+ * @param minor The minor version number.
+ * @returns a string with the formatted version number.
+ */
 inline static std::string version(int major, int minor) {
 	if (major == 0) {
 		return "Unknown";
@@ -32,6 +39,11 @@ inline static std::string version(int major, int minor) {
 }
 
 
+/**
+ * Print the information of the "Open" message, which tells us some details about the simulator.
+ * 
+ * @param msg The message received.
+ */
 static void handleOpen(const SIMCONNECT_RECV_OPEN& msg) {
 	std::cout << "Connected to " << msg.szApplicationName
 		<< " version " << version(msg.dwApplicationVersionMajor, msg.dwApplicationVersionMinor) << std::endl
@@ -41,7 +53,12 @@ static void handleOpen(const SIMCONNECT_RECV_OPEN& msg) {
 }
 
 
-static void handleClose(const SIMCONNECT_RECV_QUIT& msg) {
+/**
+ * Tell the use the simulator is shutting down.
+ * 
+ * @param msg The message received.
+ */
+static void handleClose([[maybe_unused]] const SIMCONNECT_RECV_QUIT& msg) {
 	std::cout << "Simulator shutting down.\n";
 }
 
@@ -49,11 +66,14 @@ static void handleClose(const SIMCONNECT_RECV_QUIT& msg) {
 int main() {
 	SimConnect::SimpleConnection connection;
 	SimConnect::PollingHandler handler(connection);
-	handler.autoClosing(true);
+	handler.autoClosing(true);	// Automatically close the connection if we receive a "Close" message.
 
+	// If we don't know the message, print an error.
 	handler.setDefaultHandler([](const SIMCONNECT_RECV* msg, DWORD len) {
 			std::cerr << std::format("Ignoring message of type {} (length {} bytes)\n", msg->dwID, len);
 		});
+
+	// Register our handlers for "Open" en "Close"
 	handler.registerHandler<SIMCONNECT_RECV_OPEN>(SIMCONNECT_RECV_ID_OPEN, handleOpen);
 	handler.registerHandler<SIMCONNECT_RECV_QUIT>(SIMCONNECT_RECV_ID_QUIT, handleClose);
 

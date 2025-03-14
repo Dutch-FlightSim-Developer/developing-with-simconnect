@@ -51,7 +51,7 @@ static void handleOpen(const SIMCONNECT_RECV_OPEN& msg) {
 /**
  * Handles the SIMCONNECT_RECV_QUIT message.
  */
-static void handleClose(const SIMCONNECT_RECV_QUIT& msg) {
+static void handleClose([[maybe_unused]] const SIMCONNECT_RECV_QUIT& msg) {
 	std::cout << "Simulator shutting down.\n";
 }
 
@@ -61,8 +61,6 @@ int main() {
 	SimConnect::WindowsEventConnection connection;
 	SimConnect::WindowsEventHandler handler(connection);
 	handler.autoClosing(true);
-
-	bool connected{ false };
 
 	handler.setDefaultHandler([](const SIMCONNECT_RECV* msg, DWORD len) {
 			std::cerr << std::format("Ignoring message of type {} (length {} bytes)\n", msg->dwID, len);
@@ -75,6 +73,9 @@ int main() {
 			std::cout << "Handling messages\n";
 			handler.handle(10s);
 		}
+	}
+	else {
+		std::cerr << "Failed to connect to the simulator.\n";
 	}
 	return 0;
 }

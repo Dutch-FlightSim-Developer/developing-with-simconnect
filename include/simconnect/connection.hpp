@@ -18,7 +18,7 @@
 #include <simconnect.hpp>
 
 #include <simconnect/events/events.hpp>
-#include <simconnect/requests.hpp>
+#include <simconnect/requests/requests.hpp>
 
 #include <atomic>
 
@@ -227,25 +227,43 @@ public:
 	 * @param stateName The name of the state to request.
 	 * @returns The request ID used to identify the request.
 	 */
-	int requestSystemState(std::string stateName, unsigned long requestId = 0) {
-		if (requestId == 0) {
-			requestId = requests().nextRequestID();
-		}
+    [[nodiscard]]
+	int requestSystemState(std::string stateName) {
+        auto requestId = requests().nextRequestID();
 
 		hr(SimConnect_RequestSystemState(hSimConnect_, requestId, stateName.c_str()));
 
 		return requestId;
 	}
 
-	// Category "Events and Data"
 
-	[[nodiscard]]
-	bool subscribeToSystemEvent(event event) {
-		hr(SimConnect_SubscribeToSystemEvent(hSimConnect_, event.id(), event.name().c_str()));
-
-		return succeeded();
+	/**
+	 * Requests a system state.
+	 * @param stateName The name of the state to request.
+	 * @returns The request ID used to identify the request.
+	 */
+	void requestSystemState(std::string stateName, unsigned long requestId) {
+		hr(SimConnect_RequestSystemState(hSimConnect_, requestId, stateName.c_str()));
 	}
 
+	// Category "Events and Data"
+
+    /**
+     * Subscribe to an event.
+     * @param event The event to subscribe to.
+     */
+	void subscribeToSystemEvent(event event) {
+		hr(SimConnect_SubscribeToSystemEvent(hSimConnect_, event.id(), event.name().c_str()));
+	}
+
+    
+    /**
+    * Unsubscribe from an event.
+    * @param event The event to unsubscribe from.
+    */
+    void unsubscribeFromSystemEvent(event event) {
+        hr(SimConnect_UnsubscribeFromSystemEvent(hSimConnect_, event.id()));
+    }
 };
 
 }

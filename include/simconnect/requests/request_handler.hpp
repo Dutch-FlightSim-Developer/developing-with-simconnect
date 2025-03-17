@@ -37,6 +37,7 @@ class RequestHandler  {
     std::array<std::function<unsigned long(const SIMCONNECT_RECV*)>, SIMCONNECT_RECV_ID_EVENT_RACE_LAP + 1> requestFinders_;
 #endif
     std::map<unsigned long, std::tuple<HandlerProc, bool>> handlers_;
+    std::function<void()> cleanup_;
 
 
     /**
@@ -88,31 +89,17 @@ class RequestHandler  {
 
 public:
     RequestHandler() = default;
-    ~RequestHandler() = default;
+    ~RequestHandler() {
+        if (cleanup_) {
+            cleanup_();
+        }
+    }
 
     // No copies or moves
     RequestHandler(const RequestHandler&) = delete;
     RequestHandler(RequestHandler&&) = delete;
     RequestHandler& operator=(const RequestHandler&) = delete;
     RequestHandler& operator=(RequestHandler&&) = delete;
-
-
-    /**
-     * Provide some debug information on the RequestHandler
-     */
-    std::string debug() const {
-        std::string result = "\"RequestHandler\": { \"handlers\": {";
-        bool doComma{false};
-        for (const auto& [requestId, handler] : handlers_) {
-            if (doComma) {
-                result += ", ";
-            }
-            doComma = true;
-            result += std::format(" {}: {{ ..., {} }}", requestId, std::get<1>(handler) ? "autoRemove" : "keep");
-        }
-        result += "]}";
-        return result;
-    }
 
 
     /**
@@ -126,18 +113,23 @@ public:
      */
     template <class ConnectionType, class HandlerType>
     void enable(Handler<ConnectionType, HandlerType>& handler, SIMCONNECT_RECV_ID id) {
-        auto handlerProc = handler.getHandler(id);
-        auto defaultHandler = handler.defaultHandler();
+        if (cleanup_) { // Were we already linked somehow, unlink
+            cleanup_();
+            handlers_.clear();
+        }
+        auto originalHandlerProc = handler.getHandler(id);
+        auto defaultHandlerProc = handler.defaultHandler();
 
-        handler.registerHandlerProc(id, [this, id, handlerProc, defaultHandler](const SIMCONNECT_RECV* msg, DWORD size) {
+        handler.registerHandlerProc(id, [this, id, originalHandlerProc, defaultHandlerProc](const SIMCONNECT_RECV* msg, DWORD size) {
             if (!dispatch(msg, size)) {
-                if (handlerProc) {
-                    handlerProc(msg, size);
-                } else if (defaultHandler) {
-                    defaultHandler(msg, size);
+                if (originalHandlerProc) {
+                    originalHandlerProc(msg, size);
+                } else if (defaultHandlerProc) {
+                    defaultHandlerProc(msg, size);
                 }
             }
         });
+        cleanup_ = [&handler, id, originalHandlerProc]() { handler.registerHandlerProc(id, originalHandlerProc); };
     }
 
     /**
@@ -153,40 +145,12 @@ public:
 
 
     /**
-     * Requests an integer-valued system state.
+     * Remove a registration for the given request ID.
      * 
-     * @param connection The connection to request the state from.
-     * @param name The name of the state to request.
-     * @param handler The handler to execute once the state is received.
+     * @param requestId The request ID.
      */
-    void requestSystemState(Connection& connection, std::string name, std::function<void(int)> handler) {
-        addSystemStateRequestFinder();
-
-        auto requestId = connection.requests().nextRequestID();
-        registerHandler(requestId, [handler](const SIMCONNECT_RECV* msg, [[maybe_unused]] DWORD size) {
-            auto& state = *reinterpret_cast<const SIMCONNECT_RECV_SYSTEM_STATE*>(msg);
-            handler(state.dwInteger);
-        }, true);
-        connection.requestSystemState(name, requestId);
-    }
-
-
-    /**
-     * Requests a float-valued system state.
-     * 
-     * @param connection The connection to request the state from.
-     * @param name The name of the state to request.
-     * @param handler The handler to execute once the state is received.
-     */
-    void requestSystemState(Connection& connection, std::string name, std::function<void(float)> handler) {
-        addSystemStateRequestFinder();
-
-        auto requestId = connection.requests().nextRequestID();
-        registerHandler(requestId, [handler](const SIMCONNECT_RECV* msg, [[maybe_unused]] DWORD size) {
-            auto& state = *reinterpret_cast<const SIMCONNECT_RECV_SYSTEM_STATE*>(msg);
-            handler(state.fFloat);
-        }, true);
-        connection.requestSystemState(name, requestId);
+    void removeHandler(unsigned long requestId) {
+        handlers_.erase(requestId);
     }
 
 
@@ -201,6 +165,7 @@ public:
         addSystemStateRequestFinder();
 
         auto requestId = connection.requests().nextRequestID();
+
         registerHandler(requestId, [handler](const SIMCONNECT_RECV* msg, [[maybe_unused]] DWORD size) {
             auto& state = *reinterpret_cast<const SIMCONNECT_RECV_SYSTEM_STATE*>(msg);
             handler(state.dwInteger != 0);
@@ -220,6 +185,7 @@ public:
         addSystemStateRequestFinder();
 
         auto requestId = connection.requests().nextRequestID();
+
         registerHandler(requestId, [handler](const SIMCONNECT_RECV* msg, [[maybe_unused]] DWORD size) {
             auto& state = *reinterpret_cast<const SIMCONNECT_RECV_SYSTEM_STATE*>(msg);
             handler(std::string(state.szString));

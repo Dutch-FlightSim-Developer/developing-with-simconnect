@@ -18,6 +18,7 @@
 #include <simconnect/windows_event_connection.hpp>
 #include <simconnect/windows_event_handler.hpp>
 #include <simconnect/events/system_events.hpp>
+#include <simconnect/events/event_handler.hpp>
 
 #include <iostream>
 
@@ -76,22 +77,6 @@ static void handleEvent(const SIMCONNECT_RECV_EVENT& msg) {
 
 
 /**
- * Subscribe to a system event.
- * @param connection connection to the simulator.
- * @param event event to subscribe to.
- */
-static void subscribeToSystemEvent(SimConnect::Connection& connection, SimConnect::event event) {
-	if (SUCCEEDED(connection.subscribeToSystemEvent(event))) {
-		std::cout << std::format("Subscribed to event '{}' ({}).\n", event.name(), event.id());
-	}
-	else {
-		std::cerr << std::format("Failed to subscribe to event '{}' ({}).\n", event.name(), event.id());
-	}
-}
-
-
-
-/**
  * Demonstrate how to subscribe to system events.
  */
 auto main() -> int {
@@ -107,12 +92,21 @@ auto main() -> int {
 	handler.registerHandler<SIMCONNECT_RECV_EVENT>(SIMCONNECT_RECV_ID_EVENT, handleEvent);
 
 	if (connection.open()) {
-		std::cout << "Connected to simulator.\n";
+		SimConnect::EventHandler eventHandler;
+		eventHandler.enable(handler);
 
-		subscribeToSystemEvent(connection, SimConnect::Events::sim());
-		subscribeToSystemEvent(connection, SimConnect::Events::simStart());
-		subscribeToSystemEvent(connection, SimConnect::Events::simStop());
-		subscribeToSystemEvent(connection, SimConnect::Events::pause());
+		eventHandler.subscribeToSystemEvent(connection, SimConnect::Events::sim(), [](const SIMCONNECT_RECV_EVENT& msg) {
+			std::cout << std::format("Received a 'Sim' event with value {}.\n", msg.dwData);
+		});
+		eventHandler.subscribeToSystemEvent(connection, SimConnect::Events::simStart(), []([[maybe_unused]] const SIMCONNECT_RECV_EVENT& msg) {
+			std::cout << std::format("Received a 'SimStart' event.\n");
+			});
+		eventHandler.subscribeToSystemEvent(connection, SimConnect::Events::simStop(), []([[maybe_unused]] const SIMCONNECT_RECV_EVENT& msg) {
+			std::cout << std::format("Received a 'SimStop' event.\n");
+			});
+		eventHandler.subscribeToSystemEvent(connection, SimConnect::Events::pause(), [](const SIMCONNECT_RECV_EVENT& msg) {
+			std::cout << std::format("Received a 'Sim' event with value {}.\n", msg.dwData);
+			});
 
 		std::cout << "\n\nHandling messages for 10 minutes.\n";
 		handler.handle(10min);

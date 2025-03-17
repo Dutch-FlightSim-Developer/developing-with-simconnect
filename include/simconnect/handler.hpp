@@ -137,12 +137,19 @@ protected:
         SIMCONNECT_RECV* msg = nullptr;
         DWORD size = 0;
 
-        while (connection_.getNextDispatch(msg, size)) {
+        while (connection_.isOpen() && connection_.getNextDispatch(msg, size)) {
             dispatch(msg, size);
         }
     }
 
 public:
+
+    /**
+     * Returns the connection associated with this handler.
+     * 
+     * @returns The connection associated with this handler.
+     */
+    C& connection() noexcept { return connection_; }
 
 
     /**

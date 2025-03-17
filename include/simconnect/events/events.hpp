@@ -26,23 +26,52 @@
 namespace SimConnect {
 
 
+/**
+ * An event is a named event that can be sent to the simulator.
+ */
 class event {
 private:
     int id_;
 
-    static std::atomic_int nextId_;
+    static std::atomic_int nextId_;                     ///< The next ID to assign to an event.
 
-    static std::map<std::string, int> eventsByName_;
-    static std::map<int, std::string> eventsById_;
+    static std::map<std::string, int> eventsByName_;    ///< A static map of the events by name.
+    static std::map<int, std::string> eventsById_;      ///< A static map of the events by ID.
 
+
+    /**
+     * Construct an event with the given ID. This is the only constructor that is allowed, and it is private to ensure that
+     * the only way to get an event is through the static get() methods.
+     */
     event(int id) : id_(id) {}
 
 public:
+    /**
+     * The default constructor is deleted because an event MUST always have an Id.
+     */
+    event() = delete;
+
+
+    /**
+     * Destructor can be default.
+     */
+    ~event() = default;
+
+
+    // Copying is allowed, moving is not because an event MUST always have an Id.
+
     event(const event&) = default;
     event(event&&) = delete;
     event& operator=(const event&) = default;
     event& operator=(event&&) = delete;
 
+
+    /**
+     * Get an event by name. If the event does not exist yet, it will be created.
+     * 
+     * @param name The name of the event.
+     * @returns The event.
+     */
     static event get(std::string name) {
         auto it = eventsByName_.find(name);
         if (it != eventsByName_.end()) {
@@ -55,15 +84,47 @@ public:
     }
 
 
+    /**
+     * Get an event by ID. If the event does not exist, an exception will be thrown.
+     * 
+     * @param id The ID of the event.
+     * @returns The event.
+     * @throws UnknownEvent if the event does not exist.
+     */
     static event get(int id) {
         auto it = eventsById_.find(id);
         if (it != eventsById_.end()) {
-            return event(id);
+            return event(id);       // We don't mind copies.
         }
         throw UnknownEvent(id);
     }
 
+
+    /**
+     * Get the ID of the event.
+     * 
+     * @returns The ID of the event.
+     */
+    [[nodiscard]]
     int id() const noexcept { return id_; }
+
+
+    /**
+     * Convert an event to an integer. This is useful for passing the event to SimConnect functions.
+     * 
+     * @returns The ID of the event as an integer.
+     */
+    [[nodiscard]]
+    operator int() const noexcept { return id_; }
+
+
+    /**
+     * Get the name of the event.
+     * 
+     * @returns The name of the event.
+     * @throws UnknownEvent if the event does not exist.
+     */
+    [[nodiscard]]
     const std::string& name() const {
         auto it = eventsById_.find(id_);
         if (it != eventsById_.end()) {
@@ -72,7 +133,22 @@ public:
         throw UnknownEvent(id_);
     }
 
+
+    /**
+     * Compare two events for equality.
+     * 
+     * @param other The other event.
+     * @returns True if the events are equal.
+     */
+    [[nodiscard]]
     bool operator==(const event& other) const noexcept { return id_ == other.id_; }
+    
+    /**
+     * Compare two events for ordering.
+     * 
+     * @param other The other event.
+     * @returns The comparison result.
+     */
     auto operator<=>(const event& other) const noexcept { return id_ <=> other.id_; }
 };
 

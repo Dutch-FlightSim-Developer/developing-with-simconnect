@@ -63,7 +63,7 @@ static void handleClose([[maybe_unused]] const SIMCONNECT_RECV_QUIT& msg) {
 }
 
 
-int main() {
+auto main() -> int {
 	SimConnect::SimpleConnection connection;
 	SimConnect::PollingHandler handler(connection);
 	handler.autoClosing(true);	// Automatically close the connection if we receive a "Close" message.

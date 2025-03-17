@@ -42,6 +42,9 @@ public:
     void dispatch(std::chrono::milliseconds duration = std::chrono::milliseconds(0)) {
         const auto deadline = std::chrono::steady_clock::now() + duration;
         do {
+            if (isAutoClosing() && !connection_.isOpen()) {
+                break;
+            }
             if (connection_.checkForMessage(std::chrono::duration_cast<std::chrono::milliseconds>(deadline - std::chrono::steady_clock::now()))) {
                 dispatchWaitingMessages();
             }

@@ -16,7 +16,7 @@
 
 #include <simconnect/windows_event_connection.hpp>
 #include <simconnect/windows_event_handler.hpp>
-#include <simconnect/request_handler.hpp>
+#include <simconnect/requests/request_handler.hpp>
 
 #include <format>
 #include <iostream>

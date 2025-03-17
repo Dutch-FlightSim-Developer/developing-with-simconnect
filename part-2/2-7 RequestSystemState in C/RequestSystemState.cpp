@@ -14,34 +14,33 @@
  * limitations under the License.
  */
 
+#pragma warning(push, 3)
 #include <windows.h>
 #include <SimConnect.h>
+#pragma warning(pop)
 
 #include <stdio.h>
 #include <time.h>
 
 
-static HANDLE hSimConnect;		// SimConnect handle
+enum REQUEST_IDS : SIMCONNECT_DATA_REQUEST_ID{
+	REQ_AIRCRAFT_LOADED,
+	REQ_FLIGHT_LOADED,
+	REQ_FLIGHTPLAN_LOADED,
+	REQ_DIALOG_MODE,
+	REQ_SIM_STATE,
+	REQ_SIM_LOADED
+};
 
 
-/**
- * Get the next request ID.
- * @return The next request ID
- */
-static int nextReqId() {
-	static int reqId{ 0 };			// The last used request ID
-
-	return ++reqId;
-}
+static HANDLE hSimConnect{ nullptr };		// SimConnect handle
 
 
 /**
  * Request the system state.
  * @param name The name of the system state
  */
-static void requestSystemState(const char* name) {
-	int reqId{ nextReqId() };
-
+static void requestSystemState(DWORD reqId, const char* name) {
 	if (SUCCEEDED(SimConnect_RequestSystemState(hSimConnect, reqId, name))) {
 		printf("SystemState '%s' requested with RequestID %d.\n", name, reqId);
 	}
@@ -51,7 +50,7 @@ static void requestSystemState(const char* name) {
 }
 
 
-static bool connected = true;		// If `true`, we are currently connected to the simulator.
+static bool connected{ true };		// If `true`, we are currently connected to the simulator.
 
 
 /**
@@ -62,9 +61,11 @@ static void processMessages() {
 		SIMCONNECT_RECV* data{ nullptr };
 		DWORD len{ 0 };
 		HRESULT hr = SimConnect_GetNextDispatch(hSimConnect, &data, &len);
+
 		if (FAILED(hr)) {
 			break;
 		}
+
 		switch (data->dwID) {
 
 		case SIMCONNECT_RECV_ID_OPEN:				// We have an active connection to the simulator.
@@ -88,8 +89,39 @@ static void processMessages() {
 		case SIMCONNECT_RECV_ID_SYSTEM_STATE:		// A system state has been received
 		{
 			SIMCONNECT_RECV_SYSTEM_STATE* msg = (SIMCONNECT_RECV_SYSTEM_STATE*)data;
-			printf("SystemState for request %d received. (%d, %f, '%s')\n",
-				msg->dwRequestID, (int)msg->dwInteger, msg->fFloat, msg->szString);
+
+            switch (msg->dwRequestID) {
+
+            case REQ_AIRCRAFT_LOADED:
+                printf("AircraftLoaded: '%s'\n", msg->szString);
+                break;
+
+            case REQ_FLIGHT_LOADED:
+                printf("FlightLoaded: '%s'\n", msg->szString);
+                break;
+
+            case REQ_FLIGHTPLAN_LOADED:
+                printf("FlightPlan: '%s'\n", msg->szString);
+                break;
+
+            case REQ_DIALOG_MODE:
+                printf("DialogMode: %d\n", msg->dwInteger);
+                break;
+
+            case REQ_SIM_STATE:
+                printf("Sim State: %d\n", msg->dwInteger);
+                break;
+
+            case REQ_SIM_LOADED:
+                printf("Sim Loaded: '%s'\n", msg->szString);
+                break;
+
+            default:
+                printf("SystemState for request %d received. (%d, %f, '%s')\n",
+                    msg->dwRequestID, (int)msg->dwInteger, msg->fFloat, msg->szString);
+                break;
+            }
+
 		}
 			break;
 
@@ -107,24 +139,26 @@ static void processMessages() {
  * @param argv The command line arguments
  * @return The exit code
  */
-int main(int argc, const char* argv[])
+int main([[maybe_unused]] int argc, [[maybe_unused]] const char* argv[])
 {
 	if (SUCCEEDED(SimConnect_Open(&hSimConnect, "RequestSystemState", nullptr, 0, nullptr, 0))) {
 		printf("Connected to the Simulator.\n");
 
-		requestSystemState("AircraftLoaded");
-		requestSystemState("DialogMode");
-		requestSystemState("FlightLoaded");
-		requestSystemState("FlightPlan");
-		requestSystemState("Sim");
-		requestSystemState("SimLoaded"); // Will cause an exception
+		requestSystemState(REQ_AIRCRAFT_LOADED, "AircraftLoaded");
+		requestSystemState(REQ_DIALOG_MODE, "DialogMode");
+		requestSystemState(REQ_FLIGHT_LOADED, "FlightLoaded");
+		requestSystemState(REQ_FLIGHTPLAN_LOADED, "FlightPlan");
+		requestSystemState(REQ_SIM_STATE, "Sim");
+		requestSystemState(REQ_SIM_LOADED, "SimLoaded"); // Will cause an exception
 
 		printf("Handling messages for 10 seconds.\n");
-		const time_t start = time(nullptr);
+		const time_t start{ time(nullptr) };
+
 		while (connected && (difftime(time(nullptr), start) < 10)) {
 			processMessages();
-			if (time(nullptr) - start > 5) {
-				connected = false;
+
+			if (connected) {
+				Sleep(100);		// Try to convince our protection we're not malware
 			}
 		}
 

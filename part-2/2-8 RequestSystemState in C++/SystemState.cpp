@@ -16,7 +16,7 @@
 
 #include <simconnect/windows_event_connection.hpp>
 #include <simconnect/windows_event_handler.hpp>
-#include <simconnect/request_handler.hpp>
+#include <simconnect/requests/request_handler.hpp>
 
 #include <format>
 #include <iostream>
@@ -66,55 +66,64 @@ static void handleClose([[ maybe_unused]] const SIMCONNECT_RECV_QUIT& msg) {
 
 /** Main entry point. */
 auto main () -> int {
-	SimConnect::WindowsEventConnection connection;				// Use a Windows Event.
-	SimConnect::WindowsEventHandler handler(connection);		// Use a Windows Event.
-	handler.autoClosing(true);
+	try {
+		SimConnect::WindowsEventConnection connection;				// Use a Windows Event.
+		SimConnect::WindowsEventHandler handler(connection);		// Use a Windows Event.
+		handler.autoClosing(true);
 
-	handler.setDefaultHandler([](const SIMCONNECT_RECV* msg, DWORD len) {
+		handler.setDefaultHandler([](const SIMCONNECT_RECV* msg, DWORD len) {
 			std::cerr << std::format("Ignoring message of type {} (length {} bytes)\n", msg->dwID, len);
-		});
-	handler.registerHandler<SIMCONNECT_RECV_OPEN>(SIMCONNECT_RECV_ID_OPEN, handleOpen);
-	handler.registerHandler<SIMCONNECT_RECV_QUIT>(SIMCONNECT_RECV_ID_QUIT, handleClose);
-
-	if (connection.open()) {
-		SimConnect::RequestHandler requestHandler;
-		requestHandler.enable(handler, SIMCONNECT_RECV_ID_SYSTEM_STATE);
-
-		requestHandler.requestSystemState(connection, "AircraftLoaded",
-			[](std::string aircraft) {
-				std::cout << std::format("Currently loaded aircraft '{}'.\n", aircraft);
 			});
 
-		requestHandler.requestSystemState(connection, "DialogMode",
-			SimConnect::wrap<bool>([](bool inDialog) {
-				std::cout << (inDialog ? "The user is now in a dialog.\n" : "The user is now NOT in a dialog.\n");
-			}));
+		handler.registerHandler<SIMCONNECT_RECV_OPEN>(SIMCONNECT_RECV_ID_OPEN, handleOpen);
+		handler.registerHandler<SIMCONNECT_RECV_QUIT>(SIMCONNECT_RECV_ID_QUIT, handleClose);
 
-		requestHandler.requestSystemState(connection, "FlightLoaded",
-			[](std::string flight) {
-				std::cout << std::format("Currently loaded flight '{}'.\n", flight);
-			});
+		if (connection.open()) {
+			SimConnect::RequestHandler requestHandler;
+			requestHandler.enable(handler, SIMCONNECT_RECV_ID_SYSTEM_STATE);
 
-		requestHandler.requestSystemState(connection, "FlightPlan",
-			[](std::string flightPlan) {
-				std::cout << std::format("Currently loaded flightplan '{}'.\n", flightPlan);
-			});
+			requestHandler.requestSystemState(connection, "AircraftLoaded",
+				[](std::string aircraft) {
+					std::cout << std::format("Currently loaded aircraft '{}'.\n", aircraft);
+				});
 
-		requestHandler.requestSystemState(connection, "Sim",
-			SimConnect::wrap<bool>([](bool flying) {
-				std::cout << (flying ? "The user is now in control of the aircraft.\n" : "The user is now navigating the UI.\n");
-			}));
+			requestHandler.requestSystemState(connection, "DialogMode",
+				[](bool inDialog) {
+					std::cout << (inDialog ? "The simulator is now in dialog mode.\n" : "The simulator is now NOT in dialog mode.\n");
+				});
 
-		requestHandler.requestSystemState(connection, "SimLoaded",
-			[](std::string simulator) {
-				std::cout << std::format("Currently loaded simulator '{}'.\n", simulator);
-			}); // Will cause an exception message
+			requestHandler.requestSystemState(connection, "FlightLoaded",
+				[](std::string flight) {
+					std::cout << std::format("Currently loaded flight '{}'.\n", flight);
+				});
 
-		std::cout << "Handling messages\n";
-		handler.handle(30s);
+			requestHandler.requestSystemState(connection, "FlightPlan",
+				[](std::string flightPlan) {
+					std::cout << std::format("Currently loaded flightplan '{}'.\n", flightPlan);
+				});
+
+			requestHandler.requestSystemState(connection, "Sim",
+				[](bool flying) {
+					std::cout << (flying ? "The user is now in control of the aircraft.\n" : "The user is now navigating the UI.\n");
+				});
+
+			requestHandler.requestSystemState(connection, "SimLoaded",
+				[](std::string simulator) {
+					std::cout << std::format("Currently loaded simulator '{}'.\n", simulator);
+				}); // Will cause an exception message
+
+			std::cout << "Handling messages\n";
+			handler.handle(10s);
+		}
+		else {
+			std::cerr << "Failed to connect to the simulator.\n";
+		}
+		if (handler.getHandler(SIMCONNECT_RECV_ID_SYSTEM_STATE)) {
+			throw SimConnect::SimConnectException("There is still a handler for SystemState messages!");
+		}
 	}
-	else {
-		std::cerr << "Failed to connect to the simulator.\n";
+	catch (const SimConnect::SimConnectException& ex) {
+		std::cerr << ex.what() << "\n";
 	}
 	return 0;
 }

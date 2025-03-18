@@ -27,14 +27,14 @@
 namespace SimConnect {
 
 
-using BaseSystemEventHandler = std::function<void(const SIMCONNECT_RECV_EVENT&)>;
+using BaseEventHandler = std::function<void(const SIMCONNECT_RECV_EVENT&)>;
 
 
 /**
  * The EventHandler class provides for responsive handling of events.
  */
 class EventHandler  {
-    std::map<unsigned long, BaseSystemEventHandler> handlers_;
+    std::map<unsigned long, BaseEventHandler> handlers_;
     std::function<void()> cleanup_;
 
 
@@ -63,7 +63,7 @@ class EventHandler  {
      * @param eventId The event ID.
      * @param handler The handler to register.
      */
-    void registerHandler(unsigned long eventId, BaseSystemEventHandler handler) {
+    void registerHandler(unsigned long eventId, BaseEventHandler handler) {
         handlers_[eventId] = handler;
     }
 
@@ -148,7 +148,7 @@ public:
      * @param systemStateEvent The event to subscribe to.
      * @param handler The handler to call when the event is received.
      */
-    void subscribeToSystemEvent(Connection& connection, event systemStateEvent, BaseSystemEventHandler handler) {
+    void subscribeToSystemEvent(Connection& connection, event systemStateEvent, BaseEventHandler handler) {
         registerHandler(systemStateEvent, handler);
         connection.subscribeToSystemEvent(systemStateEvent);
     }

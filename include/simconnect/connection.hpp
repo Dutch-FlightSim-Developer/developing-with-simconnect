@@ -264,6 +264,17 @@ public:
     void unsubscribeFromSystemEvent(event event) {
         hr(SimConnect_UnsubscribeFromSystemEvent(hSimConnect_, event.id()));
     }
+
+
+    /**
+     * Request data.
+     * @param dataDef The data definition.
+     * @param requestId The request ID.
+     */
+    void requestData(SIMCONNECT_DATA_DEFINITION_ID dataDef, unsigned long requestId) {
+        hr(SimConnect_RequestDataOnSimObject(hSimConnect_, requestId, dataDef, SIMCONNECT_OBJECT_ID_USER, SIMCONNECT_PERIOD_ONCE));
+    }
+
 };
 
 }

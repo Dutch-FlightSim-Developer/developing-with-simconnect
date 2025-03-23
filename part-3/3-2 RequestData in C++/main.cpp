@@ -18,9 +18,10 @@
  #include <iostream>
  #include <string>
 
-#include <simconnect/data_definition.hpp>
 #include <simconnect/windows_event_connection.hpp>
 #include <simconnect/windows_event_handler.hpp>
+
+#include <simconnect/data_definition.hpp>
 #include <simconnect/requests/request_handler.hpp>
 
 
@@ -48,7 +49,7 @@ auto main() -> int {
 
         requestHandler.enable(handler, SIMCONNECT_RECV_ID_SIMOBJECT_DATA);
 
-        requestHandler.requestData(connection, aircraftDef, [](const AircraftInfo& aircraft) {
+        requestHandler.requestData<AircraftInfo>(connection, aircraftDef, [](const AircraftInfo& aircraft) {
             std::cout << "Aircraft: " << aircraft.title << "\n"
                       << "Tail number: " << aircraft.tailNumber << "\n"
                       << "ATC ID: " << aircraft.atcId << "\n";

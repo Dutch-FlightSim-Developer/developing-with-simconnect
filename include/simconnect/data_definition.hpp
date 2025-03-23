@@ -15,7 +15,8 @@
  * limitations under the License.
  */
 
-
+#include <any>
+#include <functional>
  #include <atomic>
 
 
@@ -30,22 +31,23 @@ namespace SimConnect {
 template <typename StructType>
 class DataDefinition
 {
-    template <typename FieldInfoClass>
     struct FieldInfo {
         std::string simVar{ "" };
         std::string units{ "" };
         SIMCONNECT_DATATYPE dataType{ SIMCONNECT_DATATYPE_INVALID };
         float epsilon{ 0.0f };
         unsigned long datumId{ SIMCONNECT_UNUSED };
+        std::function<void(StructType&, const std::any&)> setter;
+        std::function<std::any(const StructType&)> getter;
 
-        void addToDataDefinition(Connection& connection, DataDefinition& dataDef) {
-            static_cast<FieldInfoClass*>(this)->addToDataDefinition(connection, dataDef);
-        }
+        FieldInfo(std::string simVar, std::string units, SIMCONNECT_DATATYPE dataType, float epsilon, unsigned long datumId,
+                  std::function<void(StructType&, const std::any&)> setter, std::function<std::any(const StructType&)> getter)
+            : simVar(simVar), units(units), dataType(dataType), epsilon(epsilon), datumId(datumId), setter(setter), getter(getter) {}
     };
 
     Connection& connection_;    ///< The connection to SimConnect.
     int id_{ -1 };              ///< The ID of the data definition.
-    std::vector<std::tuple<StructType StructType::*, std::string, std::string>> fields_;
+    std::vector<FieldInfo> fields_;
 
     static std::atomic_int nextDefId_;
 
@@ -63,8 +65,48 @@ public:
 
     template <typename FieldType>
     DataDefinition& add(FieldType StructType::* field, std::string simVar, std::string units = "") {
-        fields_.push_back({ field, simVar, units });
+        fields_.push_back(FieldInfo( simVar, units, SIMCONNECT_DATATYPE_INT32, 0.0f, SIMCONNECT_UNUSED,
+                            [field](StructType& data, const std::any& value) { data.*field = std::any_cast<FieldType>(value); },
+                            [field](const StructType& data) { return std::any(data.*field); } ));
         return *this;
+    }
+
+    template <typename FieldType>
+    DataDefinition& add(FieldType StructType::* field, SIMCONNECT_DATATYPE dataType, std::string simVar, std::string units = "") {
+        fields_.push_back(FieldInfo( simVar, units, dataType, 0.0f, SIMCONNECT_UNUSED,
+                            [field](StructType& data, const std::any& value) { data.*field = std::any_cast<FieldType>(value); },
+                            [field](const StructType& data) { return std::any(data.*field); } ));
+        return *this;
+    }
+
+    void extract(const SIMCONNECT_RECV_SIMOBJECT_DATA& msg, StructType& data) const {
+        auto pData = reinterpret_cast<const StructType*>(&msg.dwData);
+        for (auto& field : fields_) {
+            switch (field.dataType) {
+            case SIMCONNECT_DATATYPE_INT32:
+                field.setter(data, *reinterpret_cast<const int32_t*>(pData));
+                pData += sizeof(int32_t);
+                break;
+            case SIMCONNECT_DATATYPE_INT64:
+                field.setter(data, *reinterpret_cast<const int64_t*>(pData));
+                pData += sizeof(int64_t);
+                break;
+            case SIMCONNECT_DATATYPE_FLOAT32:
+                field.setter(data, *reinterpret_cast<const float*>(pData));
+                pData += sizeof(float);
+                break;
+            case SIMCONNECT_DATATYPE_FLOAT64:
+                field.setter(data, *reinterpret_cast<const double*>(pData));
+                pData += sizeof(double);
+                break;
+            case SIMCONNECT_DATATYPE_STRINGV:
+                field.setter(data, std::string(reinterpret_cast<const char*>(pData)));
+                pData += std::strlen(reinterpret_cast<const char*>(pData)) + 1;
+                break;
+            default:
+                throw SimConnectException("Unknown data type.");
+            }
+        }
     }
 };
 

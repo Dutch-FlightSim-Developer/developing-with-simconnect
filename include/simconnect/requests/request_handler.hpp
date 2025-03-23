@@ -20,6 +20,7 @@
 #include <functional>
 
 
+#include <simconnect/data_definition.hpp>
 #include <simconnect/handler.hpp>
 
 
@@ -57,6 +58,19 @@ class RequestHandler  {
         if (!requestFinders_[SIMCONNECT_RECV_ID_SYSTEM_STATE]) {
             requestFinders_[SIMCONNECT_RECV_ID_SYSTEM_STATE] = [](const SIMCONNECT_RECV* msg) {
                 return static_cast<const SIMCONNECT_RECV_SYSTEM_STATE*>(msg)->dwRequestID;
+            };
+        }
+    }
+
+
+    /**
+     * Add a finder for SimObject Data messages.
+     */
+
+    void addSimObjectDataRequestFinder() {
+        if (!requestFinders_[SIMCONNECT_RECV_ID_SIMOBJECT_DATA]) {
+            requestFinders_[SIMCONNECT_RECV_ID_SIMOBJECT_DATA] = [](const SIMCONNECT_RECV* msg) {
+                return static_cast<const SIMCONNECT_RECV_SIMOBJECT_DATA*>(msg)->dwRequestID;
             };
         }
     }
@@ -192,6 +206,23 @@ public:
         }, true);
         connection.requestSystemState(name, requestId);
     }
+
+
+    template <typename StructType>
+    void requestData(Connection& connection, DataDefinition<StructType> dataDef, std::function<void(const StructType&)> handler) {
+        addSimObjectDataRequestFinder();
+
+        auto requestId = connection.requests().nextRequestID();
+
+        registerHandler(requestId, [&dataDef, handler](const SIMCONNECT_RECV* msg, [[maybe_unused]] DWORD size) {
+            auto& msgData = *reinterpret_cast<const SIMCONNECT_RECV_SIMOBJECT_DATA*>(msg);
+            StructType data;
+            dataDef.extract(msgData, data);
+            handler(data);
+        }, true);
+        connection.requestData(dataDef, requestId);
+    }
+
 };
 
 } // namespace SimConnect

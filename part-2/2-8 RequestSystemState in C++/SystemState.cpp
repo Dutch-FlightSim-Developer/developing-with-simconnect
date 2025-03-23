@@ -104,7 +104,7 @@ auto main () -> int {
 
 			requestHandler.requestSystemState(connection, "Sim",
 				[](bool flying) {
-					std::cout << (flying ? "The user is now in control of the aircraft.\n" : "The user is now navigating the UI.\n");
+					std::cout << (flying ? "The simulator is running.\n" : "The simulator is stopped.\n");
 				});
 
 			requestHandler.requestSystemState(connection, "SimLoaded",

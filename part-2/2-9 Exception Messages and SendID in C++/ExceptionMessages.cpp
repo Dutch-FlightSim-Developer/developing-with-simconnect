@@ -230,9 +230,9 @@ auto main() -> int {
 			});
 
 		requestHandler.requestSystemState(connection, "DialogMode",
-			SimConnect::wrap<bool>([](bool inDialog) {
+			[](bool inDialog) {
 				std::cout << (inDialog ? "The user is now in a dialog.\n" : "The user is now NOT in a dialog.\n");
-				}));
+			});
 
 		requestHandler.requestSystemState(connection, "FlightLoaded",
 			[](std::string flight) {
@@ -245,9 +245,9 @@ auto main() -> int {
 			});
 
 		requestHandler.requestSystemState(connection, "Sim",
-			SimConnect::wrap<bool>([](bool flying) {
+			[](bool flying) {
 				std::cout << (flying ? "The user is now in control of the aircraft.\n" : "The user is now navigating the UI.\n");
-				}));
+			});
 
 		requestHandler.requestSystemState(connection, "SimLoaded",
 			[](std::string simulator) {

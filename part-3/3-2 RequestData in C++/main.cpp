@@ -32,7 +32,7 @@ struct AircraftInfo {
     std::string title;
     std::string tailNumber;
     std::string atcId;
-    double altitude;
+    int altitude;
     double latitude;
     double longitude;
 };

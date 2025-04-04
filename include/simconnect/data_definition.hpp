@@ -73,6 +73,30 @@ public:
         return *this;
     }
 
+    DataDefinition& add(int StructType::* field, SIMCONNECT_DATATYPE dataType, std::string simVar, std::string units = "") {
+        if (dataType == SIMCONNECT_DATATYPE_INT64) {
+            fields_.push_back(FieldInfo( simVar, units, dataType, 0.0f, SIMCONNECT_UNUSED,
+                                [field](StructType& data, const std::any& value) { data.*field = static_cast<int>(std::any_cast<int64_t>(value)); },
+                                [field](const StructType& data) { return std::any(data.*field); } ));
+        }
+        else if (dataType == SIMCONNECT_DATATYPE_FLOAT64) {
+            fields_.push_back(FieldInfo( simVar, units, dataType, 0.0f, SIMCONNECT_UNUSED,
+                                [field](StructType& data, const std::any& value) { data.*field = static_cast<int>(std::any_cast<double>(value)); },
+                                [field](const StructType& data) { return std::any(data.*field); } ));
+        }
+        else if (dataType == SIMCONNECT_DATATYPE_FLOAT32) {
+            fields_.push_back(FieldInfo( simVar, units, dataType, 0.0f, SIMCONNECT_UNUSED,
+                                [field](StructType& data, const std::any& value) { data.*field = static_cast<int>(std::any_cast<float>(value)); },
+                                [field](const StructType& data) { return std::any(data.*field); } ));
+        }
+        else {
+            fields_.push_back(FieldInfo( simVar, units, dataType, 0.0f, SIMCONNECT_UNUSED,
+                                [field](StructType& data, const std::any& value) { data.*field = std::any_cast<int>(value); },
+                                [field](const StructType& data) { return std::any(data.*field); } ));
+        }
+        return *this;
+    }
+
     template <typename FieldType>
     DataDefinition& add(FieldType StructType::* field, SIMCONNECT_DATATYPE dataType, std::string simVar, std::string units = "") {
         fields_.push_back(FieldInfo( simVar, units, dataType, 0.0f, SIMCONNECT_UNUSED,

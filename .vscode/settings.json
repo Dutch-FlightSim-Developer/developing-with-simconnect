@@ -2,6 +2,7 @@
     "files.associations": {
         "exception": "cpp",
         "format": "cpp",
-        "xutility": "cpp"
+        "xutility": "cpp",
+        "any": "cpp"
     }
 }

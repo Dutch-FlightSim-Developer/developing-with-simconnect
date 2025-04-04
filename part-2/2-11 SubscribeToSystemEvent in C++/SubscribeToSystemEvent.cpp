@@ -105,7 +105,7 @@ auto main() -> int {
 			std::cout << std::format("Received a 'SimStop' event.\n");
 			});
 		eventHandler.subscribeToSystemEvent(connection, SimConnect::Events::pause(), [](const SIMCONNECT_RECV_EVENT& msg) {
-			std::cout << std::format("Received a 'Sim' event with value {}.\n", msg.dwData);
+			std::cout << std::format("Received a 'Pause' event with value {}.\n", msg.dwData);
 			});
 
 		std::cout << "\n\nHandling messages for 10 minutes.\n";

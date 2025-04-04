@@ -16,11 +16,13 @@
  */
 
 #include <any>
+#include <span>
 #include <functional>
- #include <atomic>
-
+#include <atomic>
+#include <cstdint>
 
 #include <simconnect/connection.hpp>
+#include <simconnect/data/untagged_data_block.hpp>
 
 
 namespace SimConnect {
@@ -79,34 +81,68 @@ public:
         return *this;
     }
 
-    void extract(const SIMCONNECT_RECV_SIMOBJECT_DATA& msg, StructType& data) const {
-        auto pData = reinterpret_cast<const StructType*>(&msg.dwData);
+
+    void extract(std::span<const uint8_t> msg, StructType& data) const {
+        Data::UntaggedDataBlockReader reader(msg);
+
         for (auto& field : fields_) {
             switch (field.dataType) {
             case SIMCONNECT_DATATYPE_INT32:
-                field.setter(data, *reinterpret_cast<const int32_t*>(pData));
-                pData += sizeof(int32_t);
+                field.setter(data, reader.readInt32());
                 break;
             case SIMCONNECT_DATATYPE_INT64:
-                field.setter(data, *reinterpret_cast<const int64_t*>(pData));
-                pData += sizeof(int64_t);
+                field.setter(data, reader.readInt64());
                 break;
             case SIMCONNECT_DATATYPE_FLOAT32:
-                field.setter(data, *reinterpret_cast<const float*>(pData));
-                pData += sizeof(float);
+                field.setter(data, reader.readFloat32());
                 break;
             case SIMCONNECT_DATATYPE_FLOAT64:
-                field.setter(data, *reinterpret_cast<const double*>(pData));
-                pData += sizeof(double);
+                field.setter(data, reader.readFloat64());
+                break;
+            case SIMCONNECT_DATATYPE_STRING8:
+                field.setter(data, reader.readString8());
+                break;
+            case SIMCONNECT_DATATYPE_STRING32:
+                field.setter(data, reader.readString32());
+                break;
+            case SIMCONNECT_DATATYPE_STRING64:
+                field.setter(data, reader.readString64());
+                break;
+            case SIMCONNECT_DATATYPE_STRING128:
+                field.setter(data, reader.readString128());
+                break;
+            case SIMCONNECT_DATATYPE_STRING256:
+                field.setter(data, reader.readString256());
+                break;
+            case SIMCONNECT_DATATYPE_STRING260:
+                field.setter(data, reader.readString260());
                 break;
             case SIMCONNECT_DATATYPE_STRINGV:
-                field.setter(data, std::string(reinterpret_cast<const char*>(pData)));
-                pData += std::strlen(reinterpret_cast<const char*>(pData)) + 1;
+                field.setter(data, reader.readStringV());
+                break;
+            case SIMCONNECT_DATATYPE_INITPOSITION:
+                field.setter(data, reader.readInitPosition());
+                break;
+            case SIMCONNECT_DATATYPE_MARKERSTATE:
+                field.setter(data, reader.readMarkerState());
+                break;
+            case SIMCONNECT_DATATYPE_WAYPOINT:
+                field.setter(data, reader.readWaypoint());
+                break;
+            case SIMCONNECT_DATATYPE_LATLONALT:
+                field.setter(data, reader.readLatLonAlt());
+                break;
+            case SIMCONNECT_DATATYPE_XYZ:
+                field.setter(data, reader.readXYZ());
                 break;
             default:
                 throw SimConnectException("Unknown data type.");
             }
         }
+    }
+
+    void extract(const SIMCONNECT_RECV_SIMOBJECT_DATA& msg, StructType& data) const {
+        extract(std::span<const uint8_t>(reinterpret_cast<const uint8_t*>(&msg.dwData), msg.dwDefineCount));
     }
 };
 

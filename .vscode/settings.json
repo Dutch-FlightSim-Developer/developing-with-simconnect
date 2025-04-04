@@ -1,6 +1,7 @@
 {
     "files.associations": {
         "exception": "cpp",
-        "format": "cpp"
+        "format": "cpp",
+        "xutility": "cpp"
     }
 }

@@ -22,6 +22,7 @@
 #include <simconnect/windows_event_handler.hpp>
 
 #include <simconnect/data_definition.hpp>
+#include <simconnect/data/untagged_data_block.hpp>
 #include <simconnect/requests/request_handler.hpp>
 
 
@@ -31,33 +32,51 @@ struct AircraftInfo {
     std::string title;
     std::string tailNumber;
     std::string atcId;
+    double altitude;
+    double latitude;
+    double longitude;
 };
 
 
 auto main() -> int {
-	SimConnect::WindowsEventConnection connection;
-	SimConnect::WindowsEventHandler handler(connection);
-	handler.autoClosing(true);
+    SimConnect::WindowsEventConnection connection;
+	//SimConnect::WindowsEventHandler handler(connection);
+	//handler.autoClosing(true);
 
-    if (connection.open()) {
+ //   if (connection.open()) {
         SimConnect::DataDefinition<AircraftInfo> aircraftDef(connection);
-        aircraftDef.add(&AircraftInfo::title, "Title", "string");
-        aircraftDef.add(&AircraftInfo::tailNumber, "TailNumber", "string");
-        aircraftDef.add(&AircraftInfo::atcId, "ATCId", "string");
-    
-        SimConnect::RequestHandler requestHandler;
+        aircraftDef.add(&AircraftInfo::title, SIMCONNECT_DATATYPE_STRINGV, "title", "string");
+        aircraftDef.add(&AircraftInfo::tailNumber, SIMCONNECT_DATATYPE_STRING32, "tailnumber", "string");
+        aircraftDef.add(&AircraftInfo::atcId, SIMCONNECT_DATATYPE_STRING64, "atcid", "string");
+        aircraftDef.add(&AircraftInfo::latitude, SIMCONNECT_DATATYPE_FLOAT64, "latitude", "degrees");
+        aircraftDef.add(&AircraftInfo::longitude, SIMCONNECT_DATATYPE_FLOAT64, "longitude", "degrees");
+        aircraftDef.add(&AircraftInfo::altitude, SIMCONNECT_DATATYPE_FLOAT64, "altitude", "feet");
 
-        requestHandler.enable(handler, SIMCONNECT_RECV_ID_SIMOBJECT_DATA);
+        auto data = SimConnect::Data::UntaggedDataBlockBuilder()
+            .addStringV("Cessna 404 Titan")
+            .addString32("PH-BLA")
+            .addString64("PH-BLA")
+            .addLatLonAlt(52.383917, 5.277781, 10000);
 
-        requestHandler.requestData<AircraftInfo>(connection, aircraftDef, [](const AircraftInfo& aircraft) {
-            std::cout << "Aircraft: " << aircraft.title << "\n"
-                      << "Tail number: " << aircraft.tailNumber << "\n"
-                      << "ATC ID: " << aircraft.atcId << "\n";
-        });
-        handler.handle(10s);
-    }
-    else {
-        std::cerr << "Failed to open connection to MSFS.\n";
-    }
+        struct AircraftInfo info;
+        aircraftDef.extract(data.dataBlock(), info);
+
+        std::cout << std::format("{{ \"title\": \"{}\", \"tailnumber\": \"{}\", \"atcid\": \"{}\", \"altitude\": {}, \"latitude\": {}, \"longitude\": {} }}",
+            info.title, info.tailNumber, info.atcId, info.altitude, info.latitude, info.longitude);
+
+ //       SimConnect::RequestHandler requestHandler;
+
+ //       requestHandler.enable(handler, SIMCONNECT_RECV_ID_SIMOBJECT_DATA);
+
+ //       requestHandler.requestData<AircraftInfo>(connection, aircraftDef, [](const AircraftInfo& aircraft) {
+ //           std::cout << "Aircraft: " << aircraft.title << "\n"
+ //                     << "Tail number: " << aircraft.tailNumber << "\n"
+ //                     << "ATC ID: " << aircraft.atcId << "\n";
+ //       });
+ //       handler.handle(10s);
+ //   }
+ //   else {
+ //       std::cerr << "Failed to open connection to MSFS.\n";
+ //   }
     return 0;
 }

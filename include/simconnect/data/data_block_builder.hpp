@@ -15,178 +15,270 @@
  * limitations under the License.
  */
 
-#include <simconnect.hpp>
+#include <ranges>
 
-#include <cstdint>
-#include <cstring>
 
-#include <span>
-#include <vector>
-#include <string>
-#include <algorithm>
+#include <simconnect/data/data_block.hpp>
 
 
 namespace SimConnect::Data {
-
-class DataBlockBuilder
+    
+/**
+ * The DataBlockBuilder class is a specialized builder for creating untagged data blocks.
+ */
+class DataBlockBuilder : public DataBlock
 {
-    struct DataField
-    {
-        std::string name;
-        SIMCONNECT_DATATYPE type;
-        size_t offset;
-        size_t size;
-    };
-    std::vector<DataField> dataFields_;
-    std::vector<uint8_t> dataBlock_;
+    DataBlockBuilder& addString(std::string value, size_t size) {
+        if (value.size() < size) {
+            add<DataBlockBuilder>(std::span<const uint8_t>(reinterpret_cast<const uint8_t*>(value.data()), value.size()));
+            addPadding<DataBlockBuilder>(size - value.size());
+        }
+        else {
+            add<DataBlockBuilder>(std::span<const uint8_t>(reinterpret_cast<const uint8_t*>(value.data()), size));
+        }
+        return *this;
+    }
+
 
 public:
     DataBlockBuilder() = default;
-    DataBlockBuilder(unsigned int size) : dataBlock_(size) {}
+    DataBlockBuilder(unsigned int size) : DataBlock(size) {}
+    ~DataBlockBuilder() = default;
 
+    DataBlockBuilder(const DataBlockBuilder&) = default;
+    DataBlockBuilder(DataBlockBuilder&&) = default;
+    DataBlockBuilder& operator=(const DataBlockBuilder&) = default;
+    DataBlockBuilder& operator=(DataBlockBuilder&&) = default;
 
-    std::span<const uint8_t> dataBlock() const {
-        return std::span<const uint8_t>(dataBlock_.data(), dataBlock_.size());
-    }
 
     /**
-     * Add a value of type SIMCONNECT_DATATYPE_INT32 to the data block.
+     * Add an integer value of type `SIMCONNECT_DATATYPE_INT32` to the block.
      * 
-     * @param value The value to add.
-     * @return A reference to this DataDefinitionBuilder instance for chaining.
+     * @param value The integer value to add.
+     * @return A reference to the current object.
      */
-    DataBlockBuilder& addInt32(int32_t value, std::string name = "int32") {
-        auto pos = dataBlock_.size();
-        dataBlock_.resize(pos + sizeof(int32_t));
-        std::memcpy(&dataBlock_[pos], &value, sizeof(int32_t));
-
-        dataFields_.push_back(DataField{ std::move(name), SIMCONNECT_DATATYPE_INT32, pos, sizeof(int32_t) });
-
-        return *this;
+    DataBlockBuilder& addInt32(int32_t value) {
+        return add<DataBlockBuilder>(std::span<const uint8_t>(reinterpret_cast<const uint8_t*>(&value), sizeof(value)));
     }
 
 
     /**
-     * Add a value of type SIMCONNECT_DATATYPE_INT64 to the data block.
+     * Add an integer value of type `SIMCONNECT_DATATYPE_INT64` to the block.
      * 
-     * @param value The value to add.
-     * @return A reference to this DataDefinitionBuilder instance for chaining.
+     * @param value The integer value to add.
+     * @return A reference to the current object.
      */
-    DataBlockBuilder& addInt64(int64_t value, std::string name = "int64") {
-        auto pos = dataBlock_.size();
-        dataBlock_.resize(pos + sizeof(int64_t));
-        std::memcpy(&dataBlock_[pos], &value, sizeof(int64_t));
-
-        dataFields_.push_back(DataField{ std::move(name), SIMCONNECT_DATATYPE_INT64, pos, sizeof(int64_t) });
-
-        return *this;
+    DataBlockBuilder& addInt64(int64_t value) {
+        return add<DataBlockBuilder>(std::span<const uint8_t>(reinterpret_cast<const uint8_t*>(&value), sizeof(value)));
     }
 
 
     /**
-     * Add a value of type SIMCONNECT_DATATYPE_FLOAT32 to the data block.
+     * Add a floating-point value of type `SIMCONNECT_DATATYPE_FLOAT32` to the block.
      * 
-     * @param value The value to add.
-     * @return A reference to this DataDefinitionBuilder instance for chaining.
+     * @param value The floating-point value to add.
+     * @return A reference to the current object.
      */
-    DataBlockBuilder& addFloat32(float value, std::string name = "float32") {
-        auto pos = dataBlock_.size();
-        dataBlock_.resize(pos + sizeof(float));
-        std::memcpy(&dataBlock_[pos], &value, sizeof(float));
-
-        dataFields_.push_back(DataField{ std::move(name), SIMCONNECT_DATATYPE_FLOAT32, pos, sizeof(float) });
-
-        return *this;
+    DataBlockBuilder& addFloat32(float value) {
+        return add<DataBlockBuilder>(std::span<const uint8_t>(reinterpret_cast<const uint8_t*>(&value), sizeof(value)));
     }
 
 
     /**
-     * Add a value of type SIMCONNECT_DATATYPE_FLOAT64 to the data block.
+     * Add a floating-point value of type `SIMCONNECT_DATATYPE_FLOAT64` to the block.
      * 
-     * @param value The value to add.
-     * @return A reference to this DataDefinitionBuilder instance for chaining.
+     * @param value The floating-point value to add.
+     * @return A reference to the current object.
      */
-    DataBlockBuilder& addFloat64(double value, std::string name = "float64") {
-        auto pos = dataBlock_.size();
-        dataBlock_.resize(pos + sizeof(double));
-        std::memcpy(&dataBlock_[pos], &value, sizeof(double));
-
-        dataFields_.push_back(DataField{ std::move(name), SIMCONNECT_DATATYPE_FLOAT64, pos, sizeof(double) });
-
-        return *this;
+    DataBlockBuilder& addFloat64(double value) {
+        return add<DataBlockBuilder>(std::span<const uint8_t>(reinterpret_cast<const uint8_t*>(&value), sizeof(value)));
     }
 
 
     /**
-     * Convert a length to the corresponding SIMCONNECT_DATATYPE_STRINGx type.
-     * 
-     * @param length The length of the string.
-     * @return The corresponding SIMCONNECT_DATATYPE_STRINGx type.
-     * @throws std::invalid_argument if the length is invalid.
-     */
-    constexpr SIMCONNECT_DATATYPE stringLengthToType(size_t length) {
-        switch (length) {
-            case 8:   return SIMCONNECT_DATATYPE_STRING8;
-            case 32:  return SIMCONNECT_DATATYPE_STRING32;
-            case 64:  return SIMCONNECT_DATATYPE_STRING64;
-            case 128: return SIMCONNECT_DATATYPE_STRING128;
-            case 256: return SIMCONNECT_DATATYPE_STRING256;
-            case 260: return SIMCONNECT_DATATYPE_STRING260;
-            default:  
-                throw std::invalid_argument(
-                    "Invalid string length. Valid lengths are 8, 32, 64, 128, 256, and 260.");
-        }
-    }
- 
-    
-    /**
-     * Add a value of type SIMCONNECT_DATATYPE_STRING with a specified length to the data block.
+     * Add a string value of type `SIMCONNECT_DATATYPE_STRING8` to the block.
+     * **NOTE** The string is truncated to 8 characters if too long. Null termination is in that case not added.
      * 
      * @param value The string value to add.
-     * @param length The length of the string (valid values: 8, 32, 64, 128, 256, 260).
-     * @param name The name of the field (default is "string").
-     * @return A reference to this DataDefinitionBuilder instance for chaining.
+     * @return A reference to the current object.
      */
-    DataBlockBuilder& addString(const std::string& value, size_t length, std::string name = "string") {
-        SIMCONNECT_DATATYPE type = stringLengthToType(length);
-
-        auto pos = dataBlock_.size();
-        dataBlock_.resize(pos + length);
-    
-        std::memset(&dataBlock_[pos], 0, length);
-        auto copyLen = min(value.size(), length - 1);
-        std::memcpy(&dataBlock_[pos], value.data(), copyLen);
-    
-        // Ensure explicit null-termination (already guaranteed by memset, but explicit for clarity)
-        dataBlock_[pos + length - 1] = '\0';
-    
-        dataFields_.push_back(DataField{ std::move(name), type, pos, length });
-    
-        return *this;
+    DataBlockBuilder& addString8(std::string value) {
+        return addString(value, 8);
     }
 
 
     /**
-     * Add a value of type SIMCONNECT_DATATYPE_STRINGV to the data block.
+     * Add a string value of type `SIMCONNECT_DATATYPE_STRING32` to the block.
+     * **NOTE** The string is truncated to 32 characters if too long. Null termination is in that case not added.
      * 
      * @param value The string value to add.
-     * @param name The name of the field (default is "string").
-     * @return A reference to this DataDefinitionBuilder instance for chaining.
+     * @return A reference to the current object.
      */
-    DataBlockBuilder& addStringV(const std::string& value, std::string name = "string") {
-        size_t length = value.size() + 1;
-        auto pos = dataBlock_.size();
-        dataBlock_.resize(pos + length);
-    
-        std::memset(&dataBlock_[pos], 0, length);
-        std::memcpy(&dataBlock_[pos], value.data(), value.size());
-
-        dataBlock_[pos + length - 1] = '\0';
-    
-        dataFields_.push_back(DataField{ std::move(name), SIMCONNECT_DATATYPE_STRINGV, pos, length });
-    
-        return *this;
+    DataBlockBuilder& addString32(std::string value) {
+        return addString(value, 32);
     }
+
+
+    /**
+     * Add a string value of type `SIMCONNECT_DATATYPE_STRING64` to the block.
+     * **NOTE** The string is truncated to 64 characters if too long. Null termination is in that case not added.
+     * 
+     * @param value The string value to add.
+     * @return A reference to the current object.
+     */
+    DataBlockBuilder& addString64(std::string value) {
+        return addString(value, 64);
+    }
+
+
+    /**
+     * Add a string value of type `SIMCONNECT_DATATYPE_STRING128` to the block.
+     * **NOTE** The string is truncated to 128 characters if too long. Null termination is in that case not added.
+     * 
+     * @param value The string value to add.
+     * @return A reference to the current object.
+     */
+    DataBlockBuilder& addString128(std::string value) {
+        return addString(value, 128);
+    }
+
+
+    /**
+     * Add a string value of type `SIMCONNECT_DATATYPE_STRING256` to the block.
+     * **NOTE** The string is truncated to 256 characters if too long. Null termination is in that case not added.
+     * 
+     * @param value The string value to add.
+     * @return A reference to the current object.
+     */
+    DataBlockBuilder& addString256(std::string value) {
+        return addString(value, 256);
+    }
+
+
+    /**
+     * Add a string value of type `SIMCONNECT_DATATYPE_STRING260` to the block.
+     * **NOTE** The string is truncated to 260 characters if too long. Null termination is in that case not added.
+     * 
+     * @param value The string value to add.
+     * @return A reference to the current object.
+     */
+    DataBlockBuilder& addString260(std::string value) {
+        return addString(value, 260);
+    }
+
+
+    /**
+     * Add a string value of type `SIMCONNECT_DATATYPE_STRINGV` to the block.
+     * **NOTE** The string is always zero terminated. The length of the string is not limited.
+     * 
+     * @param value The string value to add.
+     * @return A reference to the current object.
+     */
+    DataBlockBuilder& addStringV(std::string value) {
+        return add<DataBlockBuilder>(std::span<const uint8_t>(reinterpret_cast<const uint8_t*>(value.c_str()), value.size() + 1));
+    }
+
+
+    /**
+     * Add a value of type `SIMCONNECT_DATATYPE_INITPOSITION` to the block.
+     * 
+     * @param value The `SIMCONNECT_DATA_INITPOSITION` value to add.
+     * @return A reference to the current object.
+     */
+    DataBlockBuilder& addInitPosition(const SIMCONNECT_DATA_INITPOSITION& value) {
+        return add<DataBlockBuilder>(std::span<const uint8_t>(reinterpret_cast<const uint8_t*>(&value), sizeof(value)));
+    }
+
+
+    /**
+     * Add a value of type `SIMCONNECT_DATA_INITPOSITION` to the block, provided in its components.
+     * 
+     * @param pos A `SIMCONNECT_DATA_LATLONALT` value to add.
+     * @param pitchBankHeading A `SIMCONNECT_DATA_PBH` value for pitch, bank, and heading.
+     * @param onGround Indicates if the position is on the ground (default is true).
+     * @param airspeed The airspeed value (default is 0).
+     * @return A reference to the current object.
+     */
+    DataBlockBuilder& addInitPosition(const SIMCONNECT_DATA_LATLONALT& pos,
+                                      const SIMCONNECT_DATA_PBH& pitchBankHeading,
+                                      bool onGround = true, int32_t airspeed = 0)
+    {
+        return addLatLonAlt(pos)
+            .addFloat64(pitchBankHeading.Pitch).addFloat64(pitchBankHeading.Bank).addFloat64(pitchBankHeading.Heading)
+            .addInt32(onGround ? 1 : 0)
+            .addInt32(airspeed);
+    }
+
+
+    /**
+     * Add a value of type `SIMCONNECT_DATA_MARKERSTATE` to the block.
+     * 
+     * @param value The `SIMCONNECT_DATA_MARKERSTATE` value to add.
+     * @return A reference to the current object.
+     */
+    DataBlockBuilder& addMarkerState(const SIMCONNECT_DATA_MARKERSTATE& value) {
+        return add<DataBlockBuilder>(std::span<const uint8_t>(reinterpret_cast<const uint8_t*>(&value), sizeof(value)));
+    }
+
+
+    /**
+     * Add a value of type `SIMCONNECT_DATA_WAYPOINT` to the block.
+     * 
+     * @param value The `SIMCONNECT_DATA_WAYPOINT` value to add.
+     * @return A reference to the current object.
+     */
+    DataBlockBuilder& addWaypoint(const SIMCONNECT_DATA_WAYPOINT& value) {
+        return add<DataBlockBuilder>(std::span<const uint8_t>(reinterpret_cast<const uint8_t*>(&value), sizeof(value)));
+    }
+
+
+    /**
+     * Add a value of type `SIMCONNECT_DATA_LATLONALT` to the block.
+     * 
+     * @param value The `SIMCONNECT_DATA_LATLONALT` value to add.
+     * @return A reference to the current object.
+     */
+    DataBlockBuilder& addLatLonAlt(const SIMCONNECT_DATA_LATLONALT& value) {
+        return add<DataBlockBuilder>(std::span<const uint8_t>(reinterpret_cast<const uint8_t*>(&value), sizeof(value)));
+    }
+
+
+    /**
+     * Add a value of type `SIMCONNECT_DATA_LATLONALT` to the block, provided in its components.
+     * 
+     * @param lat The latitude value.
+     * @param lon The longitude value.
+     * @param alt The altitude value.
+     * @return A reference to the current object.
+     */
+    DataBlockBuilder& addLatLonAlt(double lat, double lon, double alt) {
+        return addFloat64(lat).addFloat64(lon).addFloat64(alt);
+    }
+
+
+    /**
+     * Add a value of type `SIMCONNECT_DATA_XYZ` to the block.
+     * 
+     * @param value The `SIMCONNECT_DATA_XYZ` value to add.
+     * @return A reference to the current object.
+     */
+    DataBlockBuilder& addXYZ(const SIMCONNECT_DATA_XYZ& value) {
+        return add<DataBlockBuilder>(std::span<const uint8_t>(reinterpret_cast<const uint8_t*>(&value), sizeof(value)));
+    }
+
+
+    /**
+     * Add a value of type `SIMCONNECT_DATA_XYZ` to the block, provided in its components.
+     * 
+     * @param x The x-coordinate value.
+     * @param y The y-coordinate value.
+     * @param z The z-coordinate value.
+     * @return A reference to the current object.
+     */
+    DataBlockBuilder& addXYZ(double x, double y, double z) {
+        return addFloat64(x).addFloat64(y).addFloat64(z);
+    }
+
 };
 
 } // namespace SimConnect::Data

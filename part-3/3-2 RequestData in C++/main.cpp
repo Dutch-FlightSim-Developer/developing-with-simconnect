@@ -22,7 +22,7 @@
 #include <simconnect/windows_event_handler.hpp>
 
 #include <simconnect/data_definition.hpp>
-#include <simconnect/data/untagged_data_block.hpp>
+#include <simconnect/data/data_block_builder.hpp>
 #include <simconnect/requests/request_handler.hpp>
 
 
@@ -35,6 +35,7 @@ struct AircraftInfo {
     int altitude;
     double latitude;
     double longitude;
+    SIMCONNECT_DATA_LATLONALT pos;
 };
 
 
@@ -51,18 +52,20 @@ auto main() -> int {
         aircraftDef.add(&AircraftInfo::latitude, SIMCONNECT_DATATYPE_FLOAT64, "latitude", "degrees");
         aircraftDef.add(&AircraftInfo::longitude, SIMCONNECT_DATATYPE_FLOAT64, "longitude", "degrees");
         aircraftDef.add(&AircraftInfo::altitude, SIMCONNECT_DATATYPE_FLOAT64, "altitude", "feet");
+        aircraftDef.add(&AircraftInfo::pos, SIMCONNECT_DATATYPE_LATLONALT, "position", "latlonalt");
 
-        auto data = SimConnect::Data::UntaggedDataBlockBuilder()
+        auto data = SimConnect::Data::DataBlockBuilder()
             .addStringV("Cessna 404 Titan")
             .addString32("PH-BLA")
             .addString64("PH-BLA")
-            .addLatLonAlt(52.383917, 5.277781, 10000);
+            .addLatLonAlt(52.383917, 5.277781, 10000)
+            .addLatLonAlt(52.37278, 4.89361, 7);
 
         struct AircraftInfo info;
         aircraftDef.extract(data.dataBlock(), info);
 
-        std::cout << std::format("{{ \"title\": \"{}\", \"tailnumber\": \"{}\", \"atcid\": \"{}\", \"altitude\": {}, \"latitude\": {}, \"longitude\": {} }}",
-            info.title, info.tailNumber, info.atcId, info.altitude, info.latitude, info.longitude);
+        std::cout << std::format("{{ \"title\": \"{}\", \"tailnumber\": \"{}\", \"atcid\": \"{}\", \"altitude\": {}, \"latitude\": {}, \"longitude\": {}, \"pos\": {{ \"latitude\": {}, \"longitude\": {}, \"altitude\": {} }} }}",
+            info.title, info.tailNumber, info.atcId, info.altitude, info.latitude, info.longitude, info.pos.Latitude, info.pos.Longitude, info.pos.Altitude);
 
  //       SimConnect::RequestHandler requestHandler;
 

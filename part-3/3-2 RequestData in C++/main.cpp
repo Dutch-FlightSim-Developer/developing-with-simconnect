@@ -15,8 +15,9 @@
  */
 
 
- #include <iostream>
- #include <string>
+#include <iostream>
+#include <string>
+#include <algorithm>
 
 #include <simconnect/windows_event_connection.hpp>
 #include <simconnect/windows_event_handler.hpp>
@@ -41,45 +42,44 @@ struct AircraftInfo {
 
 auto main() -> int {
     SimConnect::WindowsEventConnection connection;
-	//SimConnect::WindowsEventHandler handler(connection);
-	//handler.autoClosing(true);
 
- //   if (connection.open()) {
-        SimConnect::DataDefinition<AircraftInfo> aircraftDef(connection);
-        aircraftDef.add(&AircraftInfo::title, SIMCONNECT_DATATYPE_STRINGV, "title", "string");
-        aircraftDef.add(&AircraftInfo::tailNumber, SIMCONNECT_DATATYPE_STRING32, "tailnumber", "string");
-        aircraftDef.add(&AircraftInfo::atcId, SIMCONNECT_DATATYPE_STRING64, "atcid", "string");
-        aircraftDef.add(&AircraftInfo::latitude, SIMCONNECT_DATATYPE_FLOAT64, "latitude", "degrees");
-        aircraftDef.add(&AircraftInfo::longitude, SIMCONNECT_DATATYPE_FLOAT64, "longitude", "degrees");
-        aircraftDef.add(&AircraftInfo::altitude, SIMCONNECT_DATATYPE_FLOAT64, "altitude", "feet");
-        aircraftDef.add(&AircraftInfo::pos, SIMCONNECT_DATATYPE_LATLONALT, "position", "latlonalt");
+    SimConnect::DataDefinition<AircraftInfo> aircraftDef(connection);
+    struct AircraftInfo info {
+        "", "", "", 0, 0.0, 0.0, { 0.0, 0.0, 0.0 }
+    };
 
-        auto data = SimConnect::Data::DataBlockBuilder()
-            .addStringV("Cessna 404 Titan")
-            .addString32("PH-BLA")
-            .addString64("PH-BLA")
-            .addLatLonAlt(52.383917, 5.277781, 10000)
-            .addLatLonAlt(52.37278, 4.89361, 7);
+    aircraftDef
+        .addStringV(&AircraftInfo::title, "title", "string")
+        .addString32(&AircraftInfo::tailNumber, "tailnumber", "string")
+        .addString64(&AircraftInfo::atcId, "atcid", "string")
+        .addFloat64(&AircraftInfo::latitude, "latitude", "degrees")
+        .addFloat64("longitude", "degrees",
+            [&info](double value) { info.longitude = value; },
+            [&info]() -> double { return info.longitude; })
+        .addFloat64(&AircraftInfo::altitude, "altitude", "feet")
+        .addLatLonAlt("position", "latlonalt",
+            [](AircraftInfo& aircraft, const SIMCONNECT_DATA_LATLONALT& pos) { aircraft.pos = pos; },
+            [](const AircraftInfo& aircraft) -> SIMCONNECT_DATA_LATLONALT { return aircraft.pos; });
 
-        struct AircraftInfo info;
-        aircraftDef.extract(data.dataBlock(), info);
+    auto data = SimConnect::Data::DataBlockBuilder()
+        .addStringV("Cessna 404 Titan")
+        .addString32("PH-BLA")
+        .addString64("PH-BLA")
+        .addLatLonAlt(52.383917, 5.277781, 10000)
+        .addLatLonAlt(52.37278, 4.89361, 7);
 
-        std::cout << std::format("{{ \"title\": \"{}\", \"tailnumber\": \"{}\", \"atcid\": \"{}\", \"altitude\": {}, \"latitude\": {}, \"longitude\": {}, \"pos\": {{ \"latitude\": {}, \"longitude\": {}, \"altitude\": {} }} }}",
-            info.title, info.tailNumber, info.atcId, info.altitude, info.latitude, info.longitude, info.pos.Latitude, info.pos.Longitude, info.pos.Altitude);
+    aircraftDef.unmarshall(data.dataBlock(), info);
 
- //       SimConnect::RequestHandler requestHandler;
+    std::cout << std::format("{{ \"title\": \"{}\", \"tailnumber\": \"{}\", \"atcid\": \"{}\", \"altitude\": {}, \"latitude\": {}, \"longitude\": {}, \"pos\": {{ \"latitude\": {}, \"longitude\": {}, \"altitude\": {} }} }}\n\n",
+        info.title, info.tailNumber, info.atcId, info.altitude, info.latitude, info.longitude, info.pos.Latitude, info.pos.Longitude, info.pos.Altitude);
 
- //       requestHandler.enable(handler, SIMCONNECT_RECV_ID_SIMOBJECT_DATA);
+    auto data2 = SimConnect::Data::DataBlockBuilder();
+    aircraftDef.marshall(data2, info);
 
- //       requestHandler.requestData<AircraftInfo>(connection, aircraftDef, [](const AircraftInfo& aircraft) {
- //           std::cout << "Aircraft: " << aircraft.title << "\n"
- //                     << "Tail number: " << aircraft.tailNumber << "\n"
- //                     << "ATC ID: " << aircraft.atcId << "\n";
- //       });
- //       handler.handle(10s);
- //   }
- //   else {
- //       std::cerr << "Failed to open connection to MSFS.\n";
- //   }
+    std::cout
+        << std::format("{} bytes in, {} bytes out.\n", data.dataBlock().size(), data2.dataBlock().size())
+        << ((std::equal(data.dataBlock().begin(), data.dataBlock().end(), data2.dataBlock().begin())) ? "They are EQUAL!\n" : "They are NOT EQUAL!\n");
+
+
     return 0;
 }

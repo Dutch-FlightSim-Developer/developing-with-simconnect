@@ -208,6 +208,20 @@ public:
     }
 
 
+    void requestData(Connection& connection, StatelessDataDefinition& dataDef, std::function<void(Data::DataBlockReader&)> handler) {
+        addSimObjectDataRequestFinder();
+
+        auto requestId = connection.requests().nextRequestID();
+
+        registerHandler(requestId, [&dataDef, handler](const SIMCONNECT_RECV* msg, [[maybe_unused]] DWORD size) {
+            auto& dataMsg = *reinterpret_cast<const SIMCONNECT_RECV_SIMOBJECT_DATA*>(msg);
+            Data::DataBlockReader reader(dataMsg);
+            handler(reader);
+        }, true);
+        connection.requestData(dataDef, requestId);
+    }
+
+
     template <typename StructType>
     void requestData(Connection& connection, DataDefinition<StructType> dataDef, std::function<void(const StructType&)> handler) {
         addSimObjectDataRequestFinder();
@@ -217,7 +231,7 @@ public:
         registerHandler(requestId, [&dataDef, handler](const SIMCONNECT_RECV* msg, [[maybe_unused]] DWORD size) {
             auto& msgData = *reinterpret_cast<const SIMCONNECT_RECV_SIMOBJECT_DATA*>(msg);
             StructType data;
-            dataDef.extract(msgData, data);
+            dataDef.unmarshall(msgData, data);
             handler(data);
         }, true);
         connection.requestData(dataDef, requestId);

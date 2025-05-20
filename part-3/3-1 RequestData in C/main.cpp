@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 
+
 #pragma warning(push, 3)
 #include <Windows.h>
 #include <SimConnect.h>
@@ -21,58 +22,77 @@
 
 #include <iostream>
 
-constexpr DWORD DataReq{1};
-constexpr DWORD AircraftData{1};
 
-enum class Datum : DWORD
+constexpr DWORD reqId{ 1 };
+constexpr DWORD aircraftInfoId{ 1 };
+
+//
+// From the SDK:
+//
+// "title": a string of max 128 characters
+// "is user sim": a boolean
+// "atc id": a string of max 10 characters
+// "atc model": a string of max 10 characters
+// "aircraft agl": a number (altitube "Above Ground Level")
+// "plane altitude": a number
+//
+
+struct AircraftInfo {
+	char     title[128];
+	uint32_t isUserSim;
+	char     atcId[32];
+	char     atcModel[32];
+	int32_t  altitudeAGL;
+	int32_t  altitudeASL;
+};
+
+enum class DatumId : DWORD
 {
     NoId = 0,
     Title,
     IsUser,
     AtcId,
     AtcModel,
-    AircraftAGL,
-    Altitude
+	AltAGL,
+	AltASL
 };
-consteval DWORD dword(Datum v) { return static_cast<DWORD>(v); }
+consteval DWORD dword(DatumId v) { return static_cast<DWORD>(v); }
 
-inline const uint8_t *toBytePtr(const void *ptr)
-{
-    return reinterpret_cast<const uint8_t *>(ptr);
-}
+inline const uint8_t *toBytePtr(const void *ptr) { return reinterpret_cast<const uint8_t *>(ptr); }
+inline const int32_t *toIntPtr(const void *ptr) { return reinterpret_cast<const int32_t *>(ptr); }
+inline const DWORD *toDwordPtr(const void *ptr) { return reinterpret_cast<const DWORD *>(ptr); }
+inline const char *toCharPtr(const void *ptr) { return reinterpret_cast<const char *>(ptr); }
+inline const float *toFloatPtr(const void *ptr) { return reinterpret_cast<const float *>(ptr); } 
 
-inline const char *toCharPtr(const void *ptr)
-{
-    return reinterpret_cast<const char *>(ptr);
-}
 
-static HANDLE hSimConnect{nullptr};
-static bool connected{false};
+template <typename Recv>
+inline const Recv* toRecvPtr(const void *ptr) { return reinterpret_cast<const Recv *>(ptr); }
+
+inline bool isTagged(const SIMCONNECT_RECV_SIMOBJECT_DATA* msg) { return ((msg->dwFlags & SIMCONNECT_DATA_REQUEST_FLAG_TAGGED) != 0); }
+inline bool isChanged(const SIMCONNECT_RECV_SIMOBJECT_DATA* msg) { return ((msg->dwFlags & SIMCONNECT_DATA_REQUEST_FLAG_CHANGED) != 0); }
+
+static HANDLE hSimConnect{ nullptr };		// The connection handle
+static bool connected{ false };				// Do we have a live connection?
 
 /**
  * Handle SimConnect Exception messages.ABC
  *
  * @param msg The exception message to handle.
  */
-static void handleException(const SIMCONNECT_RECV_EXCEPTION *msg)
+static void handleException(const SIMCONNECT_RECV_EXCEPTION& msg)
 {
-    if (!msg)
+
+    printf("Received an exception type %u:\n", msg.dwException);
+    if (msg.dwSendID != SIMCONNECT_RECV_EXCEPTION::UNKNOWN_SENDID)
     {
-        std::cerr << "Null exception message received.\n";
-        return;
+        printf("- Related to a message with SendID %u.\n", msg.dwSendID);
+    }
+    if (msg.dwIndex != SIMCONNECT_RECV_EXCEPTION::UNKNOWN_INDEX)
+    {
+        printf("- Regarding parameter %u.\n", msg.dwIndex);
     }
 
-    printf("Received an exception type %u:\n", msg->dwException);
-    if (msg->dwSendID != SIMCONNECT_RECV_EXCEPTION::UNKNOWN_SENDID)
-    {
-        printf("- Related to a message with SendID %u.\n", msg->dwSendID);
-    }
-    if (msg->dwIndex != SIMCONNECT_RECV_EXCEPTION::UNKNOWN_INDEX)
-    {
-        printf("- Regarding parameter %u.\n", msg->dwIndex);
-    }
-
-    const SIMCONNECT_EXCEPTION exc{static_cast<SIMCONNECT_EXCEPTION>(msg->dwException)};
+    const SIMCONNECT_EXCEPTION exc{static_cast<SIMCONNECT_EXCEPTION>(msg.dwException)};
     switch (exc)
     {
     case SIMCONNECT_EXCEPTION_NONE: // Should never happen
@@ -233,45 +253,36 @@ static void handleException(const SIMCONNECT_RECV_EXCEPTION *msg)
  * @param data The data to dump.
  * @param dataSize The size of the data.
  */
-static void hexDump(const uint8_t *data, unsigned dataSize)
-{
-    printf("Raw data:\n\n");
-    unsigned count{0};
+static void hexDump(const uint8_t* data, unsigned dataSize) {
+	printf("\n\nRaw data: (%d bytes)\n\n", dataSize);
+	unsigned count{ 0 };
 
-    while (count < dataSize)
-    {
-        if ((count % 16) == 0)
-        {
+	while (count < dataSize) {
+		if ((count % 16) == 0) {
             printf("0x%04x ", count);
         }
         printf(" 0x%02x", data[count]);
         count += 1;
-        if ((count % 16) == 0)
-        {
+		if ((count % 16) == 0) {
             printf("  ");
-            for (unsigned p = count - 16; p < count; p++)
-            {
+			for (unsigned p = count - 16; p < count; p++) {
                 printf("%c", ((data[p] < 0x20) || (data[p] > 0x7f)) ? '.' : ((char)(data[p])));
             }
             printf("\n");
         }
     }
-    if ((count % 16) != 0)
-    {
-        while ((count % 16) != 0)
-        {
+	if ((count % 16) != 0) {
+		while ((count % 16) != 0) {
             printf("     ");
             count++;
         }
         printf(" ");
-        for (unsigned p = count - 16; p < dataSize; p++)
-        {
+		for (unsigned p = count - 16; p < dataSize; p++) {
             printf("%c", ((data[p] < 0x20) || (data[p] > 0x7f)) ? '.' : ((char)(data[p])));
         }
         printf("\n\n");
     }
-    else
-    {
+	else {
         printf("\n");
     }
 }
@@ -282,11 +293,12 @@ static void hexDump(const uint8_t *data, unsigned dataSize)
  * @param ptr The pointer to the data.
  * @param dataSize The size of the data.
  */
-static void parseUntagged(const uint8_t *ptr, unsigned dataSize)
+[[maybe_unused]] 
+static void parseUntagged([[maybe_unused]] const uint8_t* ptr, [[maybe_unused]] unsigned dataSize, [[maybe_unused]] AircraftInfo& data)
 {
     size_t i{0};
     // First item: Title
-    const char *title{reinterpret_cast<const char *>(&(ptr[i]))};
+    const char *title{toCharPtr(&(ptr[i]))};
     printf("Aircraft title is '%s'.\n", title);
     i += strlen(title) + 1;
     if ((i % sizeof(DWORD)) != 0)
@@ -299,7 +311,7 @@ static void parseUntagged(const uint8_t *ptr, unsigned dataSize)
     i += sizeof(DWORD);
 
     // Third item: ATC Id
-    const char *atcId{reinterpret_cast<const char *>(&(ptr[i]))};
+    const char *atcId{toCharPtr(&(ptr[i]))};
     printf("Aircraft ATC Id is '%s'.\n", atcId);
     i += strlen(atcId) + 1;
     if ((i % sizeof(DWORD)) != 0)
@@ -308,19 +320,19 @@ static void parseUntagged(const uint8_t *ptr, unsigned dataSize)
     }
 
     // Fourth item: ATC Model
-    const char *atcModelInMsg{reinterpret_cast<const char *>(&(ptr[i]))};
+    const char *atcModelInMsg{toCharPtr(&(ptr[i]))};
     char atcModel[32];
     strncpy_s(atcModel, atcModelInMsg, 32);
     printf("Aircraft ATC Model is '%s'.\n", atcModel);
     i += 32;
 
     // Fifth item: Aircraft altitude Above Ground Level
-    int32_t aAGL = *reinterpret_cast<const uint32_t *>(&(ptr[i]));
+    int32_t aAGL = *toIntPtr(&(ptr[i]));
     printf("Aircraft is %d feet above ground level.\n", aAGL);
     i += sizeof(int32_t);
 
     // Sixt item: Altitude
-    int32_t alt = *reinterpret_cast<const uint32_t *>(&(ptr[i]));
+    int32_t alt = *toIntPtr(&(ptr[i]));
     if (alt == 0)
     {
         printf("Aircraft is at sea level.\n");
@@ -334,12 +346,11 @@ static void parseUntagged(const uint8_t *ptr, unsigned dataSize)
         printf("Aircraft is %d feet below sea level.\n", -alt);
     }
     i += sizeof(int32_t);
-    if (i < dataSize)
-    {
+
+	if (i < dataSize) {
         printf("Skipping %d unused byte(s).\n", int(dataSize - i));
     }
-    else if (i > dataSize)
-    {
+	else if (i > dataSize) {
         printf("Not enough data!\n");
     }
 }
@@ -350,23 +361,24 @@ static void parseUntagged(const uint8_t *ptr, unsigned dataSize)
  * @param ptr The pointer to the data.
  * @param dataSize The size of the data.
  */
-static void parseTagged(const uint8_t *ptr, unsigned dataSize)
+[[maybe_unused]]
+static void parseTagged([[maybe_unused]] const uint8_t* ptr, [[maybe_unused]] unsigned dataSize, [[maybe_unused]] unsigned datumCount, [[maybe_unused]] AircraftInfo& data)
 {
     size_t i = 0;
     while (i < dataSize)
     {
-        Datum id = *reinterpret_cast<const Datum *>(&(ptr[i]));
+        DatumId id = *reinterpret_cast<const DatumId *>(&(ptr[i]));
         i += sizeof(DWORD);
-        if (id == Datum::NoId)
+        if (id == DatumId::NoId)
         {
             continue; // Skip
         }
 
         switch (id)
         {
-        case Datum::Title:
+        case DatumId::Title:
         {
-            const char *title{reinterpret_cast<const char *>(&(ptr[i]))};
+            const char *title{toCharPtr(&(ptr[i]))};
             printf("Aircraft title is '%s'.\n", title);
             i += strlen(title) + 1;
             if ((i % sizeof(DWORD)) != 0)
@@ -376,16 +388,16 @@ static void parseTagged(const uint8_t *ptr, unsigned dataSize)
         }
         break;
 
-        case Datum::IsUser:
+        case DatumId::IsUser:
         {
             printf("This %s the user's aircraft.\n", (ptr[i] ? "IS" : "ISN'T"));
             i += sizeof(DWORD);
         }
         break;
 
-        case Datum::AtcId:
+        case DatumId::AtcId:
         {
-            const char *atcId{reinterpret_cast<const char *>(&(ptr[i]))};
+            const char *atcId{toCharPtr(&(ptr[i]))};
             printf("Aircraft ATC Id is '%s'.\n", atcId);
             i += strlen(atcId) + 1;
             if ((i % sizeof(DWORD)) != 0)
@@ -395,9 +407,9 @@ static void parseTagged(const uint8_t *ptr, unsigned dataSize)
         }
         break;
 
-        case Datum::AtcModel:
+        case DatumId::AtcModel:
         {
-            const char *atcModelInMsg{reinterpret_cast<const char *>(&(ptr[i]))};
+            const char *atcModelInMsg{toCharPtr(&(ptr[i]))};
             char atcModel[32];
             strncpy_s(atcModel, atcModelInMsg, 32);
             printf("Aircraft ATC Model is '%s'.\n", atcModel);
@@ -405,17 +417,17 @@ static void parseTagged(const uint8_t *ptr, unsigned dataSize)
         }
         break;
 
-        case Datum::AircraftAGL:
+        case DatumId::AltAGL:
         {
-            int32_t aAGL = *reinterpret_cast<const uint32_t *>(&(ptr[i]));
+            int32_t aAGL = *toIntPtr(&(ptr[i]));
             printf("Aircraft is %d feet above ground level.\n", aAGL);
             i += sizeof(int32_t);
         }
         break;
 
-        case Datum::Altitude:
+        case DatumId::AltASL:
         {
-            int32_t alt = *reinterpret_cast<const uint32_t *>(&(ptr[i]));
+            int32_t alt = *toIntPtr(&(ptr[i]));
             if (alt == 0)
             {
                 printf("Aircraft is at sea level.\n");
@@ -433,12 +445,10 @@ static void parseTagged(const uint8_t *ptr, unsigned dataSize)
         break;
         }
     }
-    if (i < dataSize)
-    {
+	if (i < dataSize) {
         printf("Skipping %d unused byte(s).\n", int(dataSize - i));
     }
-    else if (i > dataSize)
-    {
+	else if (i > dataSize) {
         printf("Not enough data!\n");
     }
 }
@@ -450,23 +460,20 @@ static void parseTagged(const uint8_t *ptr, unsigned dataSize)
  */
 static void handle_messages(HANDLE hEvent)
 {
-    while (connected && (::WaitForSingleObject(hEvent, INFINITE) == WAIT_OBJECT_0))
-    {
-        SIMCONNECT_RECV *pData{nullptr};
-        DWORD cbData{0};
-        HRESULT hr{S_OK};
+	while (connected && (::WaitForSingleObject(hEvent, INFINITE) == WAIT_OBJECT_0)) {
+		SIMCONNECT_RECV* pData{ nullptr };
+		DWORD cbData{ 0 };
+		HRESULT hr{ S_OK };
 
-        while (SUCCEEDED(hr = SimConnect_GetNextDispatch(hSimConnect, &pData, &cbData)))
-        {
-            switch (pData->dwID)
-            {
+		while (SUCCEEDED(hr = SimConnect_GetNextDispatch(hSimConnect, &pData, &cbData))) {
+			switch (pData->dwID) {
             case SIMCONNECT_RECV_ID_EXCEPTION:
-                handleException(reinterpret_cast<const SIMCONNECT_RECV_EXCEPTION *>(pData));
+                handleException(*toRecvPtr<SIMCONNECT_RECV_EXCEPTION>(pData));
                 break;
 
             case SIMCONNECT_RECV_ID_OPEN:
             {
-                const SIMCONNECT_RECV_OPEN *pOpen = reinterpret_cast<const SIMCONNECT_RECV_OPEN *>(pData);
+                const SIMCONNECT_RECV_OPEN *pOpen = toRecvPtr<SIMCONNECT_RECV_OPEN>(pData);
 
                 printf("Connected to '%s' version %d.%d (build %d.%d)\n",
                        pOpen->szApplicationName,
@@ -491,44 +498,44 @@ static void handle_messages(HANDLE hEvent)
 
             case SIMCONNECT_RECV_ID_SIMOBJECT_DATA:
             {
-                const SIMCONNECT_RECV_SIMOBJECT_DATA *msg = reinterpret_cast<const SIMCONNECT_RECV_SIMOBJECT_DATA *>(pData);
+                const SIMCONNECT_RECV_SIMOBJECT_DATA *msg = toRecvPtr<SIMCONNECT_RECV_SIMOBJECT_DATA>(pData);
 
-                if (msg->dwRequestID != DataReq)
-                {
-                    printf("Ignoring data, not our request.\n\n");
+				if (msg->dwRequestID != reqId) {
+					printf("Ignoring data for request %d. (this isn't ours)\n", msg->dwRequestID);
                 }
-                else if (msg->dwDefineID != AircraftData)
-                {
-                    printf("Ignoring data, not AircraftData.\n\n");
+				else if (msg->dwDefineID != aircraftInfoId) {
+					printf("Ignoring data for Define ID %d. (this isn't ours)\n", msg->dwDefineID);
                 }
-                else
-                {
-                    unsigned dataSize{cbData - (4 * 7)};
+				else {
+					unsigned dataSize{ cbData - (4 * 7) };
                     printf("Received SimObject data for request %d, object %d, defineId %d, %d items, entry %d out of %d, remaining message size %d bytes.\n",
                            msg->dwRequestID, msg->dwObjectID, msg->dwDefineID, msg->dwDefineCount,
                            msg->dwentrynumber, msg->dwoutof,
                            dataSize);
-                    if ((msg->dwFlags & SIMCONNECT_DATA_REQUEST_FLAG_CHANGED) != 0)
-                    {
+					if (isChanged(msg)) {
                         printf("  - Data is sent due to a change.\n");
                     }
-                    if ((msg->dwFlags & SIMCONNECT_DATA_REQUEST_FLAG_TAGGED) != 0)
-                    {
+					if (isTagged(msg)) {
                         printf("  - Data is in the TAGGED format.\n");
                     }
 
-                    const uint8_t *data = reinterpret_cast<const uint8_t *>(&(msg->dwData));
-                    hexDump(data, dataSize);
+					hexDump(toBytePtr(&(msg->dwData)), dataSize);
 
-                    if ((msg->dwFlags & SIMCONNECT_DATA_REQUEST_FLAG_TAGGED) != 0)
-                    {
-                        parseTagged(data, dataSize);
+					AircraftInfo data;
+					if (isTagged(msg)) {
+						parseTagged(toBytePtr(&(msg->dwData)), dataSize, msg->dwDefineCount, data);
                     }
-                    else
-                    {
-                        parseUntagged(data, dataSize);
+					else {
+						parseUntagged(toBytePtr(&(msg->dwData)), dataSize, data);
                     }
+					printf("Title: '%s'\n", data.title);
+					printf("This is %sthe user's aircraft.\n", (data.isUserSim != 0) ? "" : "NOT ");
+					printf("ATC ID: '%s'\n", data.atcId);
+					printf("ATC Model: '%s'\n", data.atcModel);
+					printf("The aicraft is %d feet AGL.\n", data.altitudeAGL);
+					printf("The aircraft is %d feet %s sea level.\n", abs(data.altitudeASL), (data.altitudeASL >= 0) ? "above" : "below");
                 }
+
             }
             break;
 
@@ -537,8 +544,7 @@ static void handle_messages(HANDLE hEvent)
                 break;
             }
         }
-        if (connected)
-        {
+		if (connected) {
             Sleep(100);
         }
     }
@@ -551,27 +557,25 @@ static void handle_messages(HANDLE hEvent)
  */
 static int testConnect()
 {
-    HANDLE hEventHandle{::CreateEvent(NULL, FALSE, FALSE, NULL)};
-    if (hEventHandle == NULL)
-    {
+	HANDLE hEventHandle{ ::CreateEvent(NULL, FALSE, FALSE, NULL) };
+	if (hEventHandle == NULL) {
         printf("Failed to create a Windows Event!\n");
         return 1;
     }
 
     HRESULT hr = SimConnect_Open(&hSimConnect, "My First SimConnect App", nullptr, 0, hEventHandle, 0);
 
-    if (SUCCEEDED(hr))
-    {
+	if (SUCCEEDED(hr)) {
         std::cout << "Successfully connected to MSFS.\n";
 
-        SimConnect_AddToDataDefinition(hSimConnect, AircraftData, "TITLE", "", SIMCONNECT_DATATYPE_STRINGV, 0, dword(Datum::Title));
-        SimConnect_AddToDataDefinition(hSimConnect, AircraftData, "is user sim", "Bool", SIMCONNECT_DATATYPE_INT32, 0, dword(Datum::IsUser));
-        SimConnect_AddToDataDefinition(hSimConnect, AircraftData, "atc id", "", SIMCONNECT_DATATYPE_STRINGV, 0, dword(Datum::AtcId));
-        SimConnect_AddToDataDefinition(hSimConnect, AircraftData, "atc model", "", SIMCONNECT_DATATYPE_STRING32, 0, dword(Datum::AtcModel));
-        SimConnect_AddToDataDefinition(hSimConnect, AircraftData, "aircraft agl", "feet", SIMCONNECT_DATATYPE_INT32, 0, dword(Datum::AircraftAGL));
-        SimConnect_AddToDataDefinition(hSimConnect, AircraftData, "plane altitude", "feet", SIMCONNECT_DATATYPE_INT32, 0, dword(Datum::Altitude));
+		SimConnect_AddToDataDefinition(hSimConnect, aircraftInfoId, "title", nullptr, SIMCONNECT_DATATYPE_STRINGV, 0, int(DatumId::Title));
+		SimConnect_AddToDataDefinition(hSimConnect, aircraftInfoId, "is user sim", "bool", SIMCONNECT_DATATYPE_INT32, 0, int(DatumId::IsUser));
+		SimConnect_AddToDataDefinition(hSimConnect, aircraftInfoId, "atc id", nullptr, SIMCONNECT_DATATYPE_STRINGV, 0, int(DatumId::AtcId));
+		SimConnect_AddToDataDefinition(hSimConnect, aircraftInfoId, "atc model", nullptr, SIMCONNECT_DATATYPE_STRINGV, 0, int(DatumId::AtcModel));
+		SimConnect_AddToDataDefinition(hSimConnect, aircraftInfoId, "aircraft AGL", "feet", SIMCONNECT_DATATYPE_INT32, 0, int(DatumId::AltAGL));
+		SimConnect_AddToDataDefinition(hSimConnect, aircraftInfoId, "plane altitude", "feet", SIMCONNECT_DATATYPE_INT32, 0, int(DatumId::AltASL));
 
-        SimConnect_RequestDataOnSimObject(hSimConnect, DataReq, AircraftData, SIMCONNECT_OBJECT_ID_USER_CURRENT, SIMCONNECT_PERIOD_ONCE /*, SIMCONNECT_DATA_REQUEST_FLAG_TAGGED*/);
+		SimConnect_RequestDataOnSimObject(hSimConnect, reqId, aircraftInfoId, SIMCONNECT_SIMOBJECT_TYPE_USER_AIRCRAFT, SIMCONNECT_PERIOD_ONCE, SIMCONNECT_DATA_REQUEST_FLAG_TAGGED);
 
         connected = true;
         handle_messages(hEventHandle);
@@ -580,14 +584,14 @@ static int testConnect()
 
         std::cout << "Disconnected from MSFS.\n";
     }
-    else
-    {
+	else {
         std::cerr << "Failed to connect to MSFS!\n";
     }
     return FAILED(hr); // Zero is "ok"
 }
 
-int main([[maybe_unused]] int argc, [[maybe_unused]] const char *argv[])
+
+int main([[maybe_unused]] int argc, [[maybe_unused]] const char* argv[])
 {
     std::cout << "Welcome to my first SimConnect app.\n";
 

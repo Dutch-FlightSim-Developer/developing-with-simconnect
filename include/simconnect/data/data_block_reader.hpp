@@ -64,7 +64,7 @@ public:
         : DataBlock(data)
     {}
     DataBlockReader(const SIMCONNECT_RECV_SIMOBJECT_DATA& msg)
-        : DataBlock(std::span<const uint8_t>(reinterpret_cast<const uint8_t*>(&msg), msg.dwDefineCount * sizeof(DWORD)))
+        : DataBlock(std::span<const uint8_t>(reinterpret_cast<const uint8_t*>(&(msg.dwData)), msg.dwSize - (10*sizeof(DWORD))))
     {}
     ~DataBlockReader() = default;
 

@@ -72,26 +72,51 @@ class DataDefinition
         : simVar(simVar), units(units), dataType(dataType), epsilon(epsilon), datumId(datumId), statelessSetter(setter), statelessGetter(getter) {}
     };
 
-    Connection& connection_;    ///< The connection to SimConnect.
     int id_{ -1 };              ///< The ID of the data definition.
     std::vector<FieldInfo> fields_;
 
-
-    static std::atomic_int nextDefId_;
-
 public:
-
-    DataDefinition(Connection& connection) : connection_(connection) {}
-
+    /**
+     * Check if the data definition has been sent to SimConnect.
+     */
     bool isDefined() const noexcept { return id_ != -1; }
 
 
+    /**
+     * Return the Data Definition Id.
+     */
     [[nodiscard]]
     int id() const noexcept { return id_; }
 
+
+    /**
+     * Return the Data Definition Id.
+     */
     operator SIMCONNECT_DATA_DEFINITION_ID() const { return static_cast<SIMCONNECT_DATA_DEFINITION_ID>(id_); }
 
 
+    /**
+     * Registers a DataDefinition
+     */
+    void define(Connection& connection) {
+        if (isDefined()) {
+            return; // Already defined
+        }
+        id_ = connection.dataDefinitions().nextDataDefID();
+
+        for (const auto& field : fields_) {
+            SIMCONNECT_DATATYPE dataType = field.dataType;
+            if (dataType == SIMCONNECT_DATATYPE_INVALID) {
+                throw std::runtime_error("Invalid data type for field: " + field.simVar);
+            }
+            connection.addDataDefinition(id_, field.simVar, field.units, dataType, field.epsilon, field.datumId);
+        }
+    }
+
+
+    /**
+     * Add a field to the data definition.
+     */
     template <typename FieldType>
     DataDefinition& add(FieldType StructType::* field, SIMCONNECT_DATATYPE dataType, std::string simVar, std::string units = "") {
         GetterFunc getter;
@@ -765,8 +790,8 @@ public:
 
     // For SIMCONNECT_DATATYPE_STRING*:
 
-    DataDefinition& addString8(std::string simVar, std::string units, std::function<void(std::string)> setter, std::function<std::string()> getter) {
-        fields_.emplace_back(simVar, units, SIMCONNECT_DATATYPE_STRING8, 0.0f, SIMCONNECT_UNUSED,
+    DataDefinition& addString8(std::string simVar, std::function<void(std::string)> setter, std::function<std::string()> getter) {
+        fields_.emplace_back(simVar, "", SIMCONNECT_DATATYPE_STRING8, 0.0f, SIMCONNECT_UNUSED,
             [setter](Data::DataBlockReader& reader) {
                 setter(reader.readString8());
             },
@@ -775,14 +800,14 @@ public:
             });
         return *this;
     }
-    DataDefinition& addString8(std::string simVar, std::string units, std::function<void(StructType& data, std::string value)> setter, std::function<std::string(const StructType& data)> getter) {
-        fields_.emplace_back(simVar, units, SIMCONNECT_DATATYPE_STRING8, 0.0f, SIMCONNECT_UNUSED,
+    DataDefinition& addString8(std::string simVar, std::function<void(StructType& data, std::string value)> setter, std::function<std::string(const StructType& data)> getter) {
+        fields_.emplace_back(simVar, "", SIMCONNECT_DATATYPE_STRING8, 0.0f, SIMCONNECT_UNUSED,
             [setter](StructType& data, Data::DataBlockReader& reader) { setter(data, reader.readString8()); },
             [getter](Data::DataBlockBuilder& builder, const StructType& data) { builder.addString8(getter(data)); });
         return *this;
     }
-    DataDefinition& addString8(std::string StructType::* field, std::string simVar, std::string units) {
-        fields_.emplace_back(simVar, units, SIMCONNECT_DATATYPE_STRING8, 0.0f, SIMCONNECT_UNUSED,
+    DataDefinition& addString8(std::string StructType::* field, std::string simVar) {
+        fields_.emplace_back(simVar, "", SIMCONNECT_DATATYPE_STRING8, 0.0f, SIMCONNECT_UNUSED,
             [field](StructType& data, Data::DataBlockReader& reader) {
                 data.*field = reader.readString8();
             },
@@ -791,8 +816,8 @@ public:
             });
         return *this;
     }
-    DataDefinition& addString32(std::string simVar, std::string units, std::function<void(std::string)> setter, std::function<std::string()> getter) {
-        fields_.emplace_back(simVar, units, SIMCONNECT_DATATYPE_STRING32, 0.0f, SIMCONNECT_UNUSED,
+    DataDefinition& addString32(std::string simVar, std::function<void(std::string)> setter, std::function<std::string()> getter) {
+        fields_.emplace_back(simVar, "", SIMCONNECT_DATATYPE_STRING32, 0.0f, SIMCONNECT_UNUSED,
             [setter](Data::DataBlockReader& reader) {
                 setter(reader.readString32());
             },
@@ -801,14 +826,14 @@ public:
             });
         return *this;
     }
-    DataDefinition& addString32(std::string simVar, std::string units, std::function<void(StructType& data, std::string value)> setter, std::function<std::string(const StructType& data)> getter) {
-        fields_.emplace_back(simVar, units, SIMCONNECT_DATATYPE_STRING32, 0.0f, SIMCONNECT_UNUSED,
+    DataDefinition& addString32(std::string simVar, std::function<void(StructType& data, std::string value)> setter, std::function<std::string(const StructType& data)> getter) {
+        fields_.emplace_back(simVar, "", SIMCONNECT_DATATYPE_STRING32, 0.0f, SIMCONNECT_UNUSED,
             [setter](StructType& data, Data::DataBlockReader& reader) { setter(data, reader.readString32()); },
             [getter](Data::DataBlockBuilder& builder, const StructType& data) { builder.addString32(getter(data)); });
         return *this;
     }
-    DataDefinition& addString32(std::string StructType::* field, std::string simVar, std::string units) {
-        fields_.emplace_back(simVar, units, SIMCONNECT_DATATYPE_STRING32, 0.0f, SIMCONNECT_UNUSED,
+    DataDefinition& addString32(std::string StructType::* field, std::string simVar) {
+        fields_.emplace_back(simVar, "", SIMCONNECT_DATATYPE_STRING32, 0.0f, SIMCONNECT_UNUSED,
             [field](StructType& data, Data::DataBlockReader& reader) {
                 data.*field = reader.readString32();
             },
@@ -817,8 +842,8 @@ public:
             });
         return *this;
     }
-    DataDefinition& addString64(std::string simVar, std::string units, std::function<void(std::string)> setter, std::function<std::string()> getter) {
-        fields_.emplace_back(simVar, units, SIMCONNECT_DATATYPE_STRING64, 0.0f, SIMCONNECT_UNUSED,
+    DataDefinition& addString64(std::string simVar, std::function<void(std::string)> setter, std::function<std::string()> getter) {
+        fields_.emplace_back(simVar, "", SIMCONNECT_DATATYPE_STRING64, 0.0f, SIMCONNECT_UNUSED,
             [setter](Data::DataBlockReader& reader) {
                 setter(reader.readString64());
             },
@@ -827,14 +852,14 @@ public:
             });
         return *this;
     }
-    DataDefinition& addString64(std::string simVar, std::string units, std::function<void(StructType& data, std::string value)> setter, std::function<std::string(const StructType& data)> getter) {
-        fields_.emplace_back(simVar, units, SIMCONNECT_DATATYPE_STRING64, 0.0f, SIMCONNECT_UNUSED,
+    DataDefinition& addString64(std::string simVar, std::function<void(StructType& data, std::string value)> setter, std::function<std::string(const StructType& data)> getter) {
+        fields_.emplace_back(simVar, "", SIMCONNECT_DATATYPE_STRING64, 0.0f, SIMCONNECT_UNUSED,
             [setter](StructType& data, Data::DataBlockReader& reader) { setter(data, reader.readString64()); },
             [getter](Data::DataBlockBuilder& builder, const StructType& data) { builder.addString64(getter(data)); });
         return *this;
     }
-    DataDefinition& addString64(std::string StructType::* field, std::string simVar, std::string units) {
-        fields_.emplace_back(simVar, units, SIMCONNECT_DATATYPE_STRING64, 0.0f, SIMCONNECT_UNUSED,
+    DataDefinition& addString64(std::string StructType::* field, std::string simVar) {
+        fields_.emplace_back(simVar, "", SIMCONNECT_DATATYPE_STRING64, 0.0f, SIMCONNECT_UNUSED,
             [field](StructType& data, Data::DataBlockReader& reader) {
                 data.*field = reader.readString64();
             },
@@ -843,8 +868,8 @@ public:
             });
         return *this;
     }
-    DataDefinition& addString128(std::string simVar, std::string units, std::function<void(std::string)> setter, std::function<std::string()> getter) {
-        fields_.emplace_back(simVar, units, SIMCONNECT_DATATYPE_STRING128, 0.0f, SIMCONNECT_UNUSED,
+    DataDefinition& addString128(std::string simVar, std::function<void(std::string)> setter, std::function<std::string()> getter) {
+        fields_.emplace_back(simVar, "", SIMCONNECT_DATATYPE_STRING128, 0.0f, SIMCONNECT_UNUSED,
             [setter](Data::DataBlockReader& reader) {
                 setter(reader.readString128());
             },
@@ -853,14 +878,14 @@ public:
             });
         return *this;
     }
-    DataDefinition& addString128(std::string simVar, std::string units, std::function<void(StructType& data, std::string value)> setter, std::function<std::string(const StructType& data)> getter) {
-        fields_.emplace_back(simVar, units, SIMCONNECT_DATATYPE_STRING128, 0.0f, SIMCONNECT_UNUSED,
+    DataDefinition& addString128(std::string simVar, std::function<void(StructType& data, std::string value)> setter, std::function<std::string(const StructType& data)> getter) {
+        fields_.emplace_back(simVar, "", SIMCONNECT_DATATYPE_STRING128, 0.0f, SIMCONNECT_UNUSED,
             [setter](StructType& data, Data::DataBlockReader& reader) { setter(data, reader.readString128()); },
             [getter](Data::DataBlockBuilder& builder, const StructType& data) { builder.addString128(getter(data)); });
         return *this;
     }
-    DataDefinition& addString128(std::string StructType::* field, std::string simVar, std::string units) {
-        fields_.emplace_back(simVar, units, SIMCONNECT_DATATYPE_STRING128, 0.0f, SIMCONNECT_UNUSED,
+    DataDefinition& addString128(std::string StructType::* field, std::string simVar) {
+        fields_.emplace_back(simVar, "", SIMCONNECT_DATATYPE_STRING128, 0.0f, SIMCONNECT_UNUSED,
             [field](StructType& data, Data::DataBlockReader& reader) {
                 data.*field = reader.readString128();
             },
@@ -869,8 +894,8 @@ public:
             });
         return *this;
     }
-    DataDefinition& addString256(std::string simVar, std::string units, std::function<void(std::string)> setter, std::function<std::string()> getter) {
-        fields_.emplace_back(simVar, units, SIMCONNECT_DATATYPE_STRING256, 0.0f, SIMCONNECT_UNUSED,
+    DataDefinition& addString256(std::string simVar, std::function<void(std::string)> setter, std::function<std::string()> getter) {
+        fields_.emplace_back(simVar, "", SIMCONNECT_DATATYPE_STRING256, 0.0f, SIMCONNECT_UNUSED,
             [setter](Data::DataBlockReader& reader) {
                 setter(reader.readString256());
             },
@@ -879,14 +904,14 @@ public:
             });
         return *this;
     }
-    DataDefinition& addString256(std::string simVar, std::string units, std::function<void(StructType& data, std::string value)> setter, std::function<std::string(const StructType& data)> getter) {
-        fields_.emplace_back(simVar, units, SIMCONNECT_DATATYPE_STRING256, 0.0f, SIMCONNECT_UNUSED,
+    DataDefinition& addString256(std::string simVar, std::function<void(StructType& data, std::string value)> setter, std::function<std::string(const StructType& data)> getter) {
+        fields_.emplace_back(simVar, "", SIMCONNECT_DATATYPE_STRING256, 0.0f, SIMCONNECT_UNUSED,
             [setter](StructType& data, Data::DataBlockReader& reader) { setter(data, reader.readString256()); },
             [getter](Data::DataBlockBuilder& builder, const StructType& data) { builder.addString256(getter(data)); });
         return *this;
     }
-    DataDefinition& addString256(std::string StructType::* field, std::string simVar, std::string units) {
-        fields_.emplace_back(simVar, units, SIMCONNECT_DATATYPE_STRING256, 0.0f, SIMCONNECT_UNUSED,
+    DataDefinition& addString256(std::string StructType::* field, std::string simVar) {
+        fields_.emplace_back(simVar, "", SIMCONNECT_DATATYPE_STRING256, 0.0f, SIMCONNECT_UNUSED,
             [field](StructType& data, Data::DataBlockReader& reader) {
                 data.*field = reader.readString256();
             },
@@ -895,8 +920,8 @@ public:
             });
         return *this;
     }
-    DataDefinition& addString260(std::string simVar, std::string units, std::function<void(std::string)> setter, std::function<std::string()> getter) {
-        fields_.emplace_back(simVar, units, SIMCONNECT_DATATYPE_STRING260, 0.0f, SIMCONNECT_UNUSED,
+    DataDefinition& addString260(std::string simVar, std::function<void(std::string)> setter, std::function<std::string()> getter) {
+        fields_.emplace_back(simVar, "", SIMCONNECT_DATATYPE_STRING260, 0.0f, SIMCONNECT_UNUSED,
             [setter](Data::DataBlockReader& reader) {
                 setter(reader.readString260());
             },
@@ -905,14 +930,14 @@ public:
             });
         return *this;
     }
-    DataDefinition& addString260(std::string simVar, std::string units, std::function<void(StructType& data, std::string value)> setter, std::function<std::string(const StructType& data)> getter) {
-        fields_.emplace_back(simVar, units, SIMCONNECT_DATATYPE_STRING260, 0.0f, SIMCONNECT_UNUSED,
+    DataDefinition& addString260(std::string simVar, std::function<void(StructType& data, std::string value)> setter, std::function<std::string(const StructType& data)> getter) {
+        fields_.emplace_back(simVar, "", SIMCONNECT_DATATYPE_STRING260, 0.0f, SIMCONNECT_UNUSED,
             [setter](StructType& data, Data::DataBlockReader& reader) { setter(data, reader.readString260()); },
             [getter](Data::DataBlockBuilder& builder, const StructType& data) { builder.addString260(getter(data)); });
         return *this;
     }
-    DataDefinition& addString260(std::string StructType::* field, std::string simVar, std::string units) {
-        fields_.emplace_back(simVar, units, SIMCONNECT_DATATYPE_STRING260, 0.0f, SIMCONNECT_UNUSED,
+    DataDefinition& addString260(std::string StructType::* field, std::string simVar) {
+        fields_.emplace_back(simVar, "", SIMCONNECT_DATATYPE_STRING260, 0.0f, SIMCONNECT_UNUSED,
             [field](StructType& data, Data::DataBlockReader& reader) {
                 data.*field = reader.readString260();
             },
@@ -921,8 +946,8 @@ public:
             });
         return *this;
     }
-    DataDefinition& addStringV(std::string simVar, std::string units, std::function<void(std::string)> setter, std::function<std::string()> getter) {
-        fields_.emplace_back(simVar, units, SIMCONNECT_DATATYPE_STRINGV, 0.0f, SIMCONNECT_UNUSED,
+    DataDefinition& addStringV(std::string simVar, std::function<void(std::string)> setter, std::function<std::string()> getter) {
+        fields_.emplace_back(simVar, "", SIMCONNECT_DATATYPE_STRINGV, 0.0f, SIMCONNECT_UNUSED,
             [setter](Data::DataBlockReader& reader) {
                 setter(reader.readStringV());
             },
@@ -931,14 +956,14 @@ public:
             });
         return *this;
     }
-    DataDefinition& addStringV(std::string simVar, std::string units, std::function<void(StructType& data, std::string value)> setter, std::function<std::string(const StructType& data)> getter) {
-        fields_.emplace_back(simVar, units, SIMCONNECT_DATATYPE_STRINGV, 0.0f, SIMCONNECT_UNUSED,
+    DataDefinition& addStringV(std::string simVar, std::function<void(StructType& data, std::string value)> setter, std::function<std::string(const StructType& data)> getter) {
+        fields_.emplace_back(simVar, "", SIMCONNECT_DATATYPE_STRINGV, 0.0f, SIMCONNECT_UNUSED,
             [setter](StructType& data, Data::DataBlockReader& reader) { setter(data, reader.readStringV()); },
             [getter](Data::DataBlockBuilder& builder, const StructType& data) { builder.addStringV(getter(data)); });
         return *this;
     }
-    DataDefinition& addStringV(std::string StructType::* field, std::string simVar, std::string units) {
-        fields_.emplace_back(simVar, units, SIMCONNECT_DATATYPE_STRINGV, 0.0f, SIMCONNECT_UNUSED,
+    DataDefinition& addStringV(std::string StructType::* field, std::string simVar) {
+        fields_.emplace_back(simVar, "", SIMCONNECT_DATATYPE_STRINGV, 0.0f, SIMCONNECT_UNUSED,
             [field](StructType& data, Data::DataBlockReader& reader) {
                 data.*field = reader.readStringV();
             },
@@ -1114,24 +1139,34 @@ public:
         }
     }
 
-    void unmarshall(std::span<const uint8_t> msg, StructType& data) const {
-        Data::DataBlockReader reader(msg);
 
+    void unmarshall(Data::DataBlockReader& reader, StructType& data) const {
         for (auto& field : fields_) {
             if (field.setter) {
                 field.setter(data, reader);
-            } else if (field.statelessSetter) {
+            }
+            else if (field.statelessSetter) {
                 field.statelessSetter(reader);
-            } else {
+            }
+            else {
                 throw SimConnectException("Missing setter in DataDefinition::unmarshall()",
                     "No setter function defined for field: " + field.simVar);
             }
         }
     }
 
+
+    void unmarshall(std::span<const uint8_t> msg, StructType& data) const {
+        Data::DataBlockReader reader(msg);
+
+        unmarshall(reader, data);
+    }
+
     
     void unmarshall(const SIMCONNECT_RECV_SIMOBJECT_DATA& msg, StructType& data) const {
-        unmarshall(std::span<const uint8_t>(reinterpret_cast<const uint8_t*>(&msg.dwData), msg.dwDefineCount));
+        Data::DataBlockReader reader(msg);
+
+        unmarshall(reader, data);
     }
 };
 

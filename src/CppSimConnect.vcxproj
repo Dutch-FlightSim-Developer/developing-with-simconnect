@@ -24,6 +24,11 @@
   <ItemGroup>
     <ClInclude Include="..\include\simconnect.hpp" />
     <ClInclude Include="..\include\simconnect\connection.hpp" />
+    <ClInclude Include="..\include\simconnect\data\data_block.hpp" />
+    <ClInclude Include="..\include\simconnect\data\data_block_builder.hpp" />
+    <ClInclude Include="..\include\simconnect\data\data_block_reader.hpp" />
+    <ClInclude Include="..\include\simconnect\data\data_definitions.hpp" />
+    <ClInclude Include="..\include\simconnect\data_definition.hpp" />
     <ClInclude Include="..\include\simconnect\events\events.hpp" />
     <ClInclude Include="..\include\simconnect\events\event_handler.hpp" />
     <ClInclude Include="..\include\simconnect\events\system_events.hpp" />
@@ -36,6 +41,9 @@
     <ClInclude Include="..\include\simconnect\windows_event_connection.hpp" />
     <ClInclude Include="..\include\simconnect\windows_event_handler.hpp" />
     <ClInclude Include="..\include\simconnect\windows_messaging_connection.hpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="..\include\simconnect\data\conversions.md" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <VCProjectVersion>17.0</VCProjectVersion>

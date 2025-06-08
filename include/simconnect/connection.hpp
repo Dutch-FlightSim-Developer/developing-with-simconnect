@@ -19,6 +19,7 @@
 
 #include <simconnect/events/events.hpp>
 #include <simconnect/requests/requests.hpp>
+#include <simconnect/data/data_definitions.hpp>
 
 #include <atomic>
 
@@ -267,12 +268,37 @@ public:
 
 
     /**
-     * Request data.
+     * Data Definitions are managed by the DataDefinitions class.
+     */
+    [[nodiscard]]
+    DataDefinitions& dataDefinitions() {
+        static DataDefinitions dataDefs;
+
+        return dataDefs;
+    }
+
+
+    /**
+     * Add a data item to a data definition.
+     * @param dataDef The data definition to add the item to.
+     * @param item The data item to add.
+     */
+    void addDataDefinition(SIMCONNECT_DATA_DEFINITION_ID dataDef, const std::string& itemName, const std::string& itemUnits,
+                           SIMCONNECT_DATATYPE itemDataType, float itemEpsilon = 0.0f, unsigned long itemDatumId = SIMCONNECT_UNUSED) {
+        hr(SimConnect_AddToDataDefinition(hSimConnect_, dataDef,
+            itemName.c_str(), itemUnits.empty() ? nullptr : itemUnits.c_str(),
+            itemDataType,
+            itemEpsilon,
+            itemDatumId));
+    }
+
+    /**
+     * Request data on the current user's Avatar or Aircraft.
      * @param dataDef The data definition.
      * @param requestId The request ID.
      */
-    void requestData(SIMCONNECT_DATA_DEFINITION_ID dataDef, unsigned long requestId) {
-        hr(SimConnect_RequestDataOnSimObject(hSimConnect_, requestId, dataDef, SIMCONNECT_OBJECT_ID_USER, SIMCONNECT_PERIOD_ONCE));
+    void requestDataOnce(SIMCONNECT_DATA_DEFINITION_ID dataDef, unsigned long requestId) {
+        hr(SimConnect_RequestDataOnSimObject(hSimConnect_, requestId, dataDef, SIMCONNECT_OBJECT_ID_USER_CURRENT, SIMCONNECT_PERIOD_ONCE));
     }
 
 };

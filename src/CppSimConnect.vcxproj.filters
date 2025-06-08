@@ -62,5 +62,25 @@
     <ClInclude Include="..\include\simconnect\requests\requests.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="..\include\simconnect\data\data_definitions.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\include\simconnect\data\data_block.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\include\simconnect\data\data_block_builder.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\include\simconnect\data\data_block_reader.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\include\simconnect\data_definition.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="..\include\simconnect\data\conversions.md">
+      <Filter>Header Files</Filter>
+    </None>
   </ItemGroup>
 </Project>

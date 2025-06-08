@@ -208,33 +208,71 @@ public:
     }
 
 
-    void requestData(Connection& connection, StatelessDataDefinition& dataDef, std::function<void(Data::DataBlockReader&)> handler) {
+    /**
+     * Requests data once from the current user's Avatar or Aircraft. The caller passes a handler that will be executed once the
+     * data is received. The handler will receive a const reference to the (raw) message data.
+     * 
+     * @param connection The connection to request the data from.
+     * @param dataDef The data definition Id to use for the request.
+     * @param handler The handler to execute once the data is received.
+     */
+    void requestDataOnce(Connection& connection, SIMCONNECT_DATA_DEFINITION_ID dataDef, std::function<void(const SIMCONNECT_RECV_SIMOBJECT_DATA&)> handler) {
         addSimObjectDataRequestFinder();
 
         auto requestId = connection.requests().nextRequestID();
 
-        registerHandler(requestId, [&dataDef, handler](const SIMCONNECT_RECV* msg, [[maybe_unused]] DWORD size) {
-            auto& dataMsg = *reinterpret_cast<const SIMCONNECT_RECV_SIMOBJECT_DATA*>(msg);
-            Data::DataBlockReader reader(dataMsg);
-            handler(reader);
-        }, true);
-        connection.requestData(dataDef, requestId);
+        registerHandler(requestId, [requestId, handler](const SIMCONNECT_RECV* msg, [[maybe_unused]] DWORD size) {
+                handler(*reinterpret_cast<const SIMCONNECT_RECV_SIMOBJECT_DATA*>(msg));
+            }, true);
+        connection.requestDataOnce(dataDef, requestId);
     }
 
 
-    template <typename StructType>
-    void requestData(Connection& connection, DataDefinition<StructType> dataDef, std::function<void(const StructType&)> handler) {
+    /**
+     * Requests data once from the current user's Avatar or Aircraft. The caller passes a handler that will be executed once the
+     * data is received. The handler will receive a reference to a DataBlockReader that can be used to read the data.
+     * 
+     * @param connection The connection to request the data from.
+     * @param dataDef The data definition Id to use for the request.
+     * @param handler The handler to execute once the data is received.
+     */
+    void requestDataOnce(Connection& connection, SIMCONNECT_DATA_DEFINITION_ID dataDef, std::function<void(Data::DataBlockReader&)> handler) {
         addSimObjectDataRequestFinder();
 
         auto requestId = connection.requests().nextRequestID();
 
-        registerHandler(requestId, [&dataDef, handler](const SIMCONNECT_RECV* msg, [[maybe_unused]] DWORD size) {
-            auto& msgData = *reinterpret_cast<const SIMCONNECT_RECV_SIMOBJECT_DATA*>(msg);
+        registerHandler(requestId, [requestId, handler](const SIMCONNECT_RECV* msg, [[maybe_unused]] DWORD size) {
+                Data::DataBlockReader reader(*reinterpret_cast<const SIMCONNECT_RECV_SIMOBJECT_DATA*>(msg));
+
+                handler(reader);
+            }, true);
+        connection.requestDataOnce(dataDef, requestId);
+    }
+
+
+    /**
+     * Requests data from the current user's Avatar or Aircraft. The caller passes a handler that will be executed once the
+     * data is received. The handler will receive a reference to an ephemeral structure that has the data unmarshalled into it.
+     * 
+     * @param connection The connection to request the data from.
+     * @param dataDef The data definition to use for the request.
+     * @param handler The handler to execute once the data is received.
+     * @tparam StructType The type of the structure to receive the data in.
+     */
+    template <typename StructType>
+    void requestDataOnce(Connection& connection, DataDefinition<StructType>& dataDef, std::function<void(const StructType&)> handler) {
+        dataDef.define(connection);
+        addSimObjectDataRequestFinder();
+
+        const auto requestId = connection.requests().nextRequestID();
+
+        registerHandler(requestId, [requestId, &dataDef, handler](const SIMCONNECT_RECV* msg, [[maybe_unused]] DWORD size) {
             StructType data;
-            dataDef.unmarshall(msgData, data);
+
+            dataDef.unmarshall(*reinterpret_cast<const SIMCONNECT_RECV_SIMOBJECT_DATA*>(msg), data);
             handler(data);
         }, true);
-        connection.requestData(dataDef, requestId);
+        connection.requestDataOnce(dataDef, requestId);
     }
 
 };

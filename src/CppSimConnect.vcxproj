@@ -29,6 +29,7 @@
     <ClInclude Include="..\include\simconnect\data\data_block_reader.hpp" />
     <ClInclude Include="..\include\simconnect\data\data_definitions.hpp" />
     <ClInclude Include="..\include\simconnect\data_definition.hpp" />
+    <ClInclude Include="..\include\simconnect\data_frequency.hpp" />
     <ClInclude Include="..\include\simconnect\events\events.hpp" />
     <ClInclude Include="..\include\simconnect\events\event_handler.hpp" />
     <ClInclude Include="..\include\simconnect\events\system_events.hpp" />

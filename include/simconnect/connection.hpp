@@ -20,12 +20,13 @@
 #include <simconnect/events/events.hpp>
 #include <simconnect/requests/requests.hpp>
 #include <simconnect/data/data_definitions.hpp>
+#include <simconnect/data_frequency.hpp>
 
 #include <atomic>
 
 
 namespace SimConnect {
-    
+
 /**
  * A SimConnect connection.
  */
@@ -292,13 +293,50 @@ public:
             itemDatumId));
     }
 
+
     /**
-     * Request data on the current user's Avatar or Aircraft.
+     * Request data on the given object.
      * @param dataDef The data definition.
      * @param requestId The request ID.
+     * @param frequency The frequency at which to request the data.
+     * @param objectId The object ID to request data for. Defaults to the current user's Avatar or Aircraft.
+     * @param onlyWhenChanged If true, the data will only be sent when it changes.
      */
-    void requestDataOnce(SIMCONNECT_DATA_DEFINITION_ID dataDef, unsigned long requestId) {
-        hr(SimConnect_RequestDataOnSimObject(hSimConnect_, requestId, dataDef, SIMCONNECT_OBJECT_ID_USER_CURRENT, SIMCONNECT_PERIOD_ONCE));
+    void requestData(SIMCONNECT_DATA_DEFINITION_ID dataDef, unsigned long requestId,
+        DataFrequency frequency = DataFrequency::once(),
+        unsigned long objectId = SIMCONNECT_OBJECT_ID_USER_CURRENT,
+        bool onlyWhenChanged = false)
+    {
+        hr(SimConnect_RequestDataOnSimObject(hSimConnect_, requestId, dataDef,
+            objectId,
+            frequency.period,
+            onlyWhenChanged ? SIMCONNECT_DATA_REQUEST_FLAG_CHANGED : 0,
+            frequency.origin,
+            frequency.interval,
+            frequency.limit));
+    }
+
+
+    /**
+     * Request data on the given object. The data must be returned in a tagged format.
+     * @param dataDef The data definition.
+     * @param requestId The request ID.
+     * @param frequency The frequency at which to request the data.
+     * @param objectId The object ID to request data for. Defaults to the current user's Avatar or Aircraft.
+     * @param onlyWhenChanged If true, the data will only be sent when it changes.
+     */
+    void requestDataTagged(SIMCONNECT_DATA_DEFINITION_ID dataDef, unsigned long requestId,
+        DataFrequency frequency = DataFrequency::once(),
+        unsigned long objectId = SIMCONNECT_OBJECT_ID_USER_CURRENT,
+        bool onlyWhenChanged = false)
+    {
+        hr(SimConnect_RequestDataOnSimObject(hSimConnect_, requestId, dataDef,
+            objectId,
+            frequency.period,
+            (onlyWhenChanged ? SIMCONNECT_DATA_REQUEST_FLAG_CHANGED : 0) | SIMCONNECT_DATA_REQUEST_FLAG_TAGGED,
+            frequency.origin,
+            frequency.interval,
+            frequency.limit));
     }
 
 };

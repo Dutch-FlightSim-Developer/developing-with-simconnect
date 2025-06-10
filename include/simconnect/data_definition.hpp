@@ -40,18 +40,39 @@ template <typename StructType>
 class DataDefinition
 {
     /**
-     * Function type for setting a field in the data block.
+     * Function type for setting a field of the receiving struct/class. The value is the "next" value in the DataBlockReader.
      * 
      * @param data The struct to receive the data.
      * @param reader The data block reader to read the data from.
      */
     using SetterFunc = std::function<void(StructType& data, Data::DataBlockReader& reader)>;
+
+    /**
+     * Function type for setting a field in the data block without a struct. The value is the "next" value in the DataBlockReader.
+     * 
+     * @param reader The data block reader to read the data from.
+     */
     using StatelessSetterFunc = std::function<void(Data::DataBlockReader& reader)>;
 
+    /**
+     * Function type for getting a field from a data struct and storing it in the DataBlockBuilder.
+     * 
+     * @param builder The data block builder to write the data to.
+     * @param data The struct containing the data.
+     */
     using GetterFunc = std::function<void(Data::DataBlockBuilder& builder, const StructType& data)>;
+
+    /**
+     * Function type for storing the next field in the DataBlockBuilder.
+     * 
+     * @param builder The data block builder to write the data to.
+     */
     using StatelessGetterFunc = std::function<void(Data::DataBlockBuilder& builder)>;
 
 
+    /**
+     * Information about a field in the data definition.
+     */
     struct FieldInfo {
         std::string simVar{ "" };
         std::string units{ "" };
@@ -73,6 +94,7 @@ class DataDefinition
     };
 
     int id_{ -1 };              ///< The ID of the data definition.
+    bool haveVString_{ false }; ///< Whether the data definition has a variable-length string field.
     std::vector<FieldInfo> fields_;
 
 public:
@@ -96,6 +118,13 @@ public:
 
 
     /**
+     * Check if the data definition has a variable-length string field.
+     */
+    [[nodiscard]]
+    bool hasVString() const noexcept { return haveVString_; }
+
+
+    /**
      * Registers a DataDefinition
      */
     void define(Connection& connection) {
@@ -104,12 +133,18 @@ public:
         }
         id_ = connection.dataDefinitions().nextDataDefID();
 
-        for (const auto& field : fields_) {
-            SIMCONNECT_DATATYPE dataType = field.dataType;
-            if (dataType == SIMCONNECT_DATATYPE_INVALID) {
+        unsigned long datumId{ 1 };
+        for (auto& field : fields_) {
+            if (field.dataType == SIMCONNECT_DATATYPE_INVALID) {
                 throw std::runtime_error("Invalid data type for field: " + field.simVar);
             }
-            connection.addDataDefinition(id_, field.simVar, field.units, dataType, field.epsilon, field.datumId);
+
+            field.datumId = datumId++;
+            if (field.dataType == SIMCONNECT_DATATYPE_STRINGV) {
+                haveVString_ = true; // We have a variable-length string field
+            }
+
+            connection.addDataDefinition(id_, field.simVar, field.units, field.dataType, field.epsilon, field.datumId);
         }
     }
 
@@ -1126,7 +1161,7 @@ public:
 
     // Marshalling and Unmarshalling:
 
-    void marshall(Data::DataBlockBuilder& builder, const StructType& data) const {
+    void marshall(Data::DataBlockBuilder& builder, const StructType& data, bool isTagged = false) const {
         for (const auto& field : fields_) {
             if (field.getter) {
                 field.getter(builder, data);
@@ -1140,33 +1175,60 @@ public:
     }
 
 
-    void unmarshall(Data::DataBlockReader& reader, StructType& data) const {
-        for (auto& field : fields_) {
-            if (field.setter) {
-                field.setter(data, reader);
+    static constexpr int unTagged = -1;
+
+    void unmarshall(Data::DataBlockReader& reader, StructType& data, int numElems = unTagged) const {
+        if (numElems == unTagged) {
+            for (auto& field : fields_) {
+                if (field.setter) {
+                    field.setter(data, reader);
+                }
+                else if (field.statelessSetter) {
+                    field.statelessSetter(reader);
+                }
+                else {
+                    throw SimConnectException("Missing setter in DataDefinition::unmarshall()",
+                        "No setter function defined for field: " + field.simVar);
+                }
             }
-            else if (field.statelessSetter) {
-                field.statelessSetter(reader);
-            }
-            else {
-                throw SimConnectException("Missing setter in DataDefinition::unmarshall()",
-                    "No setter function defined for field: " + field.simVar);
+        }
+        else { // Tagged data
+            while (numElems-- > 0) {
+                size_t id = reader.readInt32();
+                if (id == 0) {
+                    continue; // Skip empty entries
+                }
+                if (id > fields_.size()) {
+                    throw SimConnectException("Invalid field ID in DataDefinition::unmarshall()",
+                        "Field ID out of range: " + std::to_string(id));
+                }
+                auto& field = fields_[id - 1]; // ID is 1-based, fields_ is 0-based
+                if (field.setter) {
+                    field.setter(data, reader);
+                }
+                else if (field.statelessSetter) {
+                    field.statelessSetter(reader);
+                }
+                else {
+                    throw SimConnectException("Missing setter in DataDefinition::unmarshall()",
+                        "No setter function defined for field: " + field.simVar);
+                }
             }
         }
     }
 
 
-    void unmarshall(std::span<const uint8_t> msg, StructType& data) const {
+    void unmarshall(std::span<const uint8_t> msg, StructType& data, int numElems = unTagged) const {
         Data::DataBlockReader reader(msg);
 
-        unmarshall(reader, data);
+        unmarshall(reader, data, numElems);
     }
 
     
     void unmarshall(const SIMCONNECT_RECV_SIMOBJECT_DATA& msg, StructType& data) const {
         Data::DataBlockReader reader(msg);
 
-        unmarshall(reader, data);
+        unmarshall(reader, data, ((msg.dwFlags & SIMCONNECT_DATA_REQUEST_FLAG_TAGGED) != 0) ? msg.dwDefineCount : unTagged);
     }
 };
 

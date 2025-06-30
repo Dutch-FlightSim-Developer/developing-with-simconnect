@@ -339,6 +339,19 @@ public:
             frequency.limit));
     }
 
+
+    /**
+     * Stops a data request.
+     * 
+     * @param dataDef The data definition ID.
+     * @param requestId The request ID.
+     * @param objectId The object ID to stop the request for. Defaults to the current user's Avatar or Aircraft.
+     */
+    void stopDataRequest(SIMCONNECT_DATA_DEFINITION_ID dataDef, unsigned long requestId,
+        unsigned long objectId = SIMCONNECT_OBJECT_ID_USER_CURRENT)
+    {
+        hr(SimConnect_RequestDataOnSimObject(hSimConnect_, requestId, dataDef, objectId, SIMCONNECT_PERIOD_NEVER));
+    }
 };
 
-}
+} // namespace SimConnect

@@ -187,6 +187,23 @@ public:
 
 
     /**
+     * Read a block of data as a pointer to it, checking if the read is within bounds.
+     * 
+     * @param size The size of the block.
+     * @return A pointer to the data.
+     */
+    template <typename T>
+    const T* readPointer(unsigned int size) {
+        if (next_ + size > this->size()) {
+            throw std::out_of_range("Attempt to read beyond the end of the data block.");
+        }
+        const T* ptr = reinterpret_cast<const T*>(getSpan(next_, size).data());
+        next_ += size;
+        return ptr;
+    }
+
+
+    /**
      * Read a value of type `SIMCONNECT_DATATYPE_INITPOSITION` from the block.
      * 
      * @return The read `SIMCONNECT_DATA_INITPOSITION` value.

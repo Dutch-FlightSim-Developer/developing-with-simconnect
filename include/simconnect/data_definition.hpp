@@ -16,6 +16,8 @@
  */
 
 #include <cstdint>
+#include <cstddef>
+#include <cstring>
  
 #include <span>
 #include <atomic>
@@ -93,9 +95,10 @@ class DataDefinition
         : simVar(simVar), units(units), dataType(dataType), epsilon(epsilon), datumId(datumId), statelessSetter(setter), statelessGetter(getter) {}
     };
 
-    int id_{ -1 };              ///< The ID of the data definition.
-    bool haveVString_{ false }; ///< Whether the data definition has a variable-length string field.
-    std::vector<FieldInfo> fields_;
+    int id_{ -1 };                  ///< The ID of the data definition.
+    bool useMapping_{ true };       ///< Whether to map the struct on top of the incoming data for this data definition.
+    std::vector<FieldInfo> fields_; ///< The fields in the data definition, containing the information about the field and the getter/setter functions.
+    size_t size_{ 0 };              ///< The size of the data definition, used for mapping.
 
 public:
     /**
@@ -118,10 +121,10 @@ public:
 
 
     /**
-     * Check if the data definition has a variable-length string field.
+     * Ask if we have a straight mapping between the struct and the data block.
      */
     [[nodiscard]]
-    bool hasVString() const noexcept { return haveVString_; }
+    bool useMapping() const noexcept { return useMapping_; }
 
 
     /**
@@ -140,9 +143,6 @@ public:
             }
 
             field.datumId = datumId++;
-            if (field.dataType == SIMCONNECT_DATATYPE_STRINGV) {
-                haveVString_ = true; // We have a variable-length string field
-            }
 
             connection.addDataDefinition(id_, field.simVar, field.units, field.dataType, field.epsilon, field.datumId);
         }
@@ -161,10 +161,13 @@ public:
 
         case SIMCONNECT_DATATYPE_INT32:
         {
+            if constexpr (!std::is_same_v<FieldType, int32_t>) {
+                useMapping_ = false; // We cannot map this field directly, so we will not use the mapping.
+            }
             if constexpr (std::is_same_v<FieldType, int> || std::is_same_v<FieldType, long> ||
                           std::is_same_v<FieldType, int32_t> ||
                           std::is_same_v<FieldType, long long> ||
-                          std::is_same_v<FieldType, uint64_t> ||
+                          std::is_same_v<FieldType, int64_t> ||
                           std::is_same_v<FieldType, double>) {
                 setter = [field](StructType& data, Data::DataBlockReader& reader) {
                     data.*field = reader.readInt32();
@@ -196,11 +199,15 @@ public:
             } else {
                 throw SimConnectException("Invalid field type for SIMCONNECT_DATATYPE_INT32.");
             }
+            size_ += sizeof(int32_t); // Update the size of the data definition
         }
             break;
 
         case SIMCONNECT_DATATYPE_INT64:
         {
+            if constexpr (!std::is_same_v<FieldType, int64_t>) {
+                useMapping_ = false; // We cannot map this field directly, so we will not use the mapping.
+            }
             if constexpr (std::is_same_v<FieldType, int> || std::is_same_v<FieldType, long> ||
                           std::is_same_v<FieldType, int32_t> ||
                           std::is_same_v<FieldType, float> ||
@@ -236,11 +243,15 @@ public:
             } else {
                 throw SimConnectException("Invalid field type for SIMCONNECT_DATATYPE_INT64.");
             }
+            size_ += sizeof(int64_t); // Update the size of the data definition
         }
             break;
 
         case SIMCONNECT_DATATYPE_FLOAT32:
         {
+            if constexpr (!std::is_same_v<FieldType, float>) {
+                useMapping_ = false; // We cannot map this field directly, so we will not use the mapping.
+            }
             if constexpr (std::is_same_v<FieldType, int> || std::is_same_v<FieldType, long> ||
                           std::is_same_v<FieldType, int32_t> ||
                           std::is_same_v<FieldType, long long> ||
@@ -275,11 +286,15 @@ public:
             } else {
                 throw SimConnectException("Invalid field type for SIMCONNECT_DATATYPE_FLOAT32.");
             }
+            size_ += sizeof(float); // Update the size of the data definition
         }
             break;
 
         case SIMCONNECT_DATATYPE_FLOAT64:
         {
+            if constexpr (!std::is_same_v<FieldType, double>) {
+                useMapping_ = false; // We cannot map this field directly, so we will not use the mapping.
+            }
             if constexpr (std::is_same_v<FieldType, int> || std::is_same_v<FieldType, long> ||
                           std::is_same_v<FieldType, int32_t> ||
                           std::is_same_v<FieldType, long long> ||
@@ -315,6 +330,7 @@ public:
             } else {
                 throw SimConnectException("Invalid field type for SIMCONNECT_DATATYPE_FLOAT64.");
             }
+            size_ += sizeof(double); // Update the size of the data definition
         }
             break;
 
@@ -326,6 +342,15 @@ public:
                 };
                 getter = [field](Data::DataBlockBuilder& builder, const StructType& data) {
                     builder.addString8(data.*field);
+                };
+            } else if constexpr (std::is_array_v<FieldType> && std::is_same_v<std::remove_extent_t<FieldType>, char> &&
+                                 std::extent_v<FieldType> >= 8) {
+                setter = [field](StructType& data, Data::DataBlockReader& reader) {
+                    std::memset(data.*field, 0, std::extent_v<FieldType>);
+                    std::memcpy(data.*field, reader.readPointer<char>(std::extent_v<FieldType>), 8);
+                };
+                getter = [field](Data::DataBlockBuilder& builder, const StructType& data) {
+                    builder.addString8(std::string_view(data.*field));
                 };
             } else {
                 throw SimConnectException("Invalid field type for SIMCONNECT_DATATYPE_STRING8.");

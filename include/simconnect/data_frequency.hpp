@@ -37,6 +37,11 @@ struct DataFrequency {
         return { SIMCONNECT_PERIOD_NEVER, 0, 0, 0 };
     }
 
+    [[nodiscard]]
+    bool isOnce() const noexcept {
+        return period == SIMCONNECT_PERIOD_ONCE;
+    }
+
     DataFrequency& seconds() {
         period = SIMCONNECT_PERIOD_SECOND;
         return *this;

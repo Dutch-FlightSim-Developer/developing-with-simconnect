@@ -22,6 +22,7 @@
 
 #include <simconnect/data_definition.hpp>
 #include <simconnect/handler.hpp>
+#include <simconnect/requests/request.hpp>
 
 
 namespace SimConnect {
@@ -208,7 +209,12 @@ public:
     }
 
 
-    // Requesting data.
+    // Requesting data. Three groups of requestData methods are provided, depending on how the caller wants to receive the data:
+    // 1. As a raw message data structure (SIMCONNECT_RECV_SIMOBJECT_DATA).
+    // 2. As a DataBlockReader that can be used to read the data.
+    // 3. As a struct (or class), where the setters and getters are used.
+    //
+    // For each group, there are methods to request the data once or repeatedly, and tagged. (again once or repeatedly)
 
     // First, request the data and pass a handler that will receive the raw message data.
 
@@ -222,8 +228,9 @@ public:
      * @param frequency The frequency at which to request the data.
      * @param objectId The object ID to request data for. Defaults to the current user's Avatar or Aircraft.
      * @param onlyWhenChanged If true, the data will only be requested when it has changed.
+     * @return A Request object that can be used to stop the request.
      */
-    void requestData(Connection& connection, SIMCONNECT_DATA_DEFINITION_ID dataDef,
+    Request requestData(Connection& connection, SIMCONNECT_DATA_DEFINITION_ID dataDef,
         std::function<void(const SIMCONNECT_RECV_SIMOBJECT_DATA&)> handler,
         DataFrequency frequency = DataFrequency::once(),
         unsigned long objectId = SIMCONNECT_OBJECT_ID_USER_CURRENT,
@@ -235,8 +242,12 @@ public:
 
         registerHandler(requestId, [requestId, handler](const SIMCONNECT_RECV* msg, [[maybe_unused]] DWORD size) {
                 handler(*reinterpret_cast<const SIMCONNECT_RECV_SIMOBJECT_DATA*>(msg));
-            }, true);
+            }, frequency.isOnce());
         connection.requestData(dataDef, requestId, frequency, objectId, onlyWhenChanged);
+        return frequency.isOnce() ? Request{} : Request{ requestId, [this, requestId, &connection, &dataDef, objectId]() {
+            connection.stopDataRequest(dataDef, requestId, objectId);
+            removeHandler(requestId);
+        }};
     }
 
 
@@ -248,12 +259,13 @@ public:
      * @param dataDef The data definition Id to use for the request.
      * @param handler The handler to execute when the data is received.
      * @param objectId The object ID to request data for. Defaults to the current user's Avatar or Aircraft.
+     * @return A Request object that can be used to stop the request.
      */
-    void requestDataOnce(Connection& connection, SIMCONNECT_DATA_DEFINITION_ID dataDef,
+    Request requestDataOnce(Connection& connection, SIMCONNECT_DATA_DEFINITION_ID dataDef,
         std::function<void(const SIMCONNECT_RECV_SIMOBJECT_DATA&)> handler,
         unsigned long objectId = SIMCONNECT_OBJECT_ID_USER_CURRENT)
     {
-        requestData(connection, dataDef, handler, DataFrequency::once(), objectId, false);
+        return requestData(connection, dataDef, handler, DataFrequency::once(), objectId, false);
     }
 
 
@@ -267,8 +279,9 @@ public:
      * @param frequency The frequency at which to request the data.
      * @param objectId The object ID to request data for. Defaults to the current user's Avatar or Aircraft.
      * @param onlyWhenChanged If true, the data will only be requested when it has changed.
+     * @return A Request object that can be used to stop the request.
      */
-    void requestDataTagged(Connection& connection, SIMCONNECT_DATA_DEFINITION_ID dataDef,
+    Request requestDataTagged(Connection& connection, SIMCONNECT_DATA_DEFINITION_ID dataDef,
         std::function<void(const SIMCONNECT_RECV_SIMOBJECT_DATA&)> handler,
         DataFrequency frequency = DataFrequency::once(),
         unsigned long objectId = SIMCONNECT_OBJECT_ID_USER_CURRENT,
@@ -280,8 +293,12 @@ public:
 
         registerHandler(requestId, [requestId, handler](const SIMCONNECT_RECV* msg, [[maybe_unused]] DWORD size) {
                 handler(*reinterpret_cast<const SIMCONNECT_RECV_SIMOBJECT_DATA*>(msg));
-            }, true);
+            }, frequency.isOnce());
         connection.requestDataTagged(dataDef, requestId, frequency, objectId, onlyWhenChanged);
+        return frequency.isOnce() ? Request{} : Request{ requestId, [this, requestId, &connection, &dataDef, objectId]() {
+            connection.stopDataRequest(dataDef, requestId, objectId);
+            removeHandler(requestId);
+        }};
     }
 
 
@@ -293,12 +310,13 @@ public:
      * @param dataDef The data definition Id to use for the request.
      * @param handler The handler to execute when the data is received.
      * @param objectId The object ID to request data for. Defaults to the current user's Avatar or Aircraft.
+     * @return A Request object that can be used to stop the request.
      */
-    void requestDataOnceTagged(Connection& connection, SIMCONNECT_DATA_DEFINITION_ID dataDef,
+    Request requestDataOnceTagged(Connection& connection, SIMCONNECT_DATA_DEFINITION_ID dataDef,
         std::function<void(const SIMCONNECT_RECV_SIMOBJECT_DATA&)> handler,
         unsigned long objectId = SIMCONNECT_OBJECT_ID_USER_CURRENT)
     {
-        requestDataTagged(connection, dataDef, handler, DataFrequency::once(), objectId, false);
+        return requestDataTagged(connection, dataDef, handler, DataFrequency::once(), objectId, false);
     }
 
 
@@ -314,8 +332,9 @@ public:
      * @param frequency The frequency at which to request the data.
      * @param objectId The object ID to request data for. Defaults to the current user's Avatar or Aircraft.
      * @param onlyWhenChanged If true, the data will only be requested when it has changed.
+     * @return A Request object that can be used to stop the request.
      */
-    void requestData(Connection& connection, SIMCONNECT_DATA_DEFINITION_ID dataDef,
+    Request requestData(Connection& connection, SIMCONNECT_DATA_DEFINITION_ID dataDef,
         std::function<void(Data::DataBlockReader&)> handler,
         DataFrequency frequency = DataFrequency::once(),
         unsigned long objectId = SIMCONNECT_OBJECT_ID_USER_CURRENT,
@@ -329,8 +348,12 @@ public:
                 Data::DataBlockReader reader(*reinterpret_cast<const SIMCONNECT_RECV_SIMOBJECT_DATA*>(msg));
 
                 handler(reader);
-            }, true);
+            }, frequency.isOnce());
         connection.requestData(dataDef, requestId, frequency, objectId, onlyWhenChanged);
+        return frequency.isOnce() ? Request{} : Request{ requestId, [this, requestId, &connection, &dataDef, objectId]() {
+            connection.stopDataRequest(dataDef, requestId, objectId);
+            removeHandler(requestId);
+        }};
     }
 
 
@@ -343,13 +366,14 @@ public:
      * @param handler The handler to execute when the data is received.
      * @param objectId The object ID to request data for. Defaults to the current user's Avatar or Aircraft.
      * @param onlyWhenChanged If true, the data will only be requested when it has changed.
+     * @return A Request object that can be used to stop the request.
      */
-    void requestDataOnce(Connection& connection, SIMCONNECT_DATA_DEFINITION_ID dataDef,
+    Request requestDataOnce(Connection& connection, SIMCONNECT_DATA_DEFINITION_ID dataDef,
         std::function<void(Data::DataBlockReader&)> handler,
         unsigned long objectId = SIMCONNECT_OBJECT_ID_USER_CURRENT,
         bool onlyWhenChanged = false)
     {
-        requestData(connection, dataDef, handler, DataFrequency::once(), objectId, onlyWhenChanged);
+        return requestData(connection, dataDef, handler, DataFrequency::once(), objectId, onlyWhenChanged);
     }
 
 
@@ -363,8 +387,9 @@ public:
      * @param frequency The frequency at which to request the data.
      * @param objectId The object ID to request data for. Defaults to the current user's Avatar or Aircraft.
      * @param onlyWhenChanged If true, the data will only be requested when it has changed.
+     * @return A Request object that can be used to stop the request.
      */
-    void requestDataTagged(Connection& connection, SIMCONNECT_DATA_DEFINITION_ID dataDef,
+    Request requestDataTagged(Connection& connection, SIMCONNECT_DATA_DEFINITION_ID dataDef,
         std::function<void(Data::DataBlockReader&)> handler,
         DataFrequency frequency = DataFrequency::once(),
         unsigned long objectId = SIMCONNECT_OBJECT_ID_USER_CURRENT,
@@ -378,8 +403,12 @@ public:
                 Data::DataBlockReader reader(*reinterpret_cast<const SIMCONNECT_RECV_SIMOBJECT_DATA*>(msg));
 
                 handler(reader);
-            }, true);
+            }, frequency.isOnce());
         connection.requestDataTagged(dataDef, requestId, frequency, objectId, onlyWhenChanged);
+        return frequency.isOnce() ? Request{} : Request{ requestId, [this, requestId, &connection, &dataDef, objectId]() {
+            connection.stopDataRequest(dataDef, requestId, objectId);
+            removeHandler(requestId);
+        }};
     }
 
 
@@ -392,13 +421,14 @@ public:
      * @param handler The handler to execute when the data is received.
      * @param objectId The object ID to request data for. Defaults to the current user's Avatar or Aircraft.
      * @param onlyWhenChanged If true, the data will only be requested when it has changed.
+     * @return A Request object that can be used to stop the request.
      */
-    void requestDataOnceTagged(Connection& connection, SIMCONNECT_DATA_DEFINITION_ID dataDef,
+    Request requestDataOnceTagged(Connection& connection, SIMCONNECT_DATA_DEFINITION_ID dataDef,
         std::function<void(Data::DataBlockReader&)> handler,
         unsigned long objectId = SIMCONNECT_OBJECT_ID_USER_CURRENT,
         bool onlyWhenChanged = false)
     {
-        requestDataTagged(connection, dataDef, handler, DataFrequency::once(), objectId, onlyWhenChanged);
+        return requestDataTagged(connection, dataDef, handler, DataFrequency::once(), objectId, onlyWhenChanged);
     }
 
 
@@ -414,10 +444,11 @@ public:
      * @param frequency The frequency at which to request the data.
      * @param objectId The object ID to request data for. Defaults to the current user's Avatar or Aircraft.
      * @param onlyWhenChanged If true, the data will only be requested when it has changed.
+     * @return A Request object that can be used to stop the request.
      * @tparam StructType The type of the structure to receive the data in.
      */
     template <typename StructType>
-    void requestData(Connection& connection, DataDefinition<StructType>& dataDef,
+    Request requestData(Connection& connection, DataDefinition<StructType>& dataDef,
         std::function<void(const StructType&)> handler,
         DataFrequency frequency = DataFrequency::once(),
         unsigned long objectId = SIMCONNECT_OBJECT_ID_USER_CURRENT,
@@ -434,15 +465,19 @@ public:
 
                 dataDef.unmarshall(*reinterpret_cast<const SIMCONNECT_RECV_SIMOBJECT_DATA*>(msg), data);
                 handler(data);
-            }, true);
+            }, frequency.isOnce());
         }
         else { // No variable-length string, so we can just use the raw message data
             registerHandler(requestId, [requestId, &dataDef, handler](const SIMCONNECT_RECV* msg, [[maybe_unused]] DWORD size) {
                 const StructType* data = reinterpret_cast<const StructType*>(&(reinterpret_cast<const SIMCONNECT_RECV_SIMOBJECT_DATA*>(msg)->dwData));
                 handler(*data);
-            }, true);
+            }, frequency.isOnce());
         }
         connection.requestData(dataDef, requestId, frequency, objectId, onlyWhenChanged);
+        return frequency.isOnce() ? Request{} : Request{ requestId, [this, requestId, &connection, &dataDef, objectId]() {
+            connection.stopDataRequest(dataDef, requestId, objectId);
+            removeHandler(requestId);
+        }};
     }
 
 
@@ -455,15 +490,16 @@ public:
      * @param handler The handler to execute when the data is received.
      * @param objectId The object ID to request data for. Defaults to the current user's Avatar or Aircraft.
      * @param onlyWhenChanged If true, the data will only be requested when it has changed.
+     * @return A Request object that can be used to stop the request.
      * @tparam StructType The type of the structure to receive the data in.
      */
     template <typename StructType>
-    void requestDataOnce(Connection& connection, DataDefinition<StructType>& dataDef,
+    Request requestDataOnce(Connection& connection, DataDefinition<StructType>& dataDef,
         std::function<void(const StructType&)> handler,
         unsigned long objectId = SIMCONNECT_OBJECT_ID_USER_CURRENT,
         bool onlyWhenChanged = false)
     {
-        requestData(connection, dataDef, handler, DataFrequency::once(), objectId, onlyWhenChanged);
+        return requestData(connection, dataDef, handler, DataFrequency::once(), objectId, onlyWhenChanged);
     }
 
 
@@ -477,10 +513,11 @@ public:
      * @param frequency The frequency at which to request the data.
      * @param objectId The object ID to request data for. Defaults to the current user's Avatar or Aircraft.
      * @param onlyWhenChanged If true, the data will only be requested when it has changed.
+     * @return A Request object that can be used to stop the request.
      * @tparam StructType The type of the structure to receive the data in.
      */
     template <typename StructType>
-    void requestDataTagged(Connection& connection, DataDefinition<StructType>& dataDef,
+    Request requestDataTagged(Connection& connection, DataDefinition<StructType>& dataDef,
         std::function<void(const StructType&)> handler,
         DataFrequency frequency = DataFrequency::once(),
         unsigned long objectId = SIMCONNECT_OBJECT_ID_USER_CURRENT,
@@ -496,8 +533,12 @@ public:
 
             dataDef.unmarshall(*reinterpret_cast<const SIMCONNECT_RECV_SIMOBJECT_DATA*>(msg), data);
             handler(data);
-        }, true);
+        }, frequency.isOnce());
         connection.requestDataTagged(dataDef, requestId, frequency, objectId, onlyWhenChanged);
+        return frequency.isOnce() ? Request{} : Request{ requestId, [this, requestId, &connection, &dataDef, objectId]() {
+            connection.stopDataRequest(dataDef, requestId, objectId);
+            removeHandler(requestId);
+        }};
     }
 
 
@@ -510,15 +551,16 @@ public:
      * @param handler The handler to execute when the data is received.
      * @param objectId The object ID to request data for. Defaults to the current user's Avatar or Aircraft.
      * @param onlyWhenChanged If true, the data will only be requested when it has changed.
+     * @return A Request object that can be used to stop the request.
      * @tparam StructType The type of the structure to receive the data in.
      */
     template <typename StructType>
-    void requestDataOnceTagged(Connection& connection, DataDefinition<StructType>& dataDef,
+    Request requestDataOnceTagged(Connection& connection, DataDefinition<StructType>& dataDef,
         std::function<void(const StructType&)> handler,
         unsigned long objectId = SIMCONNECT_OBJECT_ID_USER_CURRENT,
         bool onlyWhenChanged = false)
     {
-        requestData(connection, dataDef, handler, DataFrequency::once(), objectId, onlyWhenChanged);
+        return requestData(connection, dataDef, handler, DataFrequency::once(), objectId, onlyWhenChanged);
     }
 
 };

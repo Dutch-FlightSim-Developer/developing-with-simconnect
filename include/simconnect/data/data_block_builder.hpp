@@ -28,7 +28,7 @@ namespace SimConnect::Data {
  */
 class DataBlockBuilder : public DataBlock
 {
-    DataBlockBuilder& addString(std::string value, size_t size) {
+    DataBlockBuilder& addString(const std::string_view value, size_t size) {
         if (value.size() < size) {
             add<DataBlockBuilder>(std::span<const uint8_t>(reinterpret_cast<const uint8_t*>(value.data()), value.size()));
             addPadding<DataBlockBuilder>(size - value.size());
@@ -102,7 +102,7 @@ public:
      * @param value The string value to add.
      * @return A reference to the current object.
      */
-    DataBlockBuilder& addString8(std::string value) {
+    DataBlockBuilder& addString8(const std::string_view value) {
         return addString(value, 8);
     }
 
@@ -114,7 +114,7 @@ public:
      * @param value The string value to add.
      * @return A reference to the current object.
      */
-    DataBlockBuilder& addString32(std::string value) {
+    DataBlockBuilder& addString32(const std::string_view value) {
         return addString(value, 32);
     }
 
@@ -126,7 +126,7 @@ public:
      * @param value The string value to add.
      * @return A reference to the current object.
      */
-    DataBlockBuilder& addString64(std::string value) {
+    DataBlockBuilder& addString64(const std::string_view value) {
         return addString(value, 64);
     }
 
@@ -138,7 +138,7 @@ public:
      * @param value The string value to add.
      * @return A reference to the current object.
      */
-    DataBlockBuilder& addString128(std::string value) {
+    DataBlockBuilder& addString128(const std::string_view value) {
         return addString(value, 128);
     }
 
@@ -150,7 +150,7 @@ public:
      * @param value The string value to add.
      * @return A reference to the current object.
      */
-    DataBlockBuilder& addString256(std::string value) {
+    DataBlockBuilder& addString256(const std::string_view value) {
         return addString(value, 256);
     }
 
@@ -162,7 +162,7 @@ public:
      * @param value The string value to add.
      * @return A reference to the current object.
      */
-    DataBlockBuilder& addString260(std::string value) {
+    DataBlockBuilder& addString260(const std::string_view value) {
         return addString(value, 260);
     }
 
@@ -174,8 +174,8 @@ public:
      * @param value The string value to add.
      * @return A reference to the current object.
      */
-    DataBlockBuilder& addStringV(std::string value) {
-        return add<DataBlockBuilder>(std::span<const uint8_t>(reinterpret_cast<const uint8_t*>(value.c_str()), value.size() + 1));
+    DataBlockBuilder& addStringV(const std::string_view value) {
+        return add<DataBlockBuilder>(std::span<const uint8_t>(reinterpret_cast<const uint8_t*>(value.data()), value.size() + 1));
     }
 
 

@@ -403,3 +403,7 @@ FodyWeavers.xsd
 tester/
 tester-lib1/
 tester-lib2/
+
+# Ignore CLion files
+*.iml
+.idea/

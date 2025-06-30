@@ -271,8 +271,6 @@ void testGetData() {
         SimConnect::RequestHandler requestHandler;
         requestHandler.enable(handler, SIMCONNECT_RECV_ID_SIMOBJECT_DATA);
 
-		aircraftDef.define(connection);
-
 		requestHandler.requestDataOnce<AircraftInfo>(connection, aircraftDef, [](const AircraftInfo& info) {
             std::cout << "Aircraft Info unmarshalled:\n"
                       << "  Title: " << info.title << "\n"

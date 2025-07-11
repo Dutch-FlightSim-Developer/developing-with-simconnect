@@ -43,15 +43,15 @@ struct AircraftInfo {
 auto main() -> int {
     SimConnect::WindowsEventConnection connection;
 
-    SimConnect::DataDefinition<AircraftInfo> aircraftDef(connection);
+    SimConnect::DataDefinition<AircraftInfo> aircraftDef;
     struct AircraftInfo info {
         "", "", "", 0, 0.0, 0.0, { 0.0, 0.0, 0.0 }
     };
 
     aircraftDef
-        .addStringV(&AircraftInfo::title, "title", "string")
-        .addString32(&AircraftInfo::tailNumber, "tailnumber", "string")
-        .addString64(&AircraftInfo::atcId, "atcid", "string")
+        .addStringV(&AircraftInfo::title, "title")
+        .addString32(&AircraftInfo::tailNumber, "tailnumber")
+        .addString64(&AircraftInfo::atcId, "atcid")
         .addFloat64(&AircraftInfo::latitude, "latitude", "degrees")
         .addFloat64("longitude", "degrees",
             [&info](double value) { info.longitude = value; },

@@ -28,18 +28,6 @@ namespace SimConnect::Data {
  */
 class DataBlockBuilder : public DataBlock
 {
-    DataBlockBuilder& addString(const std::string_view value, size_t size) {
-        if (value.size() < size) {
-            add<DataBlockBuilder>(std::span<const uint8_t>(reinterpret_cast<const uint8_t*>(value.data()), value.size()));
-            addPadding<DataBlockBuilder>(size - value.size());
-        }
-        else {
-            add<DataBlockBuilder>(std::span<const uint8_t>(reinterpret_cast<const uint8_t*>(value.data()), size));
-        }
-        return *this;
-    }
-
-
 public:
     DataBlockBuilder() = default;
     DataBlockBuilder(unsigned int size) : DataBlock(size) {}
@@ -92,6 +80,25 @@ public:
      */
     DataBlockBuilder& addFloat64(double value) {
         return add<DataBlockBuilder>(std::span<const uint8_t>(reinterpret_cast<const uint8_t*>(&value), sizeof(value)));
+    }
+
+
+    /**
+     * Add a string value to the block. The value is truncated or padded (with zeros) to the specified size.
+     * 
+     * @param value The string value to add.
+     * @param size The size of the string to add.
+     * @return A reference to the current object.
+     */
+    DataBlockBuilder& addString(const std::string_view value, size_t size) {
+        if (value.size() < size) {
+            add<DataBlockBuilder>(std::span<const uint8_t>(reinterpret_cast<const uint8_t*>(value.data()), value.size()));
+            addPadding<DataBlockBuilder>(size - value.size());
+        }
+        else {
+            add<DataBlockBuilder>(std::span<const uint8_t>(reinterpret_cast<const uint8_t*>(value.data()), size));
+        }
+        return *this;
     }
 
 

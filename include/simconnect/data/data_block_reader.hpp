@@ -44,20 +44,6 @@ class DataBlockReader : public DataBlock
     }
 
 
-    /**
-     * Read a fixed size string from the block.
-     * 
-     * @param size The size of the string to read.
-     * @return The read string value.
-     */
-    std::string readString(size_t size) {
-        auto value = getSpan(next_, size);
-        next_ += size;
-        auto end = std::ranges::find(value, 0);
-        return std::string(reinterpret_cast<const char*>(value.data()), end - value.begin());
-    }
-
-
 public:
     DataBlockReader() = default;
     DataBlockReader(std::span<const uint8_t> data)
@@ -111,6 +97,20 @@ public:
      */
     double readFloat64() {
         return read<double>();
+    }
+
+
+    /**
+     * Read a fixed size string from the block.
+     * 
+     * @param size The size of the string to read.
+     * @return The read string value.
+     */
+    std::string readString(size_t size) {
+        auto value = getSpan(next_, size);
+        next_ += size;
+        auto end = std::ranges::find(value, 0);
+        return std::string(reinterpret_cast<const char*>(value.data()), end - value.begin());
     }
 
 

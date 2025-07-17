@@ -31,9 +31,9 @@ namespace SimConnect {
  * The RequestHandler class provides for responsive handling of requests.
  */
 class RequestHandler  {
-#if defined(SIMCONNECT_RECV_ID_ENUMERATE_SIMOBJECT_AND_LIVERY_LIST)     // MSFS 2024
+#if defined(SIMCONNECT_RECV_ID_FLOW_EVENT)     // MSFS 2024
     /** Array of message handlers. */
-    std::array<std::function<unsigned long(const SIMCONNECT_RECV*)>, SIMCONNECT_RECV_ID_ENUMERATE_SIMOBJECT_AND_LIVERY_LIST + 1> requestFinders_;
+    std::array<std::function<unsigned long(const SIMCONNECT_RECV*)>, SIMCONNECT_RECV_ID_FLOW_EVENT + 1> requestFinders_;
 #else                                                                   // FSX
     /** Array of message handlers. */
     std::array<std::function<unsigned long(const SIMCONNECT_RECV*)>, SIMCONNECT_RECV_ID_EVENT_RACE_LAP + 1> requestFinders_;

@@ -56,9 +56,7 @@ public:
     Request& operator=(Request&&) = default;
 
     ~Request() {
-        if (valid() && cleanup_) {
-            cleanup_();
-        }
+        stop();
     }
 
 
@@ -83,6 +81,15 @@ public:
      */
     void set_cleanup(std::function<void()> cleanup) {
         cleanup_ = std::move(cleanup);
+    }
+
+    /**
+     * Stops the request and calls the cleanup function if it is set.
+     */
+    void stop() {
+        if (valid() && cleanup_) {
+            cleanup_();
+        }
     }
 };
 

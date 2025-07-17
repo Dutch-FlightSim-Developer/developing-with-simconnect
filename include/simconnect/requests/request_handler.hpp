@@ -459,19 +459,19 @@ public:
 
         const auto requestId = connection.requests().nextRequestID();
 
-        if (dataDef.hasVString()) {
+        if (dataDef.useMapping()) {
+            registerHandler(requestId, [requestId, &dataDef, handler](const SIMCONNECT_RECV* msg, [[maybe_unused]] DWORD size) {
+                const StructType* data = reinterpret_cast<const StructType*>(&(reinterpret_cast<const SIMCONNECT_RECV_SIMOBJECT_DATA*>(msg)->dwData));
+                handler(*data);
+                }, frequency.isOnce());
+        }
+        else {
             registerHandler(requestId, [requestId, &dataDef, handler](const SIMCONNECT_RECV* msg, [[maybe_unused]] DWORD size) {
                 StructType data;
 
                 dataDef.unmarshall(*reinterpret_cast<const SIMCONNECT_RECV_SIMOBJECT_DATA*>(msg), data);
                 handler(data);
-            }, frequency.isOnce());
-        }
-        else { // No variable-length string, so we can just use the raw message data
-            registerHandler(requestId, [requestId, &dataDef, handler](const SIMCONNECT_RECV* msg, [[maybe_unused]] DWORD size) {
-                const StructType* data = reinterpret_cast<const StructType*>(&(reinterpret_cast<const SIMCONNECT_RECV_SIMOBJECT_DATA*>(msg)->dwData));
-                handler(*data);
-            }, frequency.isOnce());
+                }, frequency.isOnce());
         }
         connection.requestData(dataDef, requestId, frequency, objectId, onlyWhenChanged);
         return frequency.isOnce() ? Request{} : Request{ requestId, [this, requestId, &connection, &dataDef, objectId]() {

@@ -248,6 +248,7 @@ void handleSimObjectDataMap(std::unordered_map<unsigned long, SimObjectInfo>& re
 	std::cout << "Received data for " << result.size() << " SimObjects\n";
 	std::vector<int> objectCount(SIMCONNECT_SIMOBJECT_TYPE_USER_CURRENT + 1, 0);
 	std::set<std::string> unknownCategories;
+	std::map<std::string, std::set<std::string>> titlesPerCategory;
 
 	for (const auto& [id, obj] : result) {
 		if (obj.category == "Airplane") {
@@ -268,11 +269,28 @@ void handleSimObjectDataMap(std::unordered_map<unsigned long, SimObjectInfo>& re
 		else {
 			unknownCategories.insert(obj.category);
 		}
+		titlesPerCategory[obj.category].insert(obj.title);
 	}
-	std::cout << "Aircraft: " << objectCount[SIMCONNECT_SIMOBJECT_TYPE_AIRCRAFT] << "\n"
-		<< "Helicopters: " << objectCount[SIMCONNECT_SIMOBJECT_TYPE_HELICOPTER] << "\n"
-		<< "Boats: " << objectCount[SIMCONNECT_SIMOBJECT_TYPE_BOAT] << "\n"
-		<< "Ground Vehicles: " << objectCount[SIMCONNECT_SIMOBJECT_TYPE_GROUND] << "\n";
+	for (const auto& [category, titles] : titlesPerCategory) {
+		std::cout << "Category: " << category << "\n";
+		for (const auto& title : titles) {
+			std::cout << "  Title: " << title << "\n";
+		}
+		if (titles.size() > 1) {
+			std::cout << "  Total titles in this category: " << titles.size() << "\n";
+		}
+		else {
+			std::cout << "  Only one title in this category.\n";
+		}
+	}
+	std::cout << "\n"
+		<< "Summary of SimObjects by type:\n"
+		<< "Aircraft ..... : " << objectCount[SIMCONNECT_SIMOBJECT_TYPE_AIRCRAFT] << "\n"
+		<< "Helicopters .. : " << objectCount[SIMCONNECT_SIMOBJECT_TYPE_HELICOPTER] << "\n"
+		<< "Boats ........ : " << objectCount[SIMCONNECT_SIMOBJECT_TYPE_BOAT] << "\n"
+		<< "Ground Vehicles: " << objectCount[SIMCONNECT_SIMOBJECT_TYPE_GROUND] << "\n"
+		<< "Animals ...... : " << objectCount[SIMCONNECT_SIMOBJECT_TYPE_ANIMAL] << "\n"
+		<< "\n";
 	if (!unknownCategories.empty()) {
 		std::cout << "Unknown categories:\n";
 		for (const auto& category : unknownCategories) {

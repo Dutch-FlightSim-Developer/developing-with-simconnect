@@ -244,6 +244,44 @@ void setupSimObjectInfoDefinition(SimConnect::DataDefinition<SimObjectInfo>& def
 }
 
 
+void handleSimObjectDataMap(std::unordered_map<unsigned long, SimObjectInfo>& result) {
+	std::cout << "Received data for " << result.size() << " SimObjects\n";
+	std::vector<int> objectCount(SIMCONNECT_SIMOBJECT_TYPE_USER_CURRENT + 1, 0);
+	std::set<std::string> unknownCategories;
+
+	for (const auto& [id, obj] : result) {
+		if (obj.category == "Airplane") {
+			++objectCount[SIMCONNECT_SIMOBJECT_TYPE_AIRCRAFT];
+		}
+		else if (obj.category == "Helicopter") {
+			++objectCount[SIMCONNECT_SIMOBJECT_TYPE_HELICOPTER];
+		}
+		else if (obj.category == "Boat") {
+			++objectCount[SIMCONNECT_SIMOBJECT_TYPE_BOAT];
+		}
+		else if (obj.category == "GroundVehicle") {
+			++objectCount[SIMCONNECT_SIMOBJECT_TYPE_GROUND];
+		}
+		else if (obj.category == "Animal") {
+			++objectCount[SIMCONNECT_SIMOBJECT_TYPE_ANIMAL];
+		}
+		else {
+			unknownCategories.insert(obj.category);
+		}
+	}
+	std::cout << "Aircraft: " << objectCount[SIMCONNECT_SIMOBJECT_TYPE_AIRCRAFT] << "\n"
+		<< "Helicopters: " << objectCount[SIMCONNECT_SIMOBJECT_TYPE_HELICOPTER] << "\n"
+		<< "Boats: " << objectCount[SIMCONNECT_SIMOBJECT_TYPE_BOAT] << "\n"
+		<< "Ground Vehicles: " << objectCount[SIMCONNECT_SIMOBJECT_TYPE_GROUND] << "\n";
+	if (!unknownCategories.empty()) {
+		std::cout << "Unknown categories:\n";
+		for (const auto& category : unknownCategories) {
+			std::cout << "  " << category << "\n";
+		}
+	}
+}
+
+
 void testGetData() {
 	SimConnect::WindowsEventConnection connection;
 	SimConnect::WindowsEventHandler handler(connection);
@@ -272,42 +310,7 @@ void testGetData() {
 				std::cout << "All data received.\n";
 			}, 10000, SIMCONNECT_SIMOBJECT_TYPE_AIRCRAFT);
 
-		auto allRequest = dataHandler.requestDataByType<SimObjectInfo>(connection, aircraftDef, [](std::unordered_map<unsigned long, SimObjectInfo>& result) {
-			std::cout << "Received data for " << result.size() << " SimObjects\n";
-			std::vector<int> objectCount(SIMCONNECT_SIMOBJECT_TYPE_USER_CURRENT+1, 0);
-			std::set<std::string> unknownCategories;
-
-			for (const auto& [id, obj] : result) {
-				if (obj.category == "Airplane") {
-					++objectCount[SIMCONNECT_SIMOBJECT_TYPE_AIRCRAFT];
-				}
-				else if (obj.category == "Helicopter") {
-					++objectCount[SIMCONNECT_SIMOBJECT_TYPE_HELICOPTER];
-				}
-				else if (obj.category == "Boat") {
-					++objectCount[SIMCONNECT_SIMOBJECT_TYPE_BOAT];
-				}
-				else if (obj.category == "GroundVehicle") {
-					++objectCount[SIMCONNECT_SIMOBJECT_TYPE_GROUND];
-				}
-				else if (obj.category == "Animal") {
-					++objectCount[SIMCONNECT_SIMOBJECT_TYPE_ANIMAL];
-				}
-				else {
-					unknownCategories.insert(obj.category);
-				}
-			}
-			std::cout << "Aircraft: " << objectCount[SIMCONNECT_SIMOBJECT_TYPE_AIRCRAFT] << "\n"
-				<< "Helicopters: " << objectCount[SIMCONNECT_SIMOBJECT_TYPE_HELICOPTER] << "\n"
-				<< "Boats: " << objectCount[SIMCONNECT_SIMOBJECT_TYPE_BOAT] << "\n"
-				<< "Ground Vehicles: " << objectCount[SIMCONNECT_SIMOBJECT_TYPE_GROUND] << "\n";
-			if (!unknownCategories.empty()) {
-				std::cout << "Unknown categories:\n";
-				for (const auto& category : unknownCategories) {
-					std::cout << "  " << category << "\n";
-				}
-			}
-		}, 0, SIMCONNECT_SIMOBJECT_TYPE_ALL);
+		auto allRequest = dataHandler.requestDataByType<SimObjectInfo>(connection, aircraftDef, &handleSimObjectDataMap, 0, SIMCONNECT_SIMOBJECT_TYPE_ALL);
 		std::cout << "\n\nHandling messages for 10 minutes.\n";
 		handler.handle(10min);
 	}

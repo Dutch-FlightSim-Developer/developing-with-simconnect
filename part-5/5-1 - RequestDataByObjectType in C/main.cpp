@@ -521,12 +521,6 @@ static void handle_messages(HANDLE hEvent)
                     else {
                         parseUntagged(toBytePtr(&(msg->dwData)), dataSize, data);
                     }
-                    //printf("Title: '%s'\n", data.title);
-                    //printf("This is %sthe user's aircraft.\n", (data.isUserSim != 0) ? "" : "NOT ");
-                    //printf("ATC ID: '%s'\n", data.atcId);
-                    //printf("ATC Model: '%s'\n", data.atcModel);
-                    //printf("The aicraft is %d feet AGL.\n", data.altitudeAGL);
-                    //printf("The aircraft is %d feet %s sea level.\n", abs(data.altitudeASL), (data.altitudeASL >= 0) ? "above" : "below");
                 }
 
             }

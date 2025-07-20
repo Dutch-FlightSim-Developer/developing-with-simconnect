@@ -15,6 +15,7 @@
  */
 
 
+#include <set>
 #include <iostream>
 #include <string>
 #include <algorithm>
@@ -29,13 +30,9 @@
 
 using namespace std::chrono_literals;
 
-struct AircraftInfo {
-    std::string title;
-    std::string tailNumber;
-    std::string atcId;
-    int altitude;
-    double latitude;
-    double longitude;
+struct SimObjectInfo {
+	std::string title;
+	std::string category;
 };
 
 
@@ -84,7 +81,7 @@ static void handleException(const SIMCONNECT_RECV_EXCEPTION& msg) {
 		std::cerr << std::format("- Related to a message with SendID {}.\n", (int)msg.dwSendID);
 	}
 	if (msg.dwIndex != SIMCONNECT_RECV_EXCEPTION::UNKNOWN_INDEX) {
-		std:: cerr << std::format("- Regarding parameter {}.\n", (int)msg.dwIndex);
+		std::cerr << std::format("- Regarding parameter {}.\n", (int)msg.dwIndex);
 	}
 	switch (exc)
 	{
@@ -148,7 +145,7 @@ static void handleException(const SIMCONNECT_RECV_EXCEPTION& msg) {
 	case SIMCONNECT_EXCEPTION_INVALID_DATA_SIZE:
 		std::cerr << "The requested data cannot be transferred in the specified data size.\n";
 		break;
-	case SIMCONNECT_EXCEPTION_DATA_ERROR:	
+	case SIMCONNECT_EXCEPTION_DATA_ERROR:
 		std::cerr << "The data passed is invalid.\n";
 		break;
 	case SIMCONNECT_EXCEPTION_INVALID_ARRAY:
@@ -241,13 +238,9 @@ static void handleException(const SIMCONNECT_RECV_EXCEPTION& msg) {
 }
 
 
-void setupAircraftInfoDefinition(SimConnect::DataDefinition<AircraftInfo>& def) {
-    def.addString128(&AircraftInfo::title, "title")
-       .addString32(&AircraftInfo::tailNumber, "atc flight number")
-       .addString64(&AircraftInfo::atcId, "atc id")
-       .addFloat64(&AircraftInfo::altitude, "plane altitude", "feet")
-       .addFloat64(&AircraftInfo::latitude, "plane latitude", "degrees")
-       .addFloat64(&AircraftInfo::longitude, "plane longitude", "degrees");
+void setupSimObjectInfoDefinition(SimConnect::DataDefinition<SimObjectInfo>& def) {
+	def.addString128(&SimObjectInfo::title, "title")
+		.addString32(&SimObjectInfo::category, "category");
 }
 
 
@@ -258,28 +251,63 @@ void testGetData() {
 
 	handler.setDefaultHandler([](const SIMCONNECT_RECV* msg, DWORD len) {
 		std::cerr << std::format("Ignoring message of type {} (length {} bytes)\n", msg->dwID, len);
-	});
+		});
 	handler.registerHandler<SIMCONNECT_RECV_OPEN>(SIMCONNECT_RECV_ID_OPEN, handleOpen);
 	handler.registerHandler<SIMCONNECT_RECV_QUIT>(SIMCONNECT_RECV_ID_QUIT, handleClose);
-    handler.registerHandler<SIMCONNECT_RECV_EXCEPTION>(SIMCONNECT_RECV_ID_EXCEPTION, handleException);
+	handler.registerHandler<SIMCONNECT_RECV_EXCEPTION>(SIMCONNECT_RECV_ID_EXCEPTION, handleException);
 
-    SimConnect::DataDefinition<AircraftInfo> aircraftDef;
-    struct AircraftInfo info;
+	SimConnect::DataDefinition<SimObjectInfo> aircraftDef;
+	struct SimObjectInfo info;
 
 	if (connection.open()) {
-        setupAircraftInfoDefinition(aircraftDef);
-        SimConnect::SimObjectDataHandler dataHandler;
+		setupSimObjectInfoDefinition(aircraftDef);
+		SimConnect::SimObjectDataHandler dataHandler;
 		dataHandler.enable(handler);
 
-		auto dataRequest = dataHandler.requestDataOnce<AircraftInfo>(connection, aircraftDef, [](const AircraftInfo& info) {
-            std::cout << "Aircraft Info unmarshalled:\n"
-                      << "  Title: " << info.title << "\n"
-                      << "  Tail Number: " << info.tailNumber << "\n"
-                      << "  ATC ID: " << info.atcId << "\n"
-                      << "  Altitude: " << info.altitude << " feet\n"
-                      << "  Latitude: " << info.latitude << " degrees\n"
-                      << "  Longitude: " << info.longitude << " degrees\n";
-        }, SIMCONNECT_OBJECT_ID_USER);
+		auto aircraftRequest = dataHandler.requestDataByType<SimObjectInfo>(connection, aircraftDef, [](const SimObjectInfo& info) {
+			std::cout << "Aircraft Info unmarshalled:\n"
+				<< "  Title: " << info.title << "\n"
+				<< "  Category: " << info.category << "\n";
+			}, [] {
+				std::cout << "All data received.\n";
+			}, 10000, SIMCONNECT_SIMOBJECT_TYPE_AIRCRAFT);
+
+		auto allRequest = dataHandler.requestDataByType<SimObjectInfo>(connection, aircraftDef, [](std::unordered_map<unsigned long, SimObjectInfo>& result) {
+			std::cout << "Received data for " << result.size() << " SimObjects\n";
+			std::vector<int> objectCount(SIMCONNECT_SIMOBJECT_TYPE_USER_CURRENT+1, 0);
+			std::set<std::string> unknownCategories;
+
+			for (const auto& [id, obj] : result) {
+				if (obj.category == "Airplane") {
+					++objectCount[SIMCONNECT_SIMOBJECT_TYPE_AIRCRAFT];
+				}
+				else if (obj.category == "Helicopter") {
+					++objectCount[SIMCONNECT_SIMOBJECT_TYPE_HELICOPTER];
+				}
+				else if (obj.category == "Boat") {
+					++objectCount[SIMCONNECT_SIMOBJECT_TYPE_BOAT];
+				}
+				else if (obj.category == "GroundVehicle") {
+					++objectCount[SIMCONNECT_SIMOBJECT_TYPE_GROUND];
+				}
+				else if (obj.category == "Animal") {
+					++objectCount[SIMCONNECT_SIMOBJECT_TYPE_ANIMAL];
+				}
+				else {
+					unknownCategories.insert(obj.category);
+				}
+			}
+			std::cout << "Aircraft: " << objectCount[SIMCONNECT_SIMOBJECT_TYPE_AIRCRAFT] << "\n"
+				<< "Helicopters: " << objectCount[SIMCONNECT_SIMOBJECT_TYPE_HELICOPTER] << "\n"
+				<< "Boats: " << objectCount[SIMCONNECT_SIMOBJECT_TYPE_BOAT] << "\n"
+				<< "Ground Vehicles: " << objectCount[SIMCONNECT_SIMOBJECT_TYPE_GROUND] << "\n";
+			if (!unknownCategories.empty()) {
+				std::cout << "Unknown categories:\n";
+				for (const auto& category : unknownCategories) {
+					std::cout << "  " << category << "\n";
+				}
+			}
+		}, 0, SIMCONNECT_SIMOBJECT_TYPE_ALL);
 		std::cout << "\n\nHandling messages for 10 minutes.\n";
 		handler.handle(10min);
 	}
@@ -290,11 +318,12 @@ void testGetData() {
 
 
 auto main() -> int {
-    try {
-        testGetData();
-    } catch (const std::exception& e) {
-        std::cerr << "Error: " << e.what() << '\n';
-        return 1;
-    }
-    return 0;
+	try {
+		testGetData();
+	}
+	catch (const std::exception& e) {
+		std::cerr << "Error: " << e.what() << '\n';
+		return 1;
+	}
+	return 0;
 }

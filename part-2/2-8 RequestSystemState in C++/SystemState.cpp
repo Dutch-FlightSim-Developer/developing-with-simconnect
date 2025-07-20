@@ -16,7 +16,7 @@
 
 #include <simconnect/windows_event_connection.hpp>
 #include <simconnect/windows_event_handler.hpp>
-#include <simconnect/requests/request_handler.hpp>
+#include <simconnect/requests/system_state_handler.hpp>
 
 #include <format>
 #include <iostream>
@@ -79,8 +79,8 @@ auto main () -> int {
 		handler.registerHandler<SIMCONNECT_RECV_QUIT>(SIMCONNECT_RECV_ID_QUIT, handleClose);
 
 		if (connection.open()) {
-			SimConnect::RequestHandler requestHandler;
-			requestHandler.enable(handler, SIMCONNECT_RECV_ID_SYSTEM_STATE);
+			SimConnect::SystemStateHandler requestHandler;
+			requestHandler.enable(handler);
 
 			requestHandler.requestSystemState(connection, "AircraftLoaded",
 				[](std::string aircraft) {

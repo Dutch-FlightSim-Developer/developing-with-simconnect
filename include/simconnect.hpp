@@ -18,6 +18,18 @@
 #pragma warning(push, 3)
 #include <Windows.h>
 #include <SimConnect.h>
+
+// Handle some 2020 vs 2024 differences in the SimConnect.h header.
+#if !defined(SIMCONNECT_OBJECT_ID_USER_AICRAFT)
+#define SIMCONNECT_OBJECT_ID_USER_AICRAFT SIMCONNECT_OBJECT_ID_USER
+#endif
+#if !defined(SIMCONNECT_OBJECT_ID_USER_AVATAR)
+#define SIMCONNECT_OBJECT_ID_USER_AVATAR SIMCONNECT_OBJECT_ID_USER
+#endif
+#if !defined(SIMCONNECT_OBJECT_ID_USER_CURRENT)
+#define SIMCONNECT_OBJECT_ID_USER_CURRENT SIMCONNECT_OBJECT_ID_USER
+#endif
+
 #pragma warning(pop)
 
 #include <exception>

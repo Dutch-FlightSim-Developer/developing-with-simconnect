@@ -13,6 +13,18 @@
       <UniqueIdentifier>{67DA6AB6-F800-4c08-8B7A-83BB121AAD01}</UniqueIdentifier>
       <Extensions>rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe;resx;tiff;tif;png;wav;mfcribbon-ms</Extensions>
     </Filter>
+    <Filter Include="Header Files\SimConnect">
+      <UniqueIdentifier>{ae92e6f1-39be-4ee0-9f38-0ef00daa19a5}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\SimConnect\Data">
+      <UniqueIdentifier>{d3dccd4b-f911-45ad-8441-58d27f072f30}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\SimConnect\Events">
+      <UniqueIdentifier>{bfcd2ef3-6ccc-440d-abf9-ad23432e9348}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\SimConnect\Requests">
+      <UniqueIdentifier>{145b58c5-f39c-4106-b026-c5b05667df7e}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="events.cpp">
@@ -23,67 +35,76 @@
     <ClInclude Include="..\include\simconnect.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\include\simconnect\connection.hpp">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="..\include\simconnect\handler.hpp">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="..\include\simconnect\polling_handler.hpp">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="..\include\simconnect\simple_connection.hpp">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="..\include\simconnect\simple_handler.hpp">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="..\include\simconnect\windows_event_connection.hpp">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="..\include\simconnect\windows_event_handler.hpp">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="..\include\simconnect\windows_messaging_connection.hpp">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="..\include\simconnect\events\event_handler.hpp">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="..\include\simconnect\events\events.hpp">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="..\include\simconnect\events\system_events.hpp">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="..\include\simconnect\requests\request_handler.hpp">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="..\include\simconnect\requests\requests.hpp">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="..\include\simconnect\data\data_definitions.hpp">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="..\include\simconnect\data\data_block.hpp">
-      <Filter>Header Files</Filter>
+      <Filter>Header Files\SimConnect\Data</Filter>
     </ClInclude>
     <ClInclude Include="..\include\simconnect\data\data_block_builder.hpp">
-      <Filter>Header Files</Filter>
+      <Filter>Header Files\SimConnect\Data</Filter>
     </ClInclude>
     <ClInclude Include="..\include\simconnect\data\data_block_reader.hpp">
-      <Filter>Header Files</Filter>
+      <Filter>Header Files\SimConnect\Data</Filter>
+    </ClInclude>
+    <ClInclude Include="..\include\simconnect\data\data_definitions.hpp">
+      <Filter>Header Files\SimConnect\Data</Filter>
+    </ClInclude>
+    <ClInclude Include="..\include\simconnect\events\system_events.hpp">
+      <Filter>Header Files\SimConnect\Events</Filter>
+    </ClInclude>
+    <ClInclude Include="..\include\simconnect\events\events.hpp">
+      <Filter>Header Files\SimConnect\Events</Filter>
+    </ClInclude>
+    <ClInclude Include="..\include\simconnect\events\event_handler.hpp">
+      <Filter>Header Files\SimConnect\Events</Filter>
+    </ClInclude>
+    <ClInclude Include="..\include\simconnect\requests\requests.hpp">
+      <Filter>Header Files\SimConnect\Requests</Filter>
+    </ClInclude>
+    <ClInclude Include="..\include\simconnect\requests\request_handler.hpp">
+      <Filter>Header Files\SimConnect\Requests</Filter>
+    </ClInclude>
+    <ClInclude Include="..\include\simconnect\requests\simobject_data_handler.hpp">
+      <Filter>Header Files\SimConnect\Requests</Filter>
+    </ClInclude>
+    <ClInclude Include="..\include\simconnect\requests\system_state_handler.hpp">
+      <Filter>Header Files\SimConnect\Requests</Filter>
+    </ClInclude>
+    <ClInclude Include="..\include\simconnect\requests\request.hpp">
+      <Filter>Header Files\SimConnect\Requests</Filter>
+    </ClInclude>
+    <ClInclude Include="..\include\simconnect\connection.hpp">
+      <Filter>Header Files\SimConnect</Filter>
     </ClInclude>
     <ClInclude Include="..\include\simconnect\data_definition.hpp">
-      <Filter>Header Files</Filter>
+      <Filter>Header Files\SimConnect</Filter>
     </ClInclude>
     <ClInclude Include="..\include\simconnect\data_frequency.hpp">
-      <Filter>Header Files</Filter>
+      <Filter>Header Files\SimConnect</Filter>
+    </ClInclude>
+    <ClInclude Include="..\include\simconnect\handler.hpp">
+      <Filter>Header Files\SimConnect</Filter>
+    </ClInclude>
+    <ClInclude Include="..\include\simconnect\polling_handler.hpp">
+      <Filter>Header Files\SimConnect</Filter>
+    </ClInclude>
+    <ClInclude Include="..\include\simconnect\simple_connection.hpp">
+      <Filter>Header Files\SimConnect</Filter>
+    </ClInclude>
+    <ClInclude Include="..\include\simconnect\simple_handler.hpp">
+      <Filter>Header Files\SimConnect</Filter>
+    </ClInclude>
+    <ClInclude Include="..\include\simconnect\windows_event_connection.hpp">
+      <Filter>Header Files\SimConnect</Filter>
+    </ClInclude>
+    <ClInclude Include="..\include\simconnect\windows_event_handler.hpp">
+      <Filter>Header Files\SimConnect</Filter>
+    </ClInclude>
+    <ClInclude Include="..\include\simconnect\windows_messaging_connection.hpp">
+      <Filter>Header Files\SimConnect</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <None Include="..\include\simconnect\data\conversions.md">
-      <Filter>Header Files</Filter>
+      <Filter>Header Files\SimConnect\Data</Filter>
     </None>
   </ItemGroup>
 </Project>

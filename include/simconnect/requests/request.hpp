@@ -77,11 +77,21 @@ public:
 
     /**
      * Sets the cleanup function for the request.
+     * 
      * @param cleanup The cleanup function to be called when the request is finished.
      */
-    void set_cleanup(std::function<void()> cleanup) {
+    void setCleanup(std::function<void()> cleanup) {
         cleanup_ = std::move(cleanup);
     }
+
+
+    /**
+     * Clears the cleanup action, if any. There is no impact on the registered request ID.
+     */
+    void clearCleanup() {
+        cleanup_ = nullptr;
+    }
+
 
     /**
      * Stops the request and calls the cleanup function if it is set.

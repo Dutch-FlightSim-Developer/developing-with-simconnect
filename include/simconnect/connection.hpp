@@ -24,6 +24,11 @@
 
 #include <atomic>
 
+#if !defined(NDEBUG)
+#include <format>
+#include <iostream>
+#endif
+
 
 namespace SimConnect {
 
@@ -291,7 +296,11 @@ public:
             itemDataType,
             itemEpsilon,
             itemDatumId));
-    }
+#if !defined(NDEBUG)
+		std::cerr << std::format("Added to data definition {}, simVar '{}', sendId = {}\n",
+			dataDef, itemName, fetchSendId());
+#endif
+	}
 
 
     /**
@@ -314,7 +323,11 @@ public:
             frequency.origin,
             frequency.interval,
             frequency.limit));
-    }
+#if !defined(NDEBUG)
+		std::cerr << std::format("Requested untagged data on SimObject {} with request ID {} and data definition {}, sendId = {}\n",
+			objectId, requestId, dataDef, fetchSendId());
+#endif
+	}
 
 
     /**
@@ -337,6 +350,10 @@ public:
             frequency.origin,
             frequency.interval,
             frequency.limit));
+#if !defined(NDEBUG)
+		std::cerr << std::format("Requested tagged data on SimObject {} with request ID {} and data definition {}, sendId = {}\n",
+			objectId, requestId, dataDef, fetchSendId());
+#endif
     }
 
 
@@ -352,6 +369,23 @@ public:
     {
         hr(SimConnect_RequestDataOnSimObject(hSimConnect_, requestId, dataDef, objectId, SIMCONNECT_PERIOD_NEVER));
     }
+
+
+	/**
+	 * Requests data for all SimObjects of a specific type.
+	 * 
+	 * @note An "OutOfBounds" exception message will be sent if the radius exceeds the maximum allowed, which is 200,000 meters or 200 km.
+	 * 
+	 * @param dataDef The data definition ID to use for the request.
+	 * @param requestId The request ID.
+	 * @param radiusInMeters The radius in meters to request data for. If 0, only the user's aircraft is in scope.
+	 * @param objectType The type of SimObject to request data for.
+	 */
+	void requestDataByType(SIMCONNECT_DATA_DEFINITION_ID dataDef, unsigned long requestId,
+		unsigned long radiusInMeters, SIMCONNECT_SIMOBJECT_TYPE objectType)
+	{
+		hr(SimConnect_RequestDataOnSimObjectType(hSimConnect_, requestId, dataDef, radiusInMeters, objectType));
+	}
 };
 
 } // namespace SimConnect

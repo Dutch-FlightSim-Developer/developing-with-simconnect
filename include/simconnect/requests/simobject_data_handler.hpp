@@ -23,6 +23,23 @@ namespace SimConnect {
 
 
 /**
+ * The SimObjectIdHolder class is a simple base class that holds the ID of a SimObject.
+ * It is used by the requestDataByType methods to return the ID of the SimObject that the data was requested for.
+ */
+struct SimObjectIdHolder {
+    unsigned long objectId;
+
+    SimObjectIdHolder() = default;
+    SimObjectIdHolder(unsigned long id) : objectId(id) {}
+	SimObjectIdHolder(const SIMCONNECT_RECV_SIMOBJECT_DATA& msg) : objectId(msg.dwObjectID) {}
+	SimObjectIdHolder(const SimObjectIdHolder&) = default;
+    SimObjectIdHolder(SimObjectIdHolder&&) = default;
+    SimObjectIdHolder& operator=(const SimObjectIdHolder&) = default;
+    SimObjectIdHolder& operator=(SimObjectIdHolder&&) = default;
+};
+
+
+/**
  * The SimObjectDataHandler class provides for responsive handling of SIMCONNECT_RECV_SIMOBJECT_DATA and
  * SIMCONNECT_RECV_SIMOBJECT_DATA_BYTYPE messages.
  * 
@@ -464,6 +481,14 @@ public:
     // This effectively means data will always be untagged.
 
 
+    template <typename StructType>
+    static void storeObjectId(unsigned long objectId, StructType& data) {
+        if constexpr (std::is_base_of_v<SimObjectIdHolder, StructType>) {
+            data.objectId = objectId;
+        }
+    }
+
+
     /**
      * Requests data by SimObject type. The caller passes a handler that will be executed once the data is received.
      * The handler will receive a reference to an ephemeral structure that has the data unmarshalled into it.
@@ -497,7 +522,10 @@ public:
             registerHandler(requestId, [requestId, &dataDef, handler, onDone](const SIMCONNECT_RECV* msg, [[maybe_unused]] DWORD size) {
 				const SIMCONNECT_RECV_SIMOBJECT_DATA_BYTYPE* dataMsg = reinterpret_cast<const SIMCONNECT_RECV_SIMOBJECT_DATA_BYTYPE*>(msg);
                 const StructType* data = reinterpret_cast<const StructType*>(&(dataMsg->dwData));
+
+                // A mapped struct cannot contain the objectId
                 handler(*data);
+
                 if (dataMsg->dwentrynumber == dataMsg->dwoutof) {
                     if (onDone) {
                         onDone();
@@ -512,7 +540,10 @@ public:
                 StructType data;
 
                 dataDef.unmarshall(*dataMsg, data);
+				storeObjectId(dataMsg->dwObjectID, data);
+
                 handler(data);
+
                 if (dataMsg->dwentrynumber == dataMsg->dwoutof) {
                     if (onDone) {
                         onDone();
@@ -579,7 +610,9 @@ public:
                     StructType data;
 
                     dataDef.unmarshall(*dataMsg, data);
+					storeObjectId(dataMsg->dwObjectID, data);
                     result[dataMsg->dwObjectID] = data;
+
                     if (dataMsg->dwentrynumber == dataMsg->dwoutof) {
                         handler(result);
                     }

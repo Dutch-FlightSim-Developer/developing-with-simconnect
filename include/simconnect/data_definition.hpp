@@ -140,6 +140,12 @@ public:
 
 
     /**
+	 * Disable the mapping for this data definition, for example because we want the objectId added in.
+     */
+	void disableMapping() noexcept { useMapping_ = false; }
+
+
+    /**
      * Returns the size of the data definition.
      * 
      * @return The size of the data definition in bytes.

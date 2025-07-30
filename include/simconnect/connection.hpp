@@ -308,21 +308,23 @@ public:
      * @param dataDef The data definition.
      * @param requestId The request ID.
      * @param frequency The frequency at which to request the data.
+     * @param limits The limits for the request in numbers of "periods".
      * @param objectId The object ID to request data for. Defaults to the current user's Avatar or Aircraft.
      * @param onlyWhenChanged If true, the data will only be sent when it changes.
      */
     void requestData(SIMCONNECT_DATA_DEFINITION_ID dataDef, unsigned long requestId,
         DataFrequency frequency = DataFrequency::once(),
+        PeriodLimits limits = PeriodLimits::none(),
         unsigned long objectId = SIMCONNECT_OBJECT_ID_USER_CURRENT,
         bool onlyWhenChanged = false)
     {
         hr(SimConnect_RequestDataOnSimObject(hSimConnect_, requestId, dataDef,
             objectId,
-            frequency.period,
+            frequency,
             onlyWhenChanged ? SIMCONNECT_DATA_REQUEST_FLAG_CHANGED : 0,
-            frequency.origin,
+            limits.origin,
             frequency.interval,
-            frequency.limit));
+            limits.limit));
 #if !defined(NDEBUG)
 		std::cerr << std::format("Requested untagged data on SimObject {} with request ID {} and data definition {}, sendId = {}\n",
 			objectId, requestId, dataDef, fetchSendId());
@@ -335,21 +337,23 @@ public:
      * @param dataDef The data definition.
      * @param requestId The request ID.
      * @param frequency The frequency at which to request the data.
+     * @param limits The limits for the request in numbers of "periods".
      * @param objectId The object ID to request data for. Defaults to the current user's Avatar or Aircraft.
      * @param onlyWhenChanged If true, the data will only be sent when it changes.
      */
     void requestDataTagged(SIMCONNECT_DATA_DEFINITION_ID dataDef, unsigned long requestId,
         DataFrequency frequency = DataFrequency::once(),
+        PeriodLimits limits = PeriodLimits::none(),
         unsigned long objectId = SIMCONNECT_OBJECT_ID_USER_CURRENT,
         bool onlyWhenChanged = false)
     {
         hr(SimConnect_RequestDataOnSimObject(hSimConnect_, requestId, dataDef,
             objectId,
-            frequency.period,
+            frequency,
             (onlyWhenChanged ? SIMCONNECT_DATA_REQUEST_FLAG_CHANGED : 0) | SIMCONNECT_DATA_REQUEST_FLAG_TAGGED,
-            frequency.origin,
+            limits.origin,
             frequency.interval,
-            frequency.limit));
+            limits.limit));
 #if !defined(NDEBUG)
 		std::cerr << std::format("Requested tagged data on SimObject {} with request ID {} and data definition {}, sendId = {}\n",
 			objectId, requestId, dataDef, fetchSendId());

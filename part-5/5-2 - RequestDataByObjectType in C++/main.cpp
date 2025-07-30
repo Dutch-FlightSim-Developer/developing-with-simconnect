@@ -322,7 +322,8 @@ void testGetData() {
 		dataHandler.enable(handler);
 
 		auto aircraftRequest = dataHandler.requestDataByType<SimObjectInfo>(connection, aircraftDef, [](const SimObjectInfo& info) {
-			std::cout << "Aircraft Info unmarshalled:\n"
+			std::cout
+				<< "Aircraft Info unmarshalled:\n"
 				<< "  Object ID: " << info.objectId << "\n"
 				<< "  Title: " << info.title << "\n"
 				<< "  Category: " << info.category << "\n";

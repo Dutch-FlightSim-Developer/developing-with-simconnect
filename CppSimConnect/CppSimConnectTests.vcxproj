@@ -108,6 +108,9 @@
     <ClCompile Include="DataBlockBuilderTests.cpp" />
     <ClCompile Include="DataBlockReaderTests.cpp" />
     <ClCompile Include="DataBlockTests.cpp" />
+    <ClCompile Include="TestDataFrequency.cpp" />
+    <ClCompile Include="TestPeriodLimits.cpp" />
+    <ClCompile Include="TestSimObjectType.cpp" />
     <ClCompile Include="TestDataDefinition.cpp" />
     <ClCompile Include="pch.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Create</PrecompiledHeader>

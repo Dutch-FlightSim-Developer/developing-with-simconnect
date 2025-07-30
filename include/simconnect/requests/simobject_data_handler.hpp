@@ -16,6 +16,8 @@
  */
 
 #include <unordered_map>
+
+#include <simconnect/simobject_type.hpp>
 #include <simconnect/requests/request_handler.hpp>
 
 
@@ -27,10 +29,10 @@ namespace SimConnect {
  * It is used by the requestDataByType methods to return the ID of the SimObject that the data was requested for.
  */
 struct SimObjectIdHolder {
-    unsigned long objectId;
+    unsigned long objectId{ 0 };
 
-    SimObjectIdHolder() = default;
-    SimObjectIdHolder(unsigned long id) : objectId(id) {}
+    constexpr SimObjectIdHolder() = default;
+    constexpr SimObjectIdHolder(unsigned long id) : objectId(id) {}
 	SimObjectIdHolder(const SIMCONNECT_RECV_SIMOBJECT_DATA& msg) : objectId(msg.dwObjectID) {}
 	SimObjectIdHolder(const SimObjectIdHolder&) = default;
     SimObjectIdHolder(SimObjectIdHolder&&) = default;
@@ -113,6 +115,7 @@ public:
      * @param dataDef The data definition Id to use for the request.
      * @param handler The handler to execute when the data is received.
      * @param frequency The frequency at which to request the data.
+     * @param limits The limits for the request in numbers of "periods".
      * @param objectId The object ID to request data for. Defaults to the current user's Avatar or Aircraft.
      * @param onlyWhenChanged If true, the data will only be requested when it has changed.
      * @return A Request object that can be used to stop the request.
@@ -121,6 +124,7 @@ public:
     Request requestData(Connection& connection, SIMCONNECT_DATA_DEFINITION_ID dataDef,
         std::function<void(const SIMCONNECT_RECV_SIMOBJECT_DATA&)> handler,
         DataFrequency frequency = DataFrequency::once(),
+        PeriodLimits limits = PeriodLimits::none(),
         unsigned long objectId = SIMCONNECT_OBJECT_ID_USER_CURRENT,
         bool onlyWhenChanged = false)
     {
@@ -129,7 +133,7 @@ public:
         registerHandler(requestId, [requestId, handler](const SIMCONNECT_RECV* msg, [[maybe_unused]] DWORD size) {
                 handler(*reinterpret_cast<const SIMCONNECT_RECV_SIMOBJECT_DATA*>(msg));
             }, frequency.isOnce());
-        connection.requestData(dataDef, requestId, frequency, objectId, onlyWhenChanged);
+        connection.requestData(dataDef, requestId, frequency, limits, objectId, onlyWhenChanged);
 
         return frequency.isOnce() ? Request{requestId} : Request{ requestId, [this, requestId, &connection, &dataDef, objectId]() {
             stopDataRequest(connection, dataDef, requestId, objectId);
@@ -154,7 +158,7 @@ public:
         std::function<void(const SIMCONNECT_RECV_SIMOBJECT_DATA&)> handler,
         unsigned long objectId = SIMCONNECT_OBJECT_ID_USER_CURRENT)
     {
-        return requestData(connection, dataDef, handler, DataFrequency::once(), objectId, false);
+        return requestData(connection, dataDef, handler, DataFrequency::once(), PeriodLimits::none(), objectId, false);
     }
 
 
@@ -168,6 +172,7 @@ public:
      * @param dataDef The data definition Id to use for the request.
      * @param handler The handler to execute when the data is received.
      * @param frequency The frequency at which to request the data.
+     * @param limits The limits for the request in numbers of "periods".
      * @param objectId The object ID to request data for. Defaults to the current user's Avatar or Aircraft.
      * @param onlyWhenChanged If true, the data will only be requested when it has changed.
      * @return A Request object that can be used to stop the request.
@@ -176,6 +181,7 @@ public:
     Request requestDataTagged(Connection& connection, SIMCONNECT_DATA_DEFINITION_ID dataDef,
         std::function<void(const SIMCONNECT_RECV_SIMOBJECT_DATA&)> handler,
         DataFrequency frequency = DataFrequency::once(),
+        PeriodLimits limits = PeriodLimits::none(),
         unsigned long objectId = SIMCONNECT_OBJECT_ID_USER_CURRENT,
         bool onlyWhenChanged = false)
     {
@@ -184,7 +190,7 @@ public:
         registerHandler(requestId, [requestId, handler](const SIMCONNECT_RECV* msg, [[maybe_unused]] DWORD size) {
                 handler(*reinterpret_cast<const SIMCONNECT_RECV_SIMOBJECT_DATA*>(msg));
             }, frequency.isOnce());
-        connection.requestDataTagged(dataDef, requestId, frequency, objectId, onlyWhenChanged);
+        connection.requestDataTagged(dataDef, requestId, frequency, limits, objectId, onlyWhenChanged);
 
         return frequency.isOnce() ? Request{requestId} : Request{ requestId, [this, requestId, &connection, &dataDef, objectId]() {
             stopDataRequest(connection, dataDef, requestId, objectId);
@@ -209,7 +215,7 @@ public:
         std::function<void(const SIMCONNECT_RECV_SIMOBJECT_DATA&)> handler,
         unsigned long objectId = SIMCONNECT_OBJECT_ID_USER_CURRENT)
     {
-        return requestDataTagged(connection, dataDef, handler, DataFrequency::once(), objectId, false);
+        return requestDataTagged(connection, dataDef, handler, DataFrequency::once(), PeriodLimits::none(), objectId, false);
     }
 
 
@@ -225,6 +231,7 @@ public:
      * @param dataDef The data definition Id to use for the request.
      * @param handler The handler to execute when the data is received.
      * @param frequency The frequency at which to request the data.
+     * @param limits The limits for the request in numbers of "periods".
      * @param objectId The object ID to request data for. Defaults to the current user's Avatar or Aircraft.
      * @param onlyWhenChanged If true, the data will only be requested when it has changed.
      * @return A Request object that can be used to stop the request.
@@ -233,6 +240,7 @@ public:
     Request requestData(Connection& connection, SIMCONNECT_DATA_DEFINITION_ID dataDef,
         std::function<void(Data::DataBlockReader&)> handler,
         DataFrequency frequency = DataFrequency::once(),
+        PeriodLimits limits = PeriodLimits::none(),
         unsigned long objectId = SIMCONNECT_OBJECT_ID_USER_CURRENT,
         bool onlyWhenChanged = false)
     {
@@ -243,7 +251,7 @@ public:
 
                 handler(reader);
             }, frequency.isOnce());
-        connection.requestData(dataDef, requestId, frequency, objectId, onlyWhenChanged);
+        connection.requestData(dataDef, requestId, frequency, limits, objectId, onlyWhenChanged);
 
         return frequency.isOnce() ? Request{requestId} : Request{ requestId, [this, requestId, &connection, &dataDef, objectId]() {
             stopDataRequest(connection, dataDef, requestId, objectId);
@@ -270,7 +278,7 @@ public:
         unsigned long objectId = SIMCONNECT_OBJECT_ID_USER_CURRENT,
         bool onlyWhenChanged = false)
     {
-        return requestData(connection, dataDef, handler, DataFrequency::once(), objectId, onlyWhenChanged);
+        return requestData(connection, dataDef, handler, DataFrequency::once(), PeriodLimits::none(), objectId, onlyWhenChanged);
     }
 
 
@@ -284,6 +292,7 @@ public:
      * @param dataDef The data definition Id to use for the request.
      * @param handler The handler to execute when the data is received.
      * @param frequency The frequency at which to request the data.
+     * @param limits The limits for the request in numbers of "periods".
      * @param objectId The object ID to request data for. Defaults to the current user's Avatar or Aircraft.
      * @param onlyWhenChanged If true, the data will only be requested when it has changed.
      * @return A Request object that can be used to stop the request.
@@ -292,6 +301,7 @@ public:
     Request requestDataTagged(Connection& connection, SIMCONNECT_DATA_DEFINITION_ID dataDef,
         std::function<void(Data::DataBlockReader&)> handler,
         DataFrequency frequency = DataFrequency::once(),
+        PeriodLimits limits = PeriodLimits::none(),
         unsigned long objectId = SIMCONNECT_OBJECT_ID_USER_CURRENT,
         bool onlyWhenChanged = false)
     {
@@ -302,7 +312,7 @@ public:
 
                 handler(reader);
             }, frequency.isOnce());
-        connection.requestDataTagged(dataDef, requestId, frequency, objectId, onlyWhenChanged);
+        connection.requestDataTagged(dataDef, requestId, frequency, limits, objectId, onlyWhenChanged);
 
         return frequency.isOnce() ? Request{requestId} : Request{ requestId, [this, &connection, &dataDef, requestId, objectId]() {
             stopDataRequest(connection, dataDef, requestId, objectId);
@@ -329,7 +339,7 @@ public:
         unsigned long objectId = SIMCONNECT_OBJECT_ID_USER_CURRENT,
         bool onlyWhenChanged = false)
     {
-        return requestDataTagged(connection, dataDef, handler, DataFrequency::once(), objectId, onlyWhenChanged);
+        return requestDataTagged(connection, dataDef, handler, DataFrequency::once(), PeriodLimits::none(), objectId, onlyWhenChanged);
     }
 
 
@@ -345,6 +355,7 @@ public:
      * @param dataDef The data definition to use for the request.
      * @param handler The handler to execute when the data is received.
      * @param frequency The frequency at which to request the data.
+     * @param limits The limits for the request in numbers of "periods".
      * @param objectId The object ID to request data for. Defaults to the current user's Avatar or Aircraft.
      * @param onlyWhenChanged If true, the data will only be requested when it has changed.
      * @return A Request object that can be used to stop the request.
@@ -355,6 +366,7 @@ public:
     Request requestData(Connection& connection, DataDefinition<StructType>& dataDef,
         std::function<void(const StructType&)> handler,
         DataFrequency frequency = DataFrequency::once(),
+        PeriodLimits limits = PeriodLimits::none(),
         unsigned long objectId = SIMCONNECT_OBJECT_ID_USER_CURRENT,
         bool onlyWhenChanged = false)
     {
@@ -376,7 +388,7 @@ public:
                 handler(data);
                 }, frequency.isOnce());
         }
-        connection.requestData(dataDef, requestId, frequency, objectId, onlyWhenChanged);
+        connection.requestData(dataDef, requestId, frequency, limits, objectId, onlyWhenChanged);
 
         return frequency.isOnce() ? Request{requestId} : Request{ requestId, [this, &connection, &dataDef, requestId, objectId]() {
             stopDataRequest(connection, dataDef, requestId, objectId);
@@ -405,7 +417,7 @@ public:
         unsigned long objectId = SIMCONNECT_OBJECT_ID_USER_CURRENT,
         bool onlyWhenChanged = false)
     {
-        return requestData(connection, dataDef, handler, DataFrequency::once(), objectId, onlyWhenChanged);
+        return requestData(connection, dataDef, handler, DataFrequency::once(), PeriodLimits::none(), objectId, onlyWhenChanged);
     }
 
 
@@ -419,6 +431,7 @@ public:
      * @param dataDef The data definition to use for the request.
      * @param handler The handler to execute when the data is received.
      * @param frequency The frequency at which to request the data.
+     * @param limits The limits for the request in numbers of "periods".
      * @param objectId The object ID to request data for. Defaults to the current user's Avatar or Aircraft.
      * @param onlyWhenChanged If true, the data will only be requested when it has changed.
      * @return A Request object that can be used to stop the request.
@@ -429,6 +442,7 @@ public:
     Request requestDataTagged(Connection& connection, DataDefinition<StructType>& dataDef,
         std::function<void(const StructType&)> handler,
         DataFrequency frequency = DataFrequency::once(),
+        PeriodLimits limits = PeriodLimits::none(),
         unsigned long objectId = SIMCONNECT_OBJECT_ID_USER_CURRENT,
         bool onlyWhenChanged = false)
     {
@@ -442,7 +456,7 @@ public:
             dataDef.unmarshall(*reinterpret_cast<const SIMCONNECT_RECV_SIMOBJECT_DATA*>(msg), data);
             handler(data);
         }, frequency.isOnce());
-        connection.requestDataTagged(dataDef, requestId, frequency, objectId, onlyWhenChanged);
+        connection.requestDataTagged(dataDef, requestId, frequency, limits, objectId, onlyWhenChanged);
 
         return frequency.isOnce() ? Request{requestId} : Request{ requestId, [this, &connection, &dataDef, requestId, objectId]() {
             stopDataRequest(connection, dataDef, requestId, objectId);
@@ -471,7 +485,7 @@ public:
         unsigned long objectId = SIMCONNECT_OBJECT_ID_USER_CURRENT,
         bool onlyWhenChanged = false)
     {
-        return requestData(connection, dataDef, handler, DataFrequency::once(), objectId, onlyWhenChanged);
+        return requestData(connection, dataDef, handler, DataFrequency::once(), PeriodLimits::none(), objectId, onlyWhenChanged);
     }
 
 
@@ -481,6 +495,13 @@ public:
     // This effectively means data will always be untagged.
 
 
+    /**
+     * Stores the object ID in the data structure if it is a SimObjectIdHolder.
+     * This is used to store the object ID in the data structure when the data is received
+     * 
+     * @param objectId The object ID to store.
+     * @param data The data structure to store the object ID in.
+     */
     template <typename StructType>
     static void storeObjectId(unsigned long objectId, StructType& data) {
         if constexpr (std::is_base_of_v<SimObjectIdHolder, StructType>) {
@@ -662,6 +683,7 @@ public:
             stopDataRequest(connection, dataDef, requestId);
 		} };
 	}
+
 };
 
 } // namespace SimConnect

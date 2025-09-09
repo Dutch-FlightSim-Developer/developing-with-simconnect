@@ -25,10 +25,10 @@ CMFCMessagingDlg::CMFCMessagingDlg()
 
 	m_handler.registerHandlerProc(
 		SIMCONNECT_RECV_ID_OPEN,
-		[this](const SIMCONNECT_RECV* msg, [[maybe_unused]] DWORD len) { this->onOpen(*reinterpret_cast<const SIMCONNECT_RECV_OPEN*>(msg)); });
+		[this](const SIMCONNECT_RECV& msg) { this->onOpen(*reinterpret_cast<const SIMCONNECT_RECV_OPEN*>(&msg)); });
 	m_handler.registerHandlerProc(
 		SIMCONNECT_RECV_ID_QUIT,
-		[this]([[maybe_unused]] const SIMCONNECT_RECV* msg, [[maybe_unused]] DWORD len) { this->onQuit(); });
+		[this]([[maybe_unused]] const SIMCONNECT_RECV& msg) { this->onQuit(); });
 }
 
 CMFCMessagingDlg::CMFCMessagingDlg(CWnd* pParent)
@@ -40,10 +40,10 @@ CMFCMessagingDlg::CMFCMessagingDlg(CWnd* pParent)
 
 	m_handler.registerHandlerProc(
 		SIMCONNECT_RECV_ID_OPEN,
-		[this](const SIMCONNECT_RECV* msg, [[maybe_unused]] DWORD len) { this->onOpen(*reinterpret_cast<const SIMCONNECT_RECV_OPEN*>(msg)); });
+		[this](const SIMCONNECT_RECV& msg) { this->onOpen(*reinterpret_cast<const SIMCONNECT_RECV_OPEN*>(&msg)); });
 	m_handler.registerHandlerProc(
 		SIMCONNECT_RECV_ID_QUIT,
-		[this]([[maybe_unused]] const SIMCONNECT_RECV* msg, [[maybe_unused]] DWORD len) { this->onQuit(); });
+		[this]([[maybe_unused]] const SIMCONNECT_RECV& msg) { this->onQuit(); });
 }
 
 

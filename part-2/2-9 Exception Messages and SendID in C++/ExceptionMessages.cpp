@@ -16,7 +16,7 @@
 
 #include <simconnect/windows_event_connection.hpp>
 #include <simconnect/windows_event_handler.hpp>
-#include <simconnect/requests/request_handler.hpp>
+#include <simconnect/requests/system_state_handler.hpp>
 
 #include <format>
 #include <iostream>
@@ -212,8 +212,8 @@ auto main() -> int {
 	SimConnect::WindowsEventHandler handler(connection);
 	handler.autoClosing(true);
 
-	handler.setDefaultHandler([](const SIMCONNECT_RECV* msg, DWORD len) {
-		std::cerr << std::format("Ignoring message of type {} (length {} bytes)\n", msg->dwID, len);
+	handler.setDefaultHandler([](const SIMCONNECT_RECV& msg) {
+		std::cerr << std::format("Ignoring message of type {} (length {} bytes)\n", msg.dwID, msg.dwSize);
 		});
 	handler.registerHandler<SIMCONNECT_RECV_EXCEPTION>(SIMCONNECT_RECV_ID_EXCEPTION, handleException);
 	handler.registerHandler<SIMCONNECT_RECV_OPEN>(SIMCONNECT_RECV_ID_OPEN, handleOpen);
@@ -221,8 +221,8 @@ auto main() -> int {
 
 	std::cout << "Opening connection\n";
 	if (connection.open()) {
-		SimConnect::RequestHandler requestHandler;
-		requestHandler.enable(handler, SIMCONNECT_RECV_ID_SYSTEM_STATE);
+		SimConnect::SystemStateHandler requestHandler;
+		requestHandler.enable(handler);
 
 		requestHandler.requestSystemState(connection, "AircraftLoaded",
 			[](std::string aircraft) {

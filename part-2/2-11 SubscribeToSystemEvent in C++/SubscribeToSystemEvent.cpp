@@ -18,7 +18,7 @@
 #include <simconnect/windows_event_connection.hpp>
 #include <simconnect/windows_event_handler.hpp>
 #include <simconnect/events/system_events.hpp>
-#include <simconnect/events/event_handler.hpp>
+#include <simconnect/events/system_event_handler.hpp>
 
 #include <iostream>
 
@@ -84,15 +84,15 @@ auto main() -> int {
 	SimConnect::WindowsEventHandler handler(connection);
 	handler.autoClosing(true);
 
-	handler.setDefaultHandler([](const SIMCONNECT_RECV* msg, DWORD len) {
-		std::cerr << std::format("Ignoring message of type {} (length {} bytes)\n", msg->dwID, len);
+	handler.setDefaultHandler([](const SIMCONNECT_RECV& msg) {
+		std::cerr << std::format("Ignoring message of type {} (length {} bytes)\n", msg.dwID, msg.dwSize);
 	});
 	handler.registerHandler<SIMCONNECT_RECV_OPEN>(SIMCONNECT_RECV_ID_OPEN, handleOpen);
 	handler.registerHandler<SIMCONNECT_RECV_QUIT>(SIMCONNECT_RECV_ID_QUIT, handleClose);
 	handler.registerHandler<SIMCONNECT_RECV_EVENT>(SIMCONNECT_RECV_ID_EVENT, handleEvent);
 
 	if (connection.open()) {
-		SimConnect::EventHandler eventHandler;
+		SimConnect::SystemEventHandler eventHandler;
 		eventHandler.enable(handler);
 
 		eventHandler.subscribeToSystemEvent(connection, SimConnect::Events::sim(), [](const SIMCONNECT_RECV_EVENT& msg) {

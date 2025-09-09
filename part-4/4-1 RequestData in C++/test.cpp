@@ -24,7 +24,7 @@
 
 #include <simconnect/data_definition.hpp>
 #include <simconnect/data/data_block_builder.hpp>
-#include <simconnect/requests/request_handler.hpp>
+#include <simconnect/requests/simobject_data_handler.hpp>
 
 
 using namespace std::chrono_literals;

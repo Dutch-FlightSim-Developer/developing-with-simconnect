@@ -16,18 +16,19 @@
  */
 
 
-#include <simconnect/handler.hpp>
+#include <simconnect/simconnect_message_handler.hpp>
 
 namespace SimConnect {
 
 /**
  * A SimConnect message handler.
  */
-class WindowsEventHandler : public Handler<WindowsEventConnection, WindowsEventHandler>
+template <class handler_type = SimpleHandlerProc<SIMCONNECT_RECV>, class logger_type = NullLogger>
+class WindowsEventHandler : public SimConnectMessageHandler<WindowsEventConnection, WindowsEventHandler<handler_type, logger_type>, handler_type, logger_type>
 {
 public:
-    WindowsEventHandler(WindowsEventConnection& connection) : Handler(connection) {}
-    virtual ~WindowsEventHandler() {}
+    WindowsEventHandler(WindowsEventConnection& connection) : SimConnectMessageHandler<WindowsEventConnection, WindowsEventHandler<handler_type, logger_type>, handler_type, logger_type>(connection) {}
+    ~WindowsEventHandler() {}
 
     WindowsEventHandler(const WindowsEventHandler&) = delete;
     WindowsEventHandler(WindowsEventHandler&&) = delete;
@@ -42,11 +43,11 @@ public:
     void dispatch(std::chrono::milliseconds duration = std::chrono::milliseconds(0)) {
         const auto deadline = std::chrono::steady_clock::now() + duration;
         do {
-            if (isAutoClosing() && !connection_.isOpen()) {
+            if (this->isAutoClosing() && !this->connection_.isOpen()) {
                 break;
             }
-            if (connection_.checkForMessage(std::chrono::duration_cast<std::chrono::milliseconds>(deadline - std::chrono::steady_clock::now()))) {
-                dispatchWaitingMessages();
+            if (this->connection_.checkForMessage(std::chrono::duration_cast<std::chrono::milliseconds>(deadline - std::chrono::steady_clock::now()))) {
+                this->dispatchWaitingMessages();
             }
         } while (deadline > std::chrono::steady_clock::now());
     }

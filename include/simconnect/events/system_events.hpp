@@ -23,31 +23,31 @@ namespace SimConnect {
 
     namespace Events {
 
-        event oneSec() { return event::get("1sec"); };
-        event fourSec() { return event::get("4sec"); };
-        event sixHerz() { return event::get("6Hz"); };
-        event aircraftLoaded() { return event::get("AircraftLoaded"); };
-        event crashed() { return event::get("Crashed"); };
-        event crashReset() { return event::get("CrashReset"); };
-        event customMissionActionExecuted() { return event::get("CustomMissionActionExecuted"); };             // Legacy
-        event flightLoaded() { return event::get("FlightLoaded"); };
-        event flightSaved() { return event::get("FlightSaved"); };
-        event flightPlanActivated() { return event::get("FlightPlanActivated"); };
-        event flightPlanDeactivated() { return event::get("FlightPlanDeactivated"); };
-        event frame() { return event::get("Frame"); };
-        event objectAdded() { return event::get("ObjectAdded"); };
-        event objectRemoved() { return event::get("ObjectRemoved"); };
-        event pause() { return event::get("Pause"); };
-        event pause_EX1() { return event::get("Pause_EX1"); };
-        event paused() { return event::get("Paused"); };
-        event pauseFrame() { return event::get("PauseFrame"); };
-        event positionChanged() { return event::get("PositionChanged"); };
-        event sim() { return event::get("Sim"); };
-        event simStart() { return event::get("SimStart"); };
-        event simStop() { return event::get("SimStop"); };
-        event sound() { return event::get("Sound"); };
-        event unpaused() { return event::get("Unpaused"); };
-        event view() { return event::get("View"); };
-        event weatherModeChanged() { return event::get("WeatherModeChanged"); };
+        inline event oneSec() { return event::get("1sec"); };
+        inline event fourSec() { return event::get("4sec"); };
+        inline event sixHerz() { return event::get("6Hz"); };
+        inline event aircraftLoaded() { return event::get("AircraftLoaded"); };
+        inline event crashed() { return event::get("Crashed"); };
+        inline event crashReset() { return event::get("CrashReset"); };
+        inline event customMissionActionExecuted() { return event::get("CustomMissionActionExecuted"); };             // Legacy
+        inline event flightLoaded() { return event::get("FlightLoaded"); };
+        inline event flightSaved() { return event::get("FlightSaved"); };
+        inline event flightPlanActivated() { return event::get("FlightPlanActivated"); };
+        inline event flightPlanDeactivated() { return event::get("FlightPlanDeactivated"); };
+        inline event frame() { return event::get("Frame"); };
+        inline event objectAdded() { return event::get("ObjectAdded"); };
+        inline event objectRemoved() { return event::get("ObjectRemoved"); };
+        inline event pause() { return event::get("Pause"); };
+        inline event pause_EX1() { return event::get("Pause_EX1"); };
+        inline event paused() { return event::get("Paused"); };
+        inline event pauseFrame() { return event::get("PauseFrame"); };
+        inline event positionChanged() { return event::get("PositionChanged"); };
+        inline event sim() { return event::get("Sim"); };
+        inline event simStart() { return event::get("SimStart"); };
+        inline event simStop() { return event::get("SimStop"); };
+        inline event sound() { return event::get("Sound"); };
+        inline event unpaused() { return event::get("Unpaused"); };
+        inline event view() { return event::get("View"); };
+        inline event weatherModeChanged() { return event::get("WeatherModeChanged"); };
     }
 }

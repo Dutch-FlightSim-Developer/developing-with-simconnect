@@ -16,19 +16,21 @@
  */
 
 
-#include <simconnect/handler.hpp>
+#include <simconnect/simconnect_message_handler.hpp>
 
 namespace SimConnect {
 
 /**
  * A Simple SimConnect message handler. This handler has no blocking handler, so it will not wait for messages.
- * @tparam C The SimConnect connection type.
+ * @tparam connection_type The SimConnect connection type.
+ * @tparam handler_type The handler processor type.
+ * @tparam logger_type The logger type.
  */
-template <class C>
-class SimpleHandler : public Handler<C, SimpleHandler<C>>
+template <class connection_type, class handler_type = SimpleHandlerProc<SIMCONNECT_RECV>, class logger_type = NullLogger>
+class SimpleHandler : public SimConnectMessageHandler<connection_type, SimpleHandler<connection_type, handler_type, logger_type>, handler_type, logger_type>
 {
 public:
-    SimpleHandler(C& connection) : Handler<C, SimpleHandler<C>>(connection) {}
+    SimpleHandler(connection_type& connection) : SimConnectMessageHandler<connection_type, SimpleHandler<connection_type, handler_type, logger_type>, handler_type, logger_type>(connection) {}
     virtual ~SimpleHandler() {}
 
     SimpleHandler(const SimpleHandler&) = delete;
@@ -38,7 +40,6 @@ public:
 
     /**
      * Handles incoming SimConnect messages.
-     * @param connection The connection to handle messages from.
      * @param duration The maximum amount of time to wait for a message, defaults to 0ms meaning don't wait.
      */
     void dispatch([[maybe_unused]] std::chrono::milliseconds duration = std::chrono::milliseconds(0)) {

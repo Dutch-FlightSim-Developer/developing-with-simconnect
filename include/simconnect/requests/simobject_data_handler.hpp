@@ -18,7 +18,7 @@
 #include <unordered_map>
 
 #include <simconnect/simobject_type.hpp>
-#include <simconnect/requests/request_handler.hpp>
+#include <simconnect/message_handler.hpp>
 
 
 namespace SimConnect {
@@ -47,7 +47,7 @@ struct SimObjectIdHolder {
  * 
  * @note This handler is used to request data from the simulator for a specific object or type.
  */
-class SimObjectDataHandler : public RequestHandler<SimObjectDataHandler, SIMCONNECT_RECV_ID_SIMOBJECT_DATA, SIMCONNECT_RECV_ID_SIMOBJECT_DATA_BYTYPE>
+class SimObjectDataHandler : public MessageHandler<SimObjectDataHandler, SIMCONNECT_RECV_ID_SIMOBJECT_DATA, SIMCONNECT_RECV_ID_SIMOBJECT_DATA_BYTYPE>
 {
 
     // No copies or moves
@@ -67,10 +67,10 @@ public:
 	 * SIMCONNECT_RECV_SIMOBJ_DATA_BTYPE messages. The latter type does not actually add fields, so we can
      * use the same method for both.
      * 
-     * @param msg The message to get the request ID from.
-     * @returns The request ID from the message.
+     * @param msg The message to get the correlation ID from.
+     * @returns The correlation ID from the message.
 	 */
-    unsigned long requestId(const SIMCONNECT_RECV* msg) const {
+    unsigned long correlationId(const SIMCONNECT_RECV* msg) const {
         return static_cast<const SIMCONNECT_RECV_SIMOBJECT_DATA*>(msg)->dwRequestID;
     }
 
@@ -130,8 +130,8 @@ public:
     {
         auto requestId = connection.requests().nextRequestID();
 
-        registerHandler(requestId, [requestId, handler](const SIMCONNECT_RECV* msg, [[maybe_unused]] DWORD size) {
-                handler(*reinterpret_cast<const SIMCONNECT_RECV_SIMOBJECT_DATA*>(msg));
+        registerHandler(requestId, [requestId, handler](const SIMCONNECT_RECV& msg) {
+                handler(reinterpret_cast<const SIMCONNECT_RECV_SIMOBJECT_DATA&>(msg));
             }, frequency.isOnce());
         connection.requestData(dataDef, requestId, frequency, limits, objectId, onlyWhenChanged);
 
@@ -187,8 +187,8 @@ public:
     {
         auto requestId = connection.requests().nextRequestID();
 
-        registerHandler(requestId, [requestId, handler](const SIMCONNECT_RECV* msg, [[maybe_unused]] DWORD size) {
-                handler(*reinterpret_cast<const SIMCONNECT_RECV_SIMOBJECT_DATA*>(msg));
+        registerHandler(requestId, [requestId, handler](const SIMCONNECT_RECV& msg) {
+                handler(reinterpret_cast<const SIMCONNECT_RECV_SIMOBJECT_DATA&>(msg));
             }, frequency.isOnce());
         connection.requestDataTagged(dataDef, requestId, frequency, limits, objectId, onlyWhenChanged);
 
@@ -246,8 +246,8 @@ public:
     {
         auto requestId = connection.requests().nextRequestID();
 
-        registerHandler(requestId, [requestId, handler](const SIMCONNECT_RECV* msg, [[maybe_unused]] DWORD size) {
-                Data::DataBlockReader reader(*reinterpret_cast<const SIMCONNECT_RECV_SIMOBJECT_DATA*>(msg));
+        registerHandler(requestId, [requestId, handler](const SIMCONNECT_RECV& msg) {
+                Data::DataBlockReader reader(reinterpret_cast<const SIMCONNECT_RECV_SIMOBJECT_DATA&>(msg));
 
                 handler(reader);
             }, frequency.isOnce());
@@ -307,8 +307,8 @@ public:
     {
         auto requestId = connection.requests().nextRequestID();
 
-        registerHandler(requestId, [requestId, handler](const SIMCONNECT_RECV* msg, [[maybe_unused]] DWORD size) {
-                Data::DataBlockReader reader(*reinterpret_cast<const SIMCONNECT_RECV_SIMOBJECT_DATA*>(msg));
+        registerHandler(requestId, [requestId, handler](const SIMCONNECT_RECV& msg) {
+                Data::DataBlockReader reader(reinterpret_cast<const SIMCONNECT_RECV_SIMOBJECT_DATA&>(msg));
 
                 handler(reader);
             }, frequency.isOnce());
@@ -375,16 +375,16 @@ public:
         const auto requestId = connection.requests().nextRequestID();
 
         if (dataDef.useMapping()) {
-            registerHandler(requestId, [requestId, &dataDef, handler](const SIMCONNECT_RECV* msg, [[maybe_unused]] DWORD size) {
-                const StructType* data = reinterpret_cast<const StructType*>(&(reinterpret_cast<const SIMCONNECT_RECV_SIMOBJECT_DATA*>(msg)->dwData));
+            registerHandler(requestId, [requestId, &dataDef, handler](const SIMCONNECT_RECV& msg) {
+                const StructType* data = reinterpret_cast<const StructType*>(&(reinterpret_cast<const SIMCONNECT_RECV_SIMOBJECT_DATA&>(msg)->dwData));
                 handler(*data);
                 }, frequency.isOnce());
         }
         else {
-            registerHandler(requestId, [requestId, &dataDef, handler](const SIMCONNECT_RECV* msg, [[maybe_unused]] DWORD size) {
+            registerHandler(requestId, [requestId, &dataDef, handler](const SIMCONNECT_RECV& msg) {
                 StructType data;
 
-                dataDef.unmarshall(*reinterpret_cast<const SIMCONNECT_RECV_SIMOBJECT_DATA*>(msg), data);
+                dataDef.unmarshall(reinterpret_cast<const SIMCONNECT_RECV_SIMOBJECT_DATA&>(msg), data);
                 handler(data);
                 }, frequency.isOnce());
         }
@@ -450,10 +450,10 @@ public:
 
         const auto requestId = connection.requests().nextRequestID();
 
-        registerHandler(requestId, [requestId, &dataDef, handler](const SIMCONNECT_RECV* msg, [[maybe_unused]] DWORD size) {
+        registerHandler(requestId, [requestId, &dataDef, handler](const SIMCONNECT_RECV& msg) {
             StructType data;
 
-            dataDef.unmarshall(*reinterpret_cast<const SIMCONNECT_RECV_SIMOBJECT_DATA*>(msg), data);
+            dataDef.unmarshall(reinterpret_cast<const SIMCONNECT_RECV_SIMOBJECT_DATA&>(msg), data);
             handler(data);
         }, frequency.isOnce());
         connection.requestDataTagged(dataDef, requestId, frequency, limits, objectId, onlyWhenChanged);
@@ -540,14 +540,14 @@ public:
         const auto requestId = connection.requests().nextRequestID();
 
         if (dataDef.useMapping()) {
-            registerHandler(requestId, [requestId, &dataDef, handler, onDone](const SIMCONNECT_RECV* msg, [[maybe_unused]] DWORD size) {
-				const SIMCONNECT_RECV_SIMOBJECT_DATA_BYTYPE* dataMsg = reinterpret_cast<const SIMCONNECT_RECV_SIMOBJECT_DATA_BYTYPE*>(msg);
-                const StructType* data = reinterpret_cast<const StructType*>(&(dataMsg->dwData));
+            registerHandler(requestId, [requestId, &dataDef, handler, onDone](const SIMCONNECT_RECV& msg) {
+				const SIMCONNECT_RECV_SIMOBJECT_DATA_BYTYPE& dataMsg = reinterpret_cast<const SIMCONNECT_RECV_SIMOBJECT_DATA_BYTYPE&>(msg);
+                const StructType* data = reinterpret_cast<const StructType*>(&(dataMsg.dwData));
 
                 // A mapped struct cannot contain the objectId
                 handler(*data);
 
-                if (dataMsg->dwentrynumber == dataMsg->dwoutof) {
+                if (dataMsg.dwentrynumber == dataMsg.dwoutof) {
                     if (onDone) {
                         onDone();
 					}
@@ -555,17 +555,17 @@ public:
             }, false);
         }
         else {
-            registerHandler(requestId, [requestId, &dataDef, handler, onDone](const SIMCONNECT_RECV* msg, [[maybe_unused]] DWORD size) {
-                const SIMCONNECT_RECV_SIMOBJECT_DATA_BYTYPE* dataMsg = reinterpret_cast<const SIMCONNECT_RECV_SIMOBJECT_DATA_BYTYPE*>(msg);
+            registerHandler(requestId, [requestId, &dataDef, handler, onDone](const SIMCONNECT_RECV& msg) {
+                const SIMCONNECT_RECV_SIMOBJECT_DATA_BYTYPE& dataMsg = reinterpret_cast<const SIMCONNECT_RECV_SIMOBJECT_DATA_BYTYPE&>(msg);
 
                 StructType data;
 
-                dataDef.unmarshall(*dataMsg, data);
-				storeObjectId(dataMsg->dwObjectID, data);
+                dataDef.unmarshall(dataMsg, data);
+				storeObjectId(dataMsg.dwObjectID, data);
 
                 handler(data);
 
-                if (dataMsg->dwentrynumber == dataMsg->dwoutof) {
+                if (dataMsg.dwentrynumber == dataMsg.dwoutof) {
                     if (onDone) {
                         onDone();
                     }
@@ -612,29 +612,29 @@ public:
 
         if (dataDef.useMapping()) {
             registerHandler(requestId,
-                            [requestId, &dataDef, handler, result](const SIMCONNECT_RECV* msg, [[maybe_unused]] DWORD size) mutable
+                            [requestId, &dataDef, handler, result](const SIMCONNECT_RECV& msg) mutable
                 {
-                    const SIMCONNECT_RECV_SIMOBJECT_DATA_BYTYPE* dataMsg = reinterpret_cast<const SIMCONNECT_RECV_SIMOBJECT_DATA_BYTYPE*>(msg);
-                    const StructType* data = reinterpret_cast<const StructType*>(&(dataMsg->dwData));
+                    const SIMCONNECT_RECV_SIMOBJECT_DATA_BYTYPE& dataMsg = reinterpret_cast<const SIMCONNECT_RECV_SIMOBJECT_DATA_BYTYPE&>(msg);
+                    const StructType& data = reinterpret_cast<const StructType&>(dataMsg.dwData);
 
-					result[dataMsg->dwObjectID] = *data;
-                    if (dataMsg->dwentrynumber == dataMsg->dwoutof) {
+					result[dataMsg.dwObjectID] = data;
+                    if (dataMsg.dwentrynumber == dataMsg.dwoutof) {
 						handler(result);
                     }
                 }, false);
         }
         else {
-            registerHandler(requestId, [requestId, &dataDef, handler, result](const SIMCONNECT_RECV* msg, [[maybe_unused]] DWORD size) mutable
+            registerHandler(requestId, [requestId, &dataDef, handler, result](const SIMCONNECT_RECV& msg) mutable
                 {
-                    const SIMCONNECT_RECV_SIMOBJECT_DATA_BYTYPE* dataMsg = reinterpret_cast<const SIMCONNECT_RECV_SIMOBJECT_DATA_BYTYPE*>(msg);
+                    const SIMCONNECT_RECV_SIMOBJECT_DATA_BYTYPE& dataMsg = reinterpret_cast<const SIMCONNECT_RECV_SIMOBJECT_DATA_BYTYPE&>(msg);
 
                     StructType data;
 
-                    dataDef.unmarshall(*dataMsg, data);
-					storeObjectId(dataMsg->dwObjectID, data);
-                    result[dataMsg->dwObjectID] = data;
+                    dataDef.unmarshall(dataMsg, data);
+					storeObjectId(dataMsg.dwObjectID, data);
+                    result[dataMsg.dwObjectID] = data;
 
-                    if (dataMsg->dwentrynumber == dataMsg->dwoutof) {
+                    if (dataMsg.dwentrynumber == dataMsg.dwoutof) {
                         handler(result);
                     }
                 }, false);
@@ -668,10 +668,10 @@ public:
     {
         auto requestId = connection.requests().nextRequestID();
 
-        registerHandler(requestId, [requestId, handler, onDone](const SIMCONNECT_RECV* msg, [[maybe_unused]] DWORD size) {
-			const SIMCONNECT_RECV_SIMOBJECT_DATA_BYTYPE* dataMsg = reinterpret_cast<const SIMCONNECT_RECV_SIMOBJECT_DATA_BYTYPE*>(msg);
-            handler(*dataMsg);
-            if (dataMsg->dwentrynumber == dataMsg->dwoutof) {
+        registerHandler(requestId, [requestId, handler, onDone](const SIMCONNECT_RECV& msg) {
+			const SIMCONNECT_RECV_SIMOBJECT_DATA_BYTYPE& dataMsg = reinterpret_cast<const SIMCONNECT_RECV_SIMOBJECT_DATA_BYTYPE&>(msg);
+            handler(dataMsg);
+            if (dataMsg.dwentrynumber == dataMsg.dwoutof) {
                 if (onDone) {
                     onDone();
                 }

@@ -16,7 +16,7 @@
  */
 
 
-#include <simconnect/handler.hpp>
+#include <simconnect/simconnect_message_handler.hpp>
 
 #include <thread>
 
@@ -28,16 +28,20 @@ namespace SimConnect {
  * 
  * **NOTE** This is not a good way to handle SimConnect messages.
  */
-template <class C>
-class PollingHandler : public Handler<C, PollingHandler<C>>
+template <class connection_type, class handler_type = SimpleHandlerProc<SIMCONNECT_RECV>, class logger_type = NullLogger>
+class PollingHandler : public SimConnectMessageHandler<connection_type, PollingHandler<connection_type, handler_type,  logger_type>, handler_type, logger_type>
 {
 private:
     std::chrono::milliseconds sleep_duration_ = std::chrono::milliseconds(100);
 
 public:
-    PollingHandler(C& connection) : Handler<C, PollingHandler<C>>(connection) {}
-    PollingHandler(C& connection, std::chrono::milliseconds sleep_duration) : Handler<C, PollingHandler<C>>(connection), sleep_duration_(sleep_duration) {}
-    virtual ~PollingHandler() {}
+    PollingHandler(connection_type& connection)
+        : SimConnectMessageHandler<connection_type, PollingHandler<connection_type, handler_type, logger_type>>(connection)
+    {}
+    PollingHandler(connection_type& connection, std::chrono::milliseconds sleep_duration)
+        : SimConnectMessageHandler<connection_type, PollingHandler<connection_type, handler_type, logger_type>>(connection), sleep_duration_(sleep_duration)
+    {}
+    ~PollingHandler() {}
 
     PollingHandler(const PollingHandler&) = delete;
     PollingHandler(PollingHandler&&) = delete;

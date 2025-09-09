@@ -45,25 +45,28 @@ private:
      */
     event(int id) : id_(id) {}
 
-public:
     /**
      * The default constructor is deleted because an event MUST always have an Id.
      */
     event() = delete;
 
+    // No move semantics, because an event MUST always have an Id.
+    event(event&&) = delete;
+    event& operator=(event&&) = delete;
+
+public:
+
 
     /**
      * Destructor can be default.
      */
-    ~event() = default;
+    constexpr ~event() = default;
 
 
     // Copying is allowed, moving is not because an event MUST always have an Id.
 
-    event(const event&) = default;
-    event(event&&) = delete;
-    event& operator=(const event&) = default;
-    event& operator=(event&&) = delete;
+    constexpr event(const event&) = default;
+    constexpr event& operator=(const event&) = default;
 
 
     /**
@@ -80,6 +83,7 @@ public:
         auto id = ++nextId_;
         eventsByName_[name] = id;
         eventsById_[id] = name;
+
         return event(id);
     }
 
@@ -93,6 +97,7 @@ public:
      */
     static event get(int id) {
         auto it = eventsById_.find(id);
+
         if (it != eventsById_.end()) {
             return event(id);       // We don't mind copies.
         }
@@ -106,7 +111,7 @@ public:
      * @returns The ID of the event.
      */
     [[nodiscard]]
-    int id() const noexcept { return id_; }
+    constexpr int id() const noexcept { return id_; }
 
 
     /**
@@ -115,7 +120,7 @@ public:
      * @returns The ID of the event as an integer.
      */
     [[nodiscard]]
-    operator int() const noexcept { return id_; }
+    constexpr operator int() const noexcept { return id_; }
 
 
     /**
@@ -127,6 +132,7 @@ public:
     [[nodiscard]]
     const std::string& name() const {
         auto it = eventsById_.find(id_);
+
         if (it != eventsById_.end()) {
             return it->second;
         }
@@ -141,7 +147,7 @@ public:
      * @returns True if the events are equal.
      */
     [[nodiscard]]
-    bool operator==(const event& other) const noexcept { return id_ == other.id_; }
+    constexpr bool operator==(const event& other) const noexcept { return id_ == other.id_; }
     
     /**
      * Compare two events for ordering.
@@ -149,7 +155,7 @@ public:
      * @param other The other event.
      * @returns The comparison result.
      */
-    auto operator<=>(const event& other) const noexcept { return id_ <=> other.id_; }
+    constexpr auto operator<=>(const event& other) const noexcept { return id_ <=> other.id_; }
 };
 
 }

@@ -109,6 +109,8 @@
     <ClCompile Include="DataBlockReaderTests.cpp" />
     <ClCompile Include="DataBlockTests.cpp" />
     <ClCompile Include="TestDataFrequency.cpp" />
+    <ClCompile Include="TestLogger.cpp" />
+    <ClCompile Include="TestMultiHandlerProc.cpp" />
     <ClCompile Include="TestPeriodLimits.cpp" />
     <ClCompile Include="TestSimObjectType.cpp" />
     <ClCompile Include="TestDataDefinition.cpp" />
@@ -123,6 +125,8 @@
     <ClCompile Include="TestDataDefinition_Int32.cpp" />
     <ClCompile Include="TestDataDefinition_Int64.cpp" />
     <ClCompile Include="TestDataDefinition_TestString.cpp" />
+    <ClCompile Include="TestSimpleHandler.cpp" />
+    <ClCompile Include="TestSimpleHandlerProc.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\src\CppSimConnect.vcxproj">

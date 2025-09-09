@@ -25,6 +25,12 @@
     <Filter Include="Header Files\SimConnect\Requests">
       <UniqueIdentifier>{145b58c5-f39c-4106-b026-c5b05667df7e}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Header Files\SimConnect\messaging">
+      <UniqueIdentifier>{72363939-29ba-4e91-aaf1-1673f6429588}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\SimConnect\util">
+      <UniqueIdentifier>{18097590-a14c-426e-a1af-c497f64fe01d}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="events.cpp">
@@ -99,6 +105,30 @@
       <Filter>Header Files\SimConnect</Filter>
     </ClInclude>
     <ClInclude Include="..\include\simconnect\windows_messaging_connection.hpp">
+      <Filter>Header Files\SimConnect</Filter>
+    </ClInclude>
+    <ClInclude Include="..\include\simconnect\messaging\handler_proc.hpp">
+      <Filter>Header Files\SimConnect\messaging</Filter>
+    </ClInclude>
+    <ClInclude Include="..\include\simconnect\messaging\multi_handler_proc.hpp">
+      <Filter>Header Files\SimConnect\messaging</Filter>
+    </ClInclude>
+    <ClInclude Include="..\include\simconnect\messaging\simple_handler_proc.hpp">
+      <Filter>Header Files\SimConnect\messaging</Filter>
+    </ClInclude>
+    <ClInclude Include="..\include\simconnect\util\console_logger.hpp">
+      <Filter>Header Files\SimConnect\util</Filter>
+    </ClInclude>
+    <ClInclude Include="..\include\simconnect\util\crtp.hpp">
+      <Filter>Header Files\SimConnect\util</Filter>
+    </ClInclude>
+    <ClInclude Include="..\include\simconnect\util\logger.hpp">
+      <Filter>Header Files\SimConnect\util</Filter>
+    </ClInclude>
+    <ClInclude Include="..\include\simconnect\util\null_logger.hpp">
+      <Filter>Header Files\SimConnect\util</Filter>
+    </ClInclude>
+    <ClInclude Include="..\include\simconnect\simconnect_message_handler.hpp">
       <Filter>Header Files\SimConnect</Filter>
     </ClInclude>
   </ItemGroup>

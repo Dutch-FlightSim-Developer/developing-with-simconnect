@@ -69,7 +69,7 @@ enum DataDefinitions : DWORD {
 
 
 /**
- * Handle SimConnect Exception messages.ABC
+ * Handle SimConnect Exception messages.
  *
  * @param msg The exception message to handle.
  */
@@ -285,6 +285,10 @@ static void hexDump(const uint8_t* data, unsigned dataSize) {
 
 static DataSet<Airport> airports;
 static BagIndex<std::string> airportsByRegion; // Maps region codes to sets of airports
+
+static DataSet<Parking> parkings;
+static BagIndex<std::string> parkingsByAirport; // Maps airport ICAO codes to sets of parkings
+
 static DataSet<Livery> liveries;
 static BagIndex<std::string> liveriesByTitle; // Maps aircraft titles to sets of liveries
 static BagIndex<std::string> liveriesByLivery; // Maps livery names to sets of aircraft titles

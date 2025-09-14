@@ -25,9 +25,10 @@
 #include <string>
 
 
-constexpr static const char* appName = "Livery lister";
+constexpr static const char* appName = "SimConnect Console Application";
 static HANDLE hSimConnect{ nullptr };
 static HANDLE hEvent{ nullptr };
+
 
 
 /**
@@ -211,23 +212,23 @@ static void handleException(const SIMCONNECT_RECV_EXCEPTION& msg)
  */
 static bool connect()
 {
-	if (hEvent == nullptr)
-	{
-		hEvent = CreateEvent(nullptr, FALSE, FALSE, nullptr);
-		if (hEvent == nullptr) {
-			std::cerr << std::format("Failed to create event: 0x{:08X}.\n", GetLastError());
-			return false;
-		}
-	}
+    if (hEvent == nullptr)
+    {
+        hEvent = CreateEvent(nullptr, FALSE, FALSE, nullptr);
+        if (hEvent == nullptr) {
+            std::cerr << std::format("Failed to create event: 0x{:08X}.\n", GetLastError());
+            return false;
+        }
+    }
 
-	HRESULT hr = SimConnect_Open(&hSimConnect, appName, nullptr, 0, hEvent, 0);
-	if (FAILED(hr))
-	{
-		std::cerr << std::format("Failed to connect to SimConnect: 0x{:08X}\n", hr);
-		return false;
-	}
+    HRESULT hr = SimConnect_Open(&hSimConnect, appName, nullptr, 0, hEvent, 0);
+    if (FAILED(hr))
+    {
+        std::cerr << std::format("Failed to connect to SimConnect: 0x{:08X}\n", hr);
+        return false;
+    }
 
-	return true;
+    return true;
 }
 
 
@@ -236,14 +237,16 @@ static bool connect()
  */
 static void disconnect()
 {
-	if (hSimConnect != nullptr) {
-		SimConnect_Close(hSimConnect);
-		hSimConnect = nullptr;
-	}
-	if (hEvent != nullptr) {
-		CloseHandle(hEvent);
-		hEvent = nullptr;
-	}
+    if (hSimConnect != nullptr) {
+		std::cerr << "[Disconnecting from the simulator.]\n";
+        SimConnect_Close(hSimConnect);
+        hSimConnect = nullptr;
+    }
+    if (hEvent != nullptr) {
+		std::cerr << "[Closing event handle.]\n";
+        CloseHandle(hEvent);
+        hEvent = nullptr;
+    }
 }
 
 
@@ -269,7 +272,7 @@ static void handle_messages()
         DWORD cbData{ 0 };
         HRESULT hr{ S_OK };
 
-        int liveryCount{ 0 };
+        int count{ 0 };
 
         while (SUCCEEDED(hr = SimConnect_GetNextDispatch(hSimConnect, &pData, &cbData))) {
             switch (pData->dwID) {
@@ -302,27 +305,111 @@ static void handle_messages()
             }
             break;
 
-            case SIMCONNECT_RECV_ID_ENUMERATE_SIMOBJECT_AND_LIVERY_LIST:
+            case SIMCONNECT_RECV_ID_AIRPORT_LIST:
             {
-                auto pLiveryList = toRecvPtr<SIMCONNECT_RECV_ENUMERATE_SIMOBJECT_AND_LIVERY_LIST>(pData);
+                auto pAirportList = toRecvPtr<SIMCONNECT_RECV_AIRPORT_LIST>(pData);
 
-				liveryCount += pLiveryList->dwArraySize;
+                count += pAirportList->dwArraySize;
 
                 // Print progress
-                std::cerr << std::format("[Received {} liveries (part {} of {}), total received: {}]\n",
-                    pLiveryList->dwArraySize,
-                    pLiveryList->dwEntryNumber + 1,
-                    pLiveryList->dwOutOf,
-                    liveryCount);
+                std::cerr << std::format("[Received {} airport messages (part {} of {}), total received: {}]\n",
+                    pAirportList->dwArraySize,
+                    pAirportList->dwEntryNumber + 1,
+                    pAirportList->dwOutOf,
+                    count);
 
-                for (DWORD i = 0; i < pLiveryList->dwArraySize; ++i) {
-                    const auto& liveryData = pLiveryList->rgData[i];
-					std::cout << std::format("Title: '{}', Livery: '{}'\n", liveryData.AircraftTitle, liveryData.LiveryName);
+                for (DWORD i = 0; i < pAirportList->dwArraySize; ++i) {
+                    const auto& airportData = pAirportList->rgData[i];
+                    std::cout << std::format("Airport ICAO: '{}', Region: '{}'\n", airportData.Ident, airportData.Region);
                 }
 
 
                 // If this was the last part, exit the message loop
-                if (pLiveryList->dwEntryNumber == pLiveryList->dwOutOf - 1) {
+                if ((pAirportList->dwEntryNumber+1) >= pAirportList->dwOutOf) {
+                    connected = false; // Exit the message loop
+                }
+            }
+            break;
+
+            case SIMCONNECT_RECV_ID_WAYPOINT_LIST:
+            {
+                auto pWaypointList = toRecvPtr<SIMCONNECT_RECV_WAYPOINT_LIST>(pData);
+
+                count += pWaypointList->dwArraySize;
+
+                // Print progress
+                std::cerr << std::format("[Received {} Waypoint messages (part {} of {}), total received: {}]\n",
+                    pWaypointList->dwArraySize,
+                    pWaypointList->dwEntryNumber + 1,
+                    pWaypointList->dwOutOf,
+                    count);
+
+                for (DWORD i = 0; i < pWaypointList->dwArraySize; ++i) {
+                    const auto& waypointData = pWaypointList->rgData[i];
+                    std::cout << std::format("Waypoint ID: '{}', Region: '{}', LatLonAlt: {}/{}/{}, Magnetic variation: {}\n",
+                        waypointData.Ident, waypointData.Region,
+                        waypointData.Latitude, waypointData.Longitude, waypointData.Altitude, waypointData.fMagVar);
+                }
+
+
+                // If this was the last part, exit the message loop
+                if ((pWaypointList->dwEntryNumber + 1) >= pWaypointList->dwOutOf) {
+                    connected = false; // Exit the message loop
+                }
+            }
+            break;
+
+            case SIMCONNECT_RECV_ID_NDB_LIST:
+            {
+                auto pNDBList = toRecvPtr<SIMCONNECT_RECV_NDB_LIST>(pData);
+
+                count += pNDBList->dwArraySize;
+
+                // Print progress
+                std::cerr << std::format("[Received {} NDB messages (part {} of {}), total received: {}]\n",
+                    pNDBList->dwArraySize,
+                    pNDBList->dwEntryNumber + 1,
+                    pNDBList->dwOutOf,
+                    count);
+
+                for (DWORD i = 0; i < pNDBList->dwArraySize; ++i) {
+                    const auto& ndbData = pNDBList->rgData[i];
+                    std::cout << std::format("NDB ID: '{}', Region: '{}', Frequency: {:05.1f} kHz, LatLonAlt: {:.2f}/{:.2f}/{:.2f}m, Magnetic variation: {}\n",
+                        ndbData.Ident, ndbData.Region, ndbData.fFrequency / 1000.0,
+                        ndbData.Latitude, ndbData.Longitude, ndbData.Altitude, ndbData.fMagVar);
+                }
+
+
+                // If this was the last part, exit the message loop
+                if ((pNDBList->dwEntryNumber + 1) >= pNDBList->dwOutOf) {
+                    connected = false; // Exit the message loop
+                }
+            }
+            break;
+
+            case SIMCONNECT_RECV_ID_VOR_LIST:
+            {
+                auto pVORList = toRecvPtr<SIMCONNECT_RECV_VOR_LIST>(pData);
+
+                count += pVORList->dwArraySize;
+
+                // Print progress
+                std::cerr << std::format("[Received {} VOR messages (part {} of {}), total received: {}]\n",
+                    pVORList->dwArraySize,
+                    pVORList->dwEntryNumber + 1,
+                    pVORList->dwOutOf,
+                    count);
+
+                for (DWORD i = 0; i < pVORList->dwArraySize; ++i) {
+                    const auto& vorData = pVORList->rgData[i];
+                    std::cout << std::format("VOR ID: '{}', Region: '{}', Frequency: {:06.2f} MHz, LatLonAlt: {:.2f}/{:.2f}/{:.2f}m, Magnetic variation: {}\n",
+                        vorData.Ident, vorData.Region, vorData.fFrequency / 1'000'000.0,
+                        vorData.Latitude, vorData.Longitude, vorData.Altitude, vorData.fMagVar);
+                }
+
+
+                // If this was the last part, exit the message loop
+                if ((pVORList->dwEntryNumber + 1) >= pVORList->dwOutOf) {
                     connected = false; // Exit the message loop
                 }
             }
@@ -343,70 +430,86 @@ static void handle_messages()
 constexpr static const SIMCONNECT_DATA_REQUEST_ID REQUEST_ID{ 1 };
 
 
+enum class QueryType {
+    All,
+    Bubble,
+    Cache
+};
+
+
 auto main(int argc, const char* argv[]) -> int
 {
-	SIMCONNECT_SIMOBJECT_TYPE objType = SIMCONNECT_SIMOBJECT_TYPE_ANIMAL;
+    SIMCONNECT_FACILITY_LIST_TYPE objType = SIMCONNECT_FACILITY_LIST_TYPE_VOR;
+	QueryType queryType{ QueryType::Cache };
 
-    if (argc == 2) {
-        std::string arg{ argv[1] };
-        if (arg == "user") {
-            objType = SIMCONNECT_SIMOBJECT_TYPE_USER;
+	int nextArg{ 1 };
+    if (argc > nextArg) {
+        std::string arg{ argv [nextArg] };
+        if (arg == "airport") {
+            objType = SIMCONNECT_FACILITY_LIST_TYPE_AIRPORT;
+            nextArg++;
         }
-        else if (arg == "user-aircraft") {
-            objType = SIMCONNECT_SIMOBJECT_TYPE_USER_AIRCRAFT;
+        else if (arg == "waypoint") {
+            objType = SIMCONNECT_FACILITY_LIST_TYPE_WAYPOINT;
+            nextArg++;
         }
-        else if (arg == "all") {
-            objType = SIMCONNECT_SIMOBJECT_TYPE_ALL;
+        else if (arg == "ndb") {
+            objType = SIMCONNECT_FACILITY_LIST_TYPE_NDB;
+            nextArg++;
         }
-        else if (arg == "aircraft") {
-            objType = SIMCONNECT_SIMOBJECT_TYPE_AIRCRAFT;
-        }
-        else if (arg == "helicopter") {
-            objType = SIMCONNECT_SIMOBJECT_TYPE_HELICOPTER;
-        }
-        else if (arg == "boat") {
-            objType = SIMCONNECT_SIMOBJECT_TYPE_BOAT;
-        }
-        else if (arg == "ground") {
-            objType = SIMCONNECT_SIMOBJECT_TYPE_GROUND;
-        }
-        else if (arg == "balloon") {
-            objType = SIMCONNECT_SIMOBJECT_TYPE_HOT_AIR_BALLOON;
-        }
-        else if (arg == "animal") {
-            objType = SIMCONNECT_SIMOBJECT_TYPE_ANIMAL;
-        }
-        else if ((arg == "user-avatar") || (arg == "avatar")) {
-            objType = SIMCONNECT_SIMOBJECT_TYPE_USER_AVATAR;
-        }
-        else if ((arg == "user-current") || (arg == "current")) {
-            objType = SIMCONNECT_SIMOBJECT_TYPE_USER_CURRENT;
-        }
-        else {
-            std::cerr << std::format("Unknown object type '{}'. Valid types are: user, user-aircraft, all, aircraft, helicopter, boat, ground, balloon, animal, user-avatar, avatar, user-current, current.\n", arg);
-            return -1;
+        else if (arg == "vor") {
+            objType = SIMCONNECT_FACILITY_LIST_TYPE_VOR;
+            nextArg++;
         }
     }
-    else if (argc > 2) {
-        std::cerr << std::format("Invalid number of arguments. Usage: {} [object_type]\n", appName);
+    if (argc > nextArg) {
+		std::string option{ argv [nextArg] };
+        if (option == "--all") {
+			queryType = QueryType::All;
+			nextArg++;
+        }
+        else if (option == "--bubble") {
+            queryType = QueryType::Bubble;
+            nextArg++;
+        }
+		else if (option == "--cache") {
+			queryType = QueryType::Cache;
+			nextArg++;
+        }
+    }
+    if (argc > nextArg) {
+        std::cerr << "Invalid number of arguments.\n"
+            "Usage: " << argv[0] << " [airport|waypoint|ndb|vor] [--all|--bubble|--cache]\n";
         return -1;
-	}
+    }
 
     if (!connect()) {
-		return -1;
-	}
-	std::cout << "Connected to MSFS 2024!\n";
+		std::cerr << "Unable to connect to MSFS 2024.\n";
+        return -1;
+    }
+    std::cerr << "[Connected to MSFS 2024]\n";
 
-	HRESULT hr = SimConnect_EnumerateSimObjectsAndLiveries(hSimConnect, REQUEST_ID, objType);
+    HRESULT hr{ 0 };
+    switch (queryType) {
+        case QueryType::All:
+        hr = SimConnect_RequestAllFacilities(hSimConnect, objType, REQUEST_ID);
+		break;
+        case QueryType::Bubble:
+        hr = SimConnect_RequestFacilitiesList_EX1(hSimConnect, objType, REQUEST_ID);
+        break;
+        case QueryType::Cache:
+        hr = SimConnect_RequestFacilitiesList(hSimConnect, objType, REQUEST_ID);
+		break;
+    }
     if (FAILED(hr)) {
-        std::cerr << std::format("[Failed to request livery list: 0x{:08X}]\n", hr);
+        std::cerr << std::format("[Failed to request facilities list: 0x{:08X}]\n", hr);
 
         disconnect();
         return -1;
-	}
+    }
     handle_messages();
 
-	disconnect();
+    disconnect();
 
-	return 0;
+    return 0;
 }

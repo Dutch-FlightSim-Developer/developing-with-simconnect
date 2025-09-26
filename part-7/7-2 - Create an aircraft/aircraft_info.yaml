@@ -1,0 +1,20 @@
+kind: AircraftInfo
+metadata:
+  start-time: 2025-09-25T14:52:34Z
+  simulator: "MSFS2024"
+aircraft:
+  category: "Airplane"
+  title: "DA62 Scientific Research"
+  livery: "Scientific Research 01"
+  atc-id: "PH-DDG"
+  atc-model: "ATCCOM.AC_MODEL_DA62.0.text"
+  is-user: 1
+initial-position:
+  latitude: 53.1271
+  longitude: 6.58317
+  altitude: 14.217
+  pitch: 0.667358
+  bank: -0.139315
+  heading: 322.386
+  on-ground: true
+  air-speed: 0

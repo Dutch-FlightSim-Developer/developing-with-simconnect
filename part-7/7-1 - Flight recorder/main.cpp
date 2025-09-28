@@ -49,6 +49,11 @@ constexpr static const SIMCONNECT_DATA_REQUEST_ID REQID_AIRCRAFT_POSITION{ 2 };
 constexpr static const SIMCONNECT_DATA_DEFINITION_ID DEFID_AIRCRAFT_INFO{ 1 };
 constexpr static const SIMCONNECT_DATA_DEFINITION_ID DEFID_AIRCRAFT_POSITION{ 2 };
 
+constexpr static SIMCONNECT_INPUT_GROUP_ID INPGRP_RECORD{ 1 };
+constexpr static SIMCONNECT_CLIENT_EVENT_ID EVT_TOGGLE_RECORDING{ 1 };
+constexpr static SIMCONNECT_INPUT_GROUP_ID INPGRP_EXIT{ 2 };
+constexpr static SIMCONNECT_CLIENT_EVENT_ID EVT_EXIT{ 2 };
+
 
 /**
  * Add a data field to a SimConnect data definition with SendID tracking and optional logging.
@@ -461,12 +466,12 @@ static bool defineAircraftPosition() {
            addDataDefinitionField(DEFID_AIRCRAFT_POSITION, "PLANE BANK DEGREES", "radians", SIMCONNECT_DATATYPE_FLOAT32, "Plane Bank", 0.0001f) &&
            addDataDefinitionField(DEFID_AIRCRAFT_POSITION, "PLANE HEADING DEGREES TRUE", "radians", SIMCONNECT_DATATYPE_FLOAT32, "Plane Heading", 0.0001f) &&
            addDataDefinitionField(DEFID_AIRCRAFT_POSITION, "AIRSPEED INDICATED", "knots", SIMCONNECT_DATATYPE_FLOAT32, "Airspeed Indicated", 0.1f) &&
-           addDataDefinitionField(DEFID_AIRCRAFT_POSITION, "VELOCITY WORLD X", "feet per second", SIMCONNECT_DATATYPE_FLOAT32, "Velocity World X", 0.01f) &&
-           addDataDefinitionField(DEFID_AIRCRAFT_POSITION, "VELOCITY WORLD Y", "feet per second", SIMCONNECT_DATATYPE_FLOAT32, "Velocity World Y", 0.01f) &&
-           addDataDefinitionField(DEFID_AIRCRAFT_POSITION, "VELOCITY WORLD Z", "feet per second", SIMCONNECT_DATATYPE_FLOAT32, "Velocity World Z", 0.01f) &&
-           addDataDefinitionField(DEFID_AIRCRAFT_POSITION, "ACCELERATION WORLD X", "feet per second squared", SIMCONNECT_DATATYPE_FLOAT32, "Acceleration World X", 0.01f) &&
-           addDataDefinitionField(DEFID_AIRCRAFT_POSITION, "ACCELERATION WORLD Y", "feet per second squared", SIMCONNECT_DATATYPE_FLOAT32, "Acceleration World Y", 0.01f) &&
-           addDataDefinitionField(DEFID_AIRCRAFT_POSITION, "ACCELERATION WORLD Z", "feet per second squared", SIMCONNECT_DATATYPE_FLOAT32, "Acceleration World Z", 0.01f) &&
+           addDataDefinitionField(DEFID_AIRCRAFT_POSITION, "VELOCITY BODY X", "feet per second", SIMCONNECT_DATATYPE_FLOAT32, "Velocity World X", 0.01f) &&
+           addDataDefinitionField(DEFID_AIRCRAFT_POSITION, "VELOCITY BODY Y", "feet per second", SIMCONNECT_DATATYPE_FLOAT32, "Velocity World Y", 0.01f) &&
+           addDataDefinitionField(DEFID_AIRCRAFT_POSITION, "VELOCITY BODY Z", "feet per second", SIMCONNECT_DATATYPE_FLOAT32, "Velocity World Z", 0.01f) &&
+           addDataDefinitionField(DEFID_AIRCRAFT_POSITION, "ACCELERATION BODY X", "feet per second squared", SIMCONNECT_DATATYPE_FLOAT32, "Acceleration World X", 0.01f) &&
+           addDataDefinitionField(DEFID_AIRCRAFT_POSITION, "ACCELERATION BODY Y", "feet per second squared", SIMCONNECT_DATATYPE_FLOAT32, "Acceleration World Y", 0.01f) &&
+           addDataDefinitionField(DEFID_AIRCRAFT_POSITION, "ACCELERATION BODY Z", "feet per second squared", SIMCONNECT_DATATYPE_FLOAT32, "Acceleration World Z", 0.01f) &&
            addDataDefinitionField(DEFID_AIRCRAFT_POSITION, "ROTATION VELOCITY BODY X", "radians per second", SIMCONNECT_DATATYPE_FLOAT32, "Rotation Velocity Body X", 0.0001f) &&
            addDataDefinitionField(DEFID_AIRCRAFT_POSITION, "ROTATION VELOCITY BODY Y", "radians per second", SIMCONNECT_DATATYPE_FLOAT32, "Rotation Velocity Body Y", 0.0001f) &&
            addDataDefinitionField(DEFID_AIRCRAFT_POSITION, "ROTATION VELOCITY BODY Z", "radians per second", SIMCONNECT_DATATYPE_FLOAT32, "Rotation Velocity Body Z", 0.0001f) &&
@@ -560,14 +565,71 @@ static void handleAircraftInfoMessage(std::string filename)
 }
 
 
+static bool recordingActive{ false };
+static int recordingSegment{ 0 };
+static std::ofstream positionData;
+
+
+static bool startPositionData(std::string filename)
+{
+    if (positionData.is_open()) {
+        positionData.close();
+    }
+    positionData.open(filename);
+    positionData.imbue(std::locale::classic());
+    positionData
+        << "kind: AircraftPosition\n"
+        << "metadata:\n"
+        << "  start-time: " << std::format("{:%FT%TZ}", std::chrono::floor<std::chrono::seconds>(std::chrono::system_clock::now())) << "\n"
+        << "  simulator: \"MSFS2024\"\n"
+        << "positions:\n"
+        << std::fixed << std::setprecision(6);
+    if (!positionData) {
+        std::cerr << "[Failed to open 'aircraft_position.yaml' for writing, skipping position updates]\n";
+        positionData.setstate(std::ios::badbit);
+		return false;
+    }
+
+    HRESULT hr = SimConnect_RequestDataOnSimObject(hSimConnect, REQID_AIRCRAFT_POSITION, DEFID_AIRCRAFT_POSITION, SIMCONNECT_OBJECT_ID_USER_AIRCRAFT, SIMCONNECT_PERIOD_SECOND, SIMCONNECT_DATA_REQUEST_FLAG_CHANGED);
+    if (FAILED(hr)) {
+        std::cerr << std::format("[Failed to request aircraft position data: HRESULT 0x{:08X}, skipping position updates]\n", hr);
+        positionData.close();
+
+        return false;
+	}
+    std::cerr << "[Position data recording started]\n";
+    recordingActive = true;
+
+    return true;
+}
+
+
+static void stopPositionData()
+{
+    if (recordingActive) {
+        if (positionData.is_open()) {
+            positionData.close();
+            std::cerr << "[Position data file closed]\n";
+        }
+
+        HRESULT hr = SimConnect_RequestDataOnSimObject(hSimConnect, REQID_AIRCRAFT_POSITION, DEFID_AIRCRAFT_POSITION, SIMCONNECT_OBJECT_ID_USER_AIRCRAFT, SIMCONNECT_PERIOD_NEVER);
+        if (FAILED(hr)) {
+            std::cerr << std::format("[Failed to cancel aircraft position data request: HRESULT 0x{:08X}]\n", hr);
+        }
+		std::cerr << "[Position data stream stopped]\n";
+        recordingActive = false;
+    }
+}
+
+
 /**
  * Handle position update messages from SimConnect.
  */
-static void handleAircraftPositionUpdates(std::ofstream& positionData, std::chrono::seconds deadline)
+static void handleAircraftPositionUpdates(std::chrono::seconds duration)
 {
 	std::chrono::steady_clock::time_point startTime = std::chrono::steady_clock::now();
-	std::chrono::steady_clock::time_point endTime = startTime + deadline;
-    while (std::chrono::steady_clock::now() <= endTime) {
+	std::chrono::steady_clock::time_point endTime = startTime + duration;
+    while ((duration.count() == 0) || (std::chrono::steady_clock::now() <= endTime)) {
         auto waitResult = ::WaitForSingleObject(hEvent, 100);
         if (waitResult == WAIT_TIMEOUT) {
             continue; // Timeout, loop again to check the time
@@ -582,7 +644,7 @@ static void handleAircraftPositionUpdates(std::ofstream& positionData, std::chro
         SIMCONNECT_RECV* pData{ nullptr };
         DWORD cbData{ 0 };
 
-        for (HRESULT hr{ S_OK }; (std::chrono::steady_clock::now() <= endTime) && SUCCEEDED(hr = SimConnect_GetNextDispatch(hSimConnect, &pData, &cbData)); sleepIfConnected(true)) {
+        for (HRESULT hr{ S_OK }; ((duration.count() == 0) || (std::chrono::steady_clock::now() <= endTime)) && SUCCEEDED(hr = SimConnect_GetNextDispatch(hSimConnect, &pData, &cbData)); sleepIfConnected(true)) {
             switch (pData->dwID) {
             case SIMCONNECT_RECV_ID_EXCEPTION:
             {
@@ -619,7 +681,7 @@ static void handleAircraftPositionUpdates(std::ofstream& positionData, std::chro
             {
                 const SIMCONNECT_RECV_SIMOBJECT_DATA* pObjData = toRecvPtr<SIMCONNECT_RECV_SIMOBJECT_DATA>(pData);
 
-                if ((pObjData->dwRequestID == REQID_AIRCRAFT_POSITION) && (pObjData->dwDefineID == DEFID_AIRCRAFT_POSITION)) {
+                if ((pObjData->dwRequestID == REQID_AIRCRAFT_POSITION) && (pObjData->dwDefineID == DEFID_AIRCRAFT_POSITION) && recordingActive) {
                     const AircraftPosition* pos = reinterpret_cast<const AircraftPosition*>(&(pObjData->dwData));
 
                     positionData
@@ -642,10 +704,29 @@ static void handleAircraftPositionUpdates(std::ofstream& positionData, std::chro
 						<< "  rotation-velocity-z: " << pos->planeRotationVelocityZ << "\n"
                         << "  on-ground: " << ((pos->onGround != 0) ? "true" : "false") << "\n";
                 }
-                else {
-                    std::cerr << std::format("[Ignoring SIMOBJECT_DATA message for request ID {} and definition ID {}]\n", pObjData->dwRequestID, pObjData->dwDefineID);
-                }
             }
+            break;
+
+            case SIMCONNECT_RECV_ID_EVENT:
+            {
+                const SIMCONNECT_RECV_EVENT* pEvent = toRecvPtr<SIMCONNECT_RECV_EVENT>(pData);
+                if (pEvent->uEventID == EVT_TOGGLE_RECORDING) {
+                    if (recordingActive) {
+                        stopPositionData();
+                    }
+                    else {
+                        recordingSegment++;
+						std::string filename = std::format("aircraft_position_{}.yaml", recordingSegment);
+                        if (startPositionData(filename)) {
+                            std::cerr << std::format("[Recording to '{}']\n", filename);
+                        }
+                    }
+                }
+                else if (pEvent->uEventID == EVT_EXIT) {
+                    std::cerr << "[Exit event received, shutting down]\n";
+                    return;
+				}
+			}
             break;
 
             default:
@@ -656,6 +737,69 @@ static void handleAircraftPositionUpdates(std::ofstream& positionData, std::chro
             }
         }
     }
+}
+
+
+/**
+ * Set up keyboard input to toggle recording and exit the program.
+ */
+static bool setupKeys()
+{
+	HRESULT hr = SimConnect_MapClientEventToSimEvent(hSimConnect, EVT_TOGGLE_RECORDING, "Toggle.Recording");
+    if (FAILED(hr)) {
+        std::cerr << std::format("[Failed to map client event to sim event: HRESULT 0x{:08X}]\n", hr);
+        return false;
+    }
+
+    hr = SimConnect_MapInputEventToClientEvent_EX1(hSimConnect, INPGRP_RECORD, "VK_MEDIA_PLAY_PAUSE", EVT_TOGGLE_RECORDING);
+    if (FAILED(hr)) {
+        std::cerr << std::format("[Failed to map input event to client event: HRESULT 0x{:08X}]\n", hr);
+        return false;
+	}
+    hr = SimConnect_SetInputGroupState(hSimConnect, INPGRP_RECORD, SIMCONNECT_STATE_ON);
+    if (FAILED(hr)) {
+        std::cerr << std::format("[Failed to enable input group: HRESULT 0x{:08X}]\n", hr);
+        return false;
+    }
+    hr = SimConnect_AddClientEventToNotificationGroup(hSimConnect, INPGRP_RECORD, EVT_TOGGLE_RECORDING);
+    if (FAILED(hr)) {
+        std::cerr << std::format("[Failed to add client event to notification group: HRESULT 0x{:08X}]\n", hr);
+        return false;
+    }
+    hr = SimConnect_SetNotificationGroupPriority(hSimConnect, INPGRP_RECORD, SIMCONNECT_GROUP_PRIORITY_HIGHEST);
+    if (FAILED(hr)) {
+        std::cerr << std::format("[Failed to set notification group priority: HRESULT 0x{:08X}]\n", hr);
+        return false;
+    }
+    std::cerr << "[Press the Play/Pause media key to toggle recording]\n";
+
+	hr = SimConnect_MapClientEventToSimEvent(hSimConnect, EVT_EXIT, "Exit.Program");
+    if (FAILED(hr)) {
+        std::cerr << std::format("[Failed to map client event to sim event: HRESULT 0x{:08X}]\n", hr);
+        return false;
+    }
+    hr = SimConnect_MapInputEventToClientEvent_EX1(hSimConnect, INPGRP_EXIT, "VK_MEDIA_STOP", EVT_EXIT);
+    if (FAILED(hr)) {
+        std::cerr << std::format("[Failed to map input event to client event: HRESULT 0x{:08X}]\n", hr);
+        return false;
+    }
+    hr = SimConnect_SetInputGroupState(hSimConnect, INPGRP_EXIT, SIMCONNECT_STATE_ON);
+    if (FAILED(hr)) {
+        std::cerr << std::format("[Failed to enable input group: HRESULT 0x{:08X}]\n", hr);
+        return false;
+    }
+    hr = SimConnect_AddClientEventToNotificationGroup(hSimConnect, INPGRP_EXIT, EVT_EXIT);
+    if (FAILED(hr)) {
+        std::cerr << std::format("[Failed to add client event to notification group: HRESULT 0x{:08X}]\n", hr);
+        return false;
+    }
+    hr = SimConnect_SetNotificationGroupPriority(hSimConnect, INPGRP_EXIT, SIMCONNECT_GROUP_PRIORITY_HIGHEST);
+    if (FAILED(hr)) {
+        std::cerr << std::format("[Failed to set notification group priority: HRESULT 0x{:08X}]\n", hr);
+        return false;
+    }
+	std::cerr << "[Press the Escape key to exit the program]\n";
+	return true;
 }
 
 
@@ -683,7 +827,7 @@ auto main(int argc, const char* argv[]) -> int
             args["Arg" + std::to_string(fixedArg++)] = arg;
         }
     }
-	std::chrono::seconds runDuration{ 60 }; // Default to 1 minute
+	std::chrono::seconds runDuration{ 0 }; // Default to 0, meaning don't record position data
     if (args.contains("duration")) {
         try {
             runDuration = std::chrono::seconds(std::stoi(args["duration"]));
@@ -697,7 +841,12 @@ auto main(int argc, const char* argv[]) -> int
     if (!connect()) {
         std::cerr << "[ABORTING: Failed to connect to simulator]\n";
         return 1;
-	}
+    }
+
+    if (args.contains("keyboard") && !setupKeys()) {
+		std::cerr << "[ABORTING: Failed to set up keyboard input]\n";
+        return 1;
+    }
 
     if (!defineAircraftInfo()) {
         disconnect();
@@ -718,22 +867,15 @@ auto main(int argc, const char* argv[]) -> int
 	}
 	handleAircraftInfoMessage("aircraft_info.yaml");
 
-    std::ofstream positionData("aircraft_position.yaml");
-    positionData.imbue(std::locale::classic());
-    positionData
-        << "kind: AircraftPosition\n"
-        << "metadata:\n"
-        << "  start-time: " << std::format("{:%FT%TZ}", std::chrono::floor<std::chrono::seconds>(std::chrono::system_clock::now())) << "\n"
-        << "  simulator: \"MSFS2024\"\n"
-        << "positions:\n"
-        << std::fixed << std::setprecision(6);
-    if (!positionData) {
-        std::cerr << "[Failed to open 'aircraft_position.yaml' for writing, skipping position updates]\n";
-        positionData.setstate(std::ios::badbit);
+    if (runDuration.count() > 0) {
+        if (!startPositionData("aircraft_position.yaml")) {
+            disconnect();
+            std::cerr << "[ABORTING: Failed to start position data recording]\n";
+            return 1;
+		}
     }
-
-    hr = SimConnect_RequestDataOnSimObject(hSimConnect, REQID_AIRCRAFT_POSITION, DEFID_AIRCRAFT_POSITION, SIMCONNECT_OBJECT_ID_USER_AIRCRAFT, SIMCONNECT_PERIOD_SECOND, SIMCONNECT_DATA_REQUEST_FLAG_CHANGED);
-	handleAircraftPositionUpdates(positionData, runDuration);
+	handleAircraftPositionUpdates(runDuration);
+	stopPositionData();
 
     disconnect();
 

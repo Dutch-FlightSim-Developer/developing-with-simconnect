@@ -328,13 +328,8 @@ inline const Recv* toRecvPtr(const void* ptr) { return reinterpret_cast<const Re
 
 #pragma pack(push, 1) // Ensure no padding bytes are added to the structure
 struct AircraftInfo {
-    char category[32];              // CATEGORY (String, fixed list but 32 should do)
     char title[128];                // TITLE (String, max 128 chars)
 	char livery[256];               // LIVERY NAME (String, max 128 chars)
-    char atcId[32];                 // ATC ID (String, max 10 chars)
-	char atcModel[128];             // ATC MODEL (String, max 128 chars)
-
-    int32_t isUserAircraft;         // IS USER SIM (Bool, defaulting to 32-bit int 0 or 1)
 
     double planeLatitude;           // PLANE ALTITUDE (Degrees)
     double planeLongitude;          // PLANE LONGITUDE (Degrees)
@@ -348,58 +343,47 @@ struct AircraftInfo {
 
     float planeAirspeed;            // AIRSPEED TRUE (Knots)
 };
+
 struct AircraftPosition {
-    double planeLatitude;           // PLANE ALTITUDE (Radians)
-	double planeLongitude;          // PLANE LONGITUDE (Radians)
+    double planeLatitude;           // PLANE ALTITUDE (Degrees)
+	double planeLongitude;          // PLANE LONGITUDE (Degrees)
 	double planeAltitude;           // PLANE ALTITUDE (Feet)
 
-    float planePitch;               // PLANE PITCH DEGREES (Radians!)
-	float planeBank;                // PLANE BANK DEGREES (Radians!)
-	float planeHeading;             // PLANE HEADING DEGREES TRUE (Radians!)
+    float planePitch;               // PLANE PITCH DEGREES (Degrees)
+	float planeBank;                // PLANE BANK DEGREES (Degrees)
+	float planeHeading;             // PLANE HEADING DEGREES TRUE (Degrees)
 	
     float planeAirspeed;            // AIRSPEED INDICATED (Knots)
 
-    float planeVelocityX;           // VELOCITY WORLD X (Feet per second)
-	float planeVelocityY;           // VELOCITY WORLD Y (Feet per second)
-	float planeVelocityZ;           // VELOCITY WORLD Z (Feet per second)
+    float planeVelocityX;           // VELOCITY BODY X (Feet per second)
+	float planeVelocityY;           // VELOCITY BODY Y (Feet per second)
+	float planeVelocityZ;           // VELOCITY BODY Z (Feet per second)
 
-    float planeAccelerationX;       // ACCELERATION WORLD X (Feet per second squared)
-	float planeAccelerationY;       // ACCELERATION WORLD Y (Feet per second squared)
-	float planeAccelerationZ;       // ACCELERATION WORLD Z (Feet per second squared)
+    float planeAccelerationX;       // ACCELERATION BODY X (Feet per second squared)
+	float planeAccelerationY;       // ACCELERATION BODY Y (Feet per second squared)
+	float planeAccelerationZ;       // ACCELERATION BODY Z (Feet per second squared)
 
-    float planeRotationVelocityX;   // ROTATION VELOCITY BODY X (Radians per second)
-	float planeRotationVelocityY;   // ROTATION VELOCITY BODY Y (Radians per second)
-	float planeRotationVelocityZ;   // ROTATION VELOCITY BODY Z (Radians per second)
+    float planeRotationVelocityX;   // ROTATION VELOCITY BODY X (Degrees per second)
+	float planeRotationVelocityY;   // ROTATION VELOCITY BODY Y (Degrees per second)
+	float planeRotationVelocityZ;   // ROTATION VELOCITY BODY Z (Degrees per second)
 
     int32_t onGround;               // SIM ON GROUND / SIM SHOULD SET ON GROUND (Bool, defaulting to 32-bit int 0 or 1)
 };
 #pragma pack(pop) // Restore previous packing alignment
 
 
+static std::string aircraftInfoFilename{ "aircraft_info.yaml" };
 static AircraftInfo aircraftInfo;
-
-
-inline static double radiansToDegrees(double radians) {
-    return radians * (180.0 / std::numbers::pi);
-}
-inline static float feetToMeters(float feet) {
-    return feet * 0.3048f;
-}
-inline static float feetPerSecondToKnots(float fps) {
-    return fps * 0.592483801f;
-}
 
 
 /**
  * Write the aircraft info to a YAML file.
- *
- * @param filename The name of the file to write to.
  */
-static void writeAircraftInfo(std::string filename) {
-    std::ofstream ofs(filename);
+static bool writeAircraftInfo() {
+    std::ofstream ofs(aircraftInfoFilename);
     if (!ofs) {
-        std::cerr << std::format("[Failed to open file '{}' for writing, skipping AircraftInfo write]\n", filename);
-        return;
+        std::cerr << std::format("[Failed to open file '{}' for writing, skipping AircraftInfo write]\n", aircraftInfoFilename);
+        return false;
     }
 
     using namespace std::chrono;
@@ -410,12 +394,8 @@ static void writeAircraftInfo(std::string filename) {
         << "  start-time: " << std::format("{:%FT%TZ}", floor<seconds>(system_clock::now())) << "\n"
         << "  simulator: \"MSFS2024\"\n"
         << "aircraft:\n"
-        << "  category: \"" << aircraftInfo.category << "\"\n"
         << "  title: \"" << aircraftInfo.title << "\"\n"
         << "  livery: \"" << aircraftInfo.livery << "\"\n"
-        << "  atc-id: \"" << aircraftInfo.atcId << "\"\n"
-        << "  atc-model: \"" << aircraftInfo.atcModel << "\"\n"
-        << "  is-user: " << (aircraftInfo.isUserAircraft != 0) << "\n"
         << "initial-position:\n"
         << "  latitude: " << aircraftInfo.planeLatitude << "\n"
         << "  longitude: " << aircraftInfo.planeLongitude << "\n"
@@ -426,150 +406,28 @@ static void writeAircraftInfo(std::string filename) {
         << "  on-ground: " << ((aircraftInfo.onGround != 0) ? "true" : "false") << "\n"
         << "  air-speed: " << aircraftInfo.planeAirspeed << "\n";
 
-    std::cerr << std::format("[Aircraft info saved to '{}']\n", filename);
-}
-
-
-/**
- * Define the data structure for the aircraft info.
- *
- * @return true if the definition was successful, false otherwise.
- */
-static bool defineAircraftInfo() {
-    return addDataDefinitionField(DEFID_AIRCRAFT_INFO, "CATEGORY", nullptr, SIMCONNECT_DATATYPE_STRING32, "Category") &&
-           addDataDefinitionField(DEFID_AIRCRAFT_INFO, "TITLE", nullptr, SIMCONNECT_DATATYPE_STRING128, "Title") &&
-           addDataDefinitionField(DEFID_AIRCRAFT_INFO, "LIVERY NAME", nullptr, SIMCONNECT_DATATYPE_STRING256, "Livery Name") &&
-           addDataDefinitionField(DEFID_AIRCRAFT_INFO, "ATC ID", nullptr, SIMCONNECT_DATATYPE_STRING32, "ATC ID") &&
-           addDataDefinitionField(DEFID_AIRCRAFT_INFO, "ATC MODEL", nullptr, SIMCONNECT_DATATYPE_STRING128, "ATC Model") &&
-           addDataDefinitionField(DEFID_AIRCRAFT_INFO, "IS USER SIM", "bool", SIMCONNECT_DATATYPE_INT32, "Is User Aircraft") &&
-           addDataDefinitionField(DEFID_AIRCRAFT_INFO, "PLANE LATITUDE", "degrees", SIMCONNECT_DATATYPE_FLOAT64, "Plane Latitude", 0.0001f) &&
-           addDataDefinitionField(DEFID_AIRCRAFT_INFO, "PLANE LONGITUDE", "degrees", SIMCONNECT_DATATYPE_FLOAT64, "Plane Longitude", 0.0001f) &&
-           addDataDefinitionField(DEFID_AIRCRAFT_INFO, "PLANE ALTITUDE", "feet", SIMCONNECT_DATATYPE_FLOAT64, "Plane Altitude", 0.0001f) &&
-           addDataDefinitionField(DEFID_AIRCRAFT_INFO, "PLANE PITCH DEGREES", "degrees", SIMCONNECT_DATATYPE_FLOAT32, "Plane Pitch", 0.0001f) &&
-           addDataDefinitionField(DEFID_AIRCRAFT_INFO, "PLANE BANK DEGREES", "degrees", SIMCONNECT_DATATYPE_FLOAT32, "Plane Bank", 0.0001f) &&
-           addDataDefinitionField(DEFID_AIRCRAFT_INFO, "PLANE HEADING DEGREES TRUE", "degrees", SIMCONNECT_DATATYPE_FLOAT32, "Plane Heading", 0.0001f) &&
-           addDataDefinitionField(DEFID_AIRCRAFT_INFO, "SIM ON GROUND", "bool", SIMCONNECT_DATATYPE_INT32, "Sim On Ground") &&
-           addDataDefinitionField(DEFID_AIRCRAFT_INFO, "AIRSPEED TRUE", "knots", SIMCONNECT_DATATYPE_FLOAT32, "True Airspeed", 0.1f);
-}
-
-
-/**
- * Define the data structure for the aircraft position.
- *
- * @return true if the definition was successful, false otherwise.
- */
-static bool defineAircraftPosition() {
-    return addDataDefinitionField(DEFID_AIRCRAFT_POSITION, "PLANE LATITUDE", "radians", SIMCONNECT_DATATYPE_FLOAT64, "Plane Latitude", 0.0001f) &&
-           addDataDefinitionField(DEFID_AIRCRAFT_POSITION, "PLANE LONGITUDE", "radians", SIMCONNECT_DATATYPE_FLOAT64, "Plane Longitude", 0.0001f) &&
-           addDataDefinitionField(DEFID_AIRCRAFT_POSITION, "PLANE ALTITUDE", "feet", SIMCONNECT_DATATYPE_FLOAT64, "Plane Altitude", 0.0001f) &&
-           addDataDefinitionField(DEFID_AIRCRAFT_POSITION, "PLANE PITCH DEGREES", "radians", SIMCONNECT_DATATYPE_FLOAT32, "Plane Pitch", 0.0001f) &&
-           addDataDefinitionField(DEFID_AIRCRAFT_POSITION, "PLANE BANK DEGREES", "radians", SIMCONNECT_DATATYPE_FLOAT32, "Plane Bank", 0.0001f) &&
-           addDataDefinitionField(DEFID_AIRCRAFT_POSITION, "PLANE HEADING DEGREES TRUE", "radians", SIMCONNECT_DATATYPE_FLOAT32, "Plane Heading", 0.0001f) &&
-           addDataDefinitionField(DEFID_AIRCRAFT_POSITION, "AIRSPEED INDICATED", "knots", SIMCONNECT_DATATYPE_FLOAT32, "Airspeed Indicated", 0.1f) &&
-           addDataDefinitionField(DEFID_AIRCRAFT_POSITION, "VELOCITY BODY X", "feet per second", SIMCONNECT_DATATYPE_FLOAT32, "Velocity World X", 0.01f) &&
-           addDataDefinitionField(DEFID_AIRCRAFT_POSITION, "VELOCITY BODY Y", "feet per second", SIMCONNECT_DATATYPE_FLOAT32, "Velocity World Y", 0.01f) &&
-           addDataDefinitionField(DEFID_AIRCRAFT_POSITION, "VELOCITY BODY Z", "feet per second", SIMCONNECT_DATATYPE_FLOAT32, "Velocity World Z", 0.01f) &&
-           addDataDefinitionField(DEFID_AIRCRAFT_POSITION, "ACCELERATION BODY X", "feet per second squared", SIMCONNECT_DATATYPE_FLOAT32, "Acceleration World X", 0.01f) &&
-           addDataDefinitionField(DEFID_AIRCRAFT_POSITION, "ACCELERATION BODY Y", "feet per second squared", SIMCONNECT_DATATYPE_FLOAT32, "Acceleration World Y", 0.01f) &&
-           addDataDefinitionField(DEFID_AIRCRAFT_POSITION, "ACCELERATION BODY Z", "feet per second squared", SIMCONNECT_DATATYPE_FLOAT32, "Acceleration World Z", 0.01f) &&
-           addDataDefinitionField(DEFID_AIRCRAFT_POSITION, "ROTATION VELOCITY BODY X", "radians per second", SIMCONNECT_DATATYPE_FLOAT32, "Rotation Velocity Body X", 0.0001f) &&
-           addDataDefinitionField(DEFID_AIRCRAFT_POSITION, "ROTATION VELOCITY BODY Y", "radians per second", SIMCONNECT_DATATYPE_FLOAT32, "Rotation Velocity Body Y", 0.0001f) &&
-           addDataDefinitionField(DEFID_AIRCRAFT_POSITION, "ROTATION VELOCITY BODY Z", "radians per second", SIMCONNECT_DATATYPE_FLOAT32, "Rotation Velocity Body Z", 0.0001f) &&
-           addDataDefinitionField(DEFID_AIRCRAFT_POSITION, "SIM ON GROUND", "bool", SIMCONNECT_DATATYPE_INT32, "Sim On Ground");
-}
-
-
-static void sleepIfConnected(bool connected) {
-    if (connected) {
-        Sleep(100);
+    if (!ofs) {
+        std::cerr << std::format("[Failed to write Aircraft info to '{}']\n", aircraftInfoFilename);
+        return false;
     }
-}
-
-
-/**
- * Handle AircraftInfo message from SimConnect.
- */
-static void handleAircraftInfoMessage(std::string filename)
-{
-    bool processing{ true };
-    while (processing && (::WaitForSingleObject(hEvent, INFINITE) == WAIT_OBJECT_0)) {
-        SIMCONNECT_RECV* pData{ nullptr };
-        DWORD cbData{ 0 };
-
-        for (HRESULT hr{ S_OK }; processing && SUCCEEDED(hr = SimConnect_GetNextDispatch(hSimConnect, &pData, &cbData)); sleepIfConnected(processing)) {
-             switch (pData->dwID) {
-            case SIMCONNECT_RECV_ID_EXCEPTION:
-            {
-                handleException(*toRecvPtr<SIMCONNECT_RECV_EXCEPTION>(pData));
-            }
-            break;
-
-            case SIMCONNECT_RECV_ID_OPEN:
-            {
-                const SIMCONNECT_RECV_OPEN* pOpen = toRecvPtr<SIMCONNECT_RECV_OPEN>(pData);
-
-
-                std::cerr << std::format("[Connected to '{}' version {}.{} (build {}.{}) using SimConnect version {}.{} (build {}.{})]\n",
-                    pOpen->szApplicationName,
-                    pOpen->dwApplicationVersionMajor,
-                    pOpen->dwApplicationVersionMinor,
-                    pOpen->dwApplicationBuildMajor,
-                    pOpen->dwApplicationBuildMinor,
-                    pOpen->dwSimConnectVersionMajor,
-                    pOpen->dwSimConnectVersionMinor,
-                    pOpen->dwSimConnectBuildMajor,
-                    pOpen->dwSimConnectBuildMinor);
-            }
-            break;
-
-            case SIMCONNECT_RECV_ID_QUIT:
-            {
-                std::cerr << "[Simulator is shutting down]\n";
-                processing = false;
-            }
-            break;
-
-            case SIMCONNECT_RECV_ID_SIMOBJECT_DATA:
-            {
-                const SIMCONNECT_RECV_SIMOBJECT_DATA* pObjData = toRecvPtr<SIMCONNECT_RECV_SIMOBJECT_DATA>(pData);
-
-                if ((pObjData->dwRequestID == REQID_AIRCRAFT_INFO) && (pObjData->dwDefineID == DEFID_AIRCRAFT_INFO)) {
-                    const AircraftInfo* info = reinterpret_cast<const AircraftInfo*>(&(pObjData->dwData));
-                    aircraftInfo = *info;
-                    std::cerr << std::format("[Received aircraft info: '{}' ({}), livery '{}', atcId '{}', atcModel '{}', isUserAircraft={}]\n",
-                        aircraftInfo.title,
-                        aircraftInfo.category,
-                        aircraftInfo.livery,
-                        aircraftInfo.atcId,
-                        aircraftInfo.atcModel,
-                        aircraftInfo.isUserAircraft);
-                    writeAircraftInfo(filename);
-
-                    processing = false; // We got the AircraftInfo
-                }
-                else {
-                    std::cerr << std::format("[Ignoring SIMOBJECT_DATA message for request ID {} and definition ID {}]\n", pObjData->dwRequestID, pObjData->dwDefineID);
-                }
-            }
-            break;
-
-            default:
-            {
-                std::cerr << std::format("[Ignoring message of type {} (length {} bytes)]\n", pData->dwID, pData->dwSize);
-            }
-            break;
-            }
-        }
-
-    }
+    std::cerr << std::format("[Aircraft info saved to '{}']\n", aircraftInfoFilename);
+	return true;
 }
 
 
 static bool recordingActive{ false };
 static int recordingSegment{ 0 };
+static std::string positionDataFilenamePrefix{ "aircraft_position_" };
+static std::string positionDataFilename;
 static std::ofstream positionData;
 
 
+/**
+ * Start recording position data to the specified file.
+ *
+ * @param filename The name of the file to write position data to.
+ * @return true if recording started successfully, false otherwise.
+ */
 static bool startPositionData(std::string filename)
 {
     if (positionData.is_open()) {
@@ -582,8 +440,7 @@ static bool startPositionData(std::string filename)
         << "metadata:\n"
         << "  start-time: " << std::format("{:%FT%TZ}", std::chrono::floor<std::chrono::seconds>(std::chrono::system_clock::now())) << "\n"
         << "  simulator: \"MSFS2024\"\n"
-        << "positions:\n"
-        << std::fixed << std::setprecision(6);
+        << "positions:\n";
     if (!positionData) {
         std::cerr << "[Failed to open 'aircraft_position.yaml' for writing, skipping position updates]\n";
         positionData.setstate(std::ios::badbit);
@@ -604,6 +461,9 @@ static bool startPositionData(std::string filename)
 }
 
 
+ /**
+ * Stop recording position data.
+ */
 static void stopPositionData()
 {
     if (recordingActive) {
@@ -625,11 +485,20 @@ static void stopPositionData()
 /**
  * Handle position update messages from SimConnect.
  */
-static void handleAircraftPositionUpdates(std::chrono::seconds duration)
+static void handleMessages(std::chrono::seconds duration)
 {
-	std::chrono::steady_clock::time_point startTime = std::chrono::steady_clock::now();
+	bool haveNoDeadline{ duration.count() == 0 };
+    if (haveNoDeadline) {
+        std::cerr << "[Handling messages until stopped]\n";
+    }
+    else {
+        std::cerr << std::format("[Handling messages for {} seconds]\n", duration.count());
+    }
+
+    std::chrono::steady_clock::time_point startTime = std::chrono::steady_clock::now();
 	std::chrono::steady_clock::time_point endTime = startTime + duration;
-    while ((duration.count() == 0) || (std::chrono::steady_clock::now() <= endTime)) {
+
+    while (haveNoDeadline || (std::chrono::steady_clock::now() <= endTime)) {
         auto waitResult = ::WaitForSingleObject(hEvent, 100);
         if (waitResult == WAIT_TIMEOUT) {
             continue; // Timeout, loop again to check the time
@@ -644,7 +513,7 @@ static void handleAircraftPositionUpdates(std::chrono::seconds duration)
         SIMCONNECT_RECV* pData{ nullptr };
         DWORD cbData{ 0 };
 
-        for (HRESULT hr{ S_OK }; ((duration.count() == 0) || (std::chrono::steady_clock::now() <= endTime)) && SUCCEEDED(hr = SimConnect_GetNextDispatch(hSimConnect, &pData, &cbData)); sleepIfConnected(true)) {
+        for (HRESULT hr{ S_OK }; (haveNoDeadline || (std::chrono::steady_clock::now() <= endTime)) && SUCCEEDED(hr = SimConnect_GetNextDispatch(hSimConnect, &pData, &cbData)); Sleep(100)) {
             switch (pData->dwID) {
             case SIMCONNECT_RECV_ID_EXCEPTION:
             {
@@ -681,7 +550,16 @@ static void handleAircraftPositionUpdates(std::chrono::seconds duration)
             {
                 const SIMCONNECT_RECV_SIMOBJECT_DATA* pObjData = toRecvPtr<SIMCONNECT_RECV_SIMOBJECT_DATA>(pData);
 
-                if ((pObjData->dwRequestID == REQID_AIRCRAFT_POSITION) && (pObjData->dwDefineID == DEFID_AIRCRAFT_POSITION) && recordingActive) {
+                if ((pObjData->dwRequestID == REQID_AIRCRAFT_INFO) && (pObjData->dwDefineID == DEFID_AIRCRAFT_INFO)) {
+                    const AircraftInfo* info = reinterpret_cast<const AircraftInfo*>(&(pObjData->dwData));
+                    aircraftInfo = *info;
+                    std::cerr << std::format("[Received aircraft info: '{}', livery '{}']\n", aircraftInfo.title, aircraftInfo.livery);
+                    if (!writeAircraftInfo()) {
+                        std::cerr << "[Failed to write aircraft info. Aborting.]\n";
+                        return;
+					}
+                }
+                else if ((pObjData->dwRequestID == REQID_AIRCRAFT_POSITION) && (pObjData->dwDefineID == DEFID_AIRCRAFT_POSITION) && recordingActive) {
                     const AircraftPosition* pos = reinterpret_cast<const AircraftPosition*>(&(pObjData->dwData));
 
                     positionData
@@ -704,6 +582,9 @@ static void handleAircraftPositionUpdates(std::chrono::seconds duration)
 						<< "  rotation-velocity-z: " << pos->planeRotationVelocityZ << "\n"
                         << "  on-ground: " << ((pos->onGround != 0) ? "true" : "false") << "\n";
                 }
+                else {
+					std::cerr << std::format("[Received unknown SIMOBJECT_DATA message: RequestID {}, DefineID {}]\n", pObjData->dwRequestID, pObjData->dwDefineID);
+                }
             }
             break;
 
@@ -716,9 +597,9 @@ static void handleAircraftPositionUpdates(std::chrono::seconds duration)
                     }
                     else {
                         recordingSegment++;
-						std::string filename = std::format("aircraft_position_{}.yaml", recordingSegment);
-                        if (startPositionData(filename)) {
-                            std::cerr << std::format("[Recording to '{}']\n", filename);
+						positionDataFilename = positionDataFilenamePrefix + std::to_string(recordingSegment) + ".yaml";
+                        if (startPositionData(positionDataFilename)) {
+                            std::cerr << std::format("[Recording to '{}']\n", positionDataFilename);
                         }
                     }
                 }
@@ -803,13 +684,67 @@ static bool setupKeys()
 }
 
 
-auto main(int argc, const char* argv[]) -> int
+/**
+ * Define the data structure for the aircraft info.
+ *
+ * @return true if the definition was successful, false otherwise.
+ */
+static bool defineAircraftInfo() {
+    return addDataDefinitionField(DEFID_AIRCRAFT_INFO, "TITLE", nullptr, SIMCONNECT_DATATYPE_STRING128, "Title") &&
+        addDataDefinitionField(DEFID_AIRCRAFT_INFO, "LIVERY NAME", nullptr, SIMCONNECT_DATATYPE_STRING256, "Livery Name") &&
+        addDataDefinitionField(DEFID_AIRCRAFT_INFO, "PLANE LATITUDE", "degrees", SIMCONNECT_DATATYPE_FLOAT64, "Plane Latitude", 0.0001f) &&
+        addDataDefinitionField(DEFID_AIRCRAFT_INFO, "PLANE LONGITUDE", "degrees", SIMCONNECT_DATATYPE_FLOAT64, "Plane Longitude", 0.0001f) &&
+        addDataDefinitionField(DEFID_AIRCRAFT_INFO, "PLANE ALTITUDE", "feet", SIMCONNECT_DATATYPE_FLOAT64, "Plane Altitude", 0.0001f) &&
+        addDataDefinitionField(DEFID_AIRCRAFT_INFO, "PLANE PITCH DEGREES", "degrees", SIMCONNECT_DATATYPE_FLOAT32, "Plane Pitch", 0.0001f) &&
+        addDataDefinitionField(DEFID_AIRCRAFT_INFO, "PLANE BANK DEGREES", "degrees", SIMCONNECT_DATATYPE_FLOAT32, "Plane Bank", 0.0001f) &&
+        addDataDefinitionField(DEFID_AIRCRAFT_INFO, "PLANE HEADING DEGREES TRUE", "degrees", SIMCONNECT_DATATYPE_FLOAT32, "Plane Heading", 0.0001f) &&
+        addDataDefinitionField(DEFID_AIRCRAFT_INFO, "SIM ON GROUND", "bool", SIMCONNECT_DATATYPE_INT32, "Sim On Ground") &&
+        addDataDefinitionField(DEFID_AIRCRAFT_INFO, "AIRSPEED TRUE", "knots", SIMCONNECT_DATATYPE_FLOAT32, "True Airspeed", 0.1f);
+}
+
+
+/**
+ * Define the data structure for the aircraft position.
+ *
+ * @return true if the definition was successful, false otherwise.
+ */
+static bool defineAircraftPosition() {
+    return addDataDefinitionField(DEFID_AIRCRAFT_POSITION, "PLANE LATITUDE", "degrees", SIMCONNECT_DATATYPE_FLOAT64, "Plane Latitude", 0.0001f) &&
+        addDataDefinitionField(DEFID_AIRCRAFT_POSITION, "PLANE LONGITUDE", "degrees", SIMCONNECT_DATATYPE_FLOAT64, "Plane Longitude", 0.0001f) &&
+        addDataDefinitionField(DEFID_AIRCRAFT_POSITION, "PLANE ALTITUDE", "feet", SIMCONNECT_DATATYPE_FLOAT64, "Plane Altitude", 0.0001f) &&
+        addDataDefinitionField(DEFID_AIRCRAFT_POSITION, "PLANE PITCH DEGREES", "degrees", SIMCONNECT_DATATYPE_FLOAT32, "Plane Pitch", 0.0001f) &&
+        addDataDefinitionField(DEFID_AIRCRAFT_POSITION, "PLANE BANK DEGREES", "degrees", SIMCONNECT_DATATYPE_FLOAT32, "Plane Bank", 0.0001f) &&
+        addDataDefinitionField(DEFID_AIRCRAFT_POSITION, "PLANE HEADING DEGREES TRUE", "degrees", SIMCONNECT_DATATYPE_FLOAT32, "Plane Heading", 0.0001f) &&
+        addDataDefinitionField(DEFID_AIRCRAFT_POSITION, "AIRSPEED INDICATED", "knots", SIMCONNECT_DATATYPE_FLOAT32, "Airspeed Indicated", 0.1f) &&
+        addDataDefinitionField(DEFID_AIRCRAFT_POSITION, "VELOCITY BODY X", "feet per second", SIMCONNECT_DATATYPE_FLOAT32, "Velocity Body X", 0.01f) &&
+        addDataDefinitionField(DEFID_AIRCRAFT_POSITION, "VELOCITY BODY Y", "feet per second", SIMCONNECT_DATATYPE_FLOAT32, "Velocity Body Y", 0.01f) &&
+        addDataDefinitionField(DEFID_AIRCRAFT_POSITION, "VELOCITY BODY Z", "feet per second", SIMCONNECT_DATATYPE_FLOAT32, "Velocity Body Z", 0.01f) &&
+        addDataDefinitionField(DEFID_AIRCRAFT_POSITION, "ACCELERATION BODY X", "feet per second squared", SIMCONNECT_DATATYPE_FLOAT32, "Acceleration Body X", 0.01f) &&
+        addDataDefinitionField(DEFID_AIRCRAFT_POSITION, "ACCELERATION BODY Y", "feet per second squared", SIMCONNECT_DATATYPE_FLOAT32, "Acceleration Body Y", 0.01f) &&
+        addDataDefinitionField(DEFID_AIRCRAFT_POSITION, "ACCELERATION BODY Z", "feet per second squared", SIMCONNECT_DATATYPE_FLOAT32, "Acceleration Body Z", 0.01f) &&
+        addDataDefinitionField(DEFID_AIRCRAFT_POSITION, "ROTATION VELOCITY BODY X", "degrees per second", SIMCONNECT_DATATYPE_FLOAT32, "Rotation Velocity Body X", 0.0001f) &&
+        addDataDefinitionField(DEFID_AIRCRAFT_POSITION, "ROTATION VELOCITY BODY Y", "degrees per second", SIMCONNECT_DATATYPE_FLOAT32, "Rotation Velocity Body Y", 0.0001f) &&
+        addDataDefinitionField(DEFID_AIRCRAFT_POSITION, "ROTATION VELOCITY BODY Z", "degrees per second", SIMCONNECT_DATATYPE_FLOAT32, "Rotation Velocity Body Z", 0.0001f) &&
+        addDataDefinitionField(DEFID_AIRCRAFT_POSITION, "SIM ON GROUND", "bool", SIMCONNECT_DATATYPE_INT32, "Sim On Ground");
+}
+
+
+/**
+ * Gather command-line arguments into the args map.
+ * 
+ * All commandline arguments starting with '--' are treated as flags and key-value pairs.
+ * The other arguments are treated as positional arguments with keys 'Arg0', 'Arg1', etc.
+ * Entry "Arg0" is always the program name.
+ * 
+ * @param argc The number of command-line arguments.
+ * @param argv The array of command-line argument strings.
+ */
+static void gatherArgs(int argc, const char* argv[])
 {
     args.clear();
     int fixedArg{ 0 };
 
     args["Arg" + std::to_string(fixedArg++)] = argv[0];
-
     for (int i = 1; i < argc; ++i) {
         std::string arg = argv[i];
         if (arg.starts_with("--")) {
@@ -817,6 +752,7 @@ auto main(int argc, const char* argv[]) -> int
             if (eq != std::string::npos) {
                 std::string key = arg.substr(2, eq - 2);
                 std::string value = arg.substr(eq + 1);
+
                 args[key] = value;
             }
             else {
@@ -827,7 +763,14 @@ auto main(int argc, const char* argv[]) -> int
             args["Arg" + std::to_string(fixedArg++)] = arg;
         }
     }
-	std::chrono::seconds runDuration{ 0 }; // Default to 0, meaning don't record position data
+}
+
+
+auto main(int argc, const char* argv[]) -> int
+{
+	gatherArgs(argc, argv);
+
+    std::chrono::seconds runDuration{ 0 }; // Default to 0, meaning don't record position data
     if (args.contains("duration")) {
         try {
             runDuration = std::chrono::seconds(std::stoi(args["duration"]));
@@ -838,16 +781,35 @@ auto main(int argc, const char* argv[]) -> int
         }
 	}
 
+	// Gather filenames from arguments
+    if (args.contains("info-filename")) {
+        aircraftInfoFilename = args["info-filename"];
+	}
+    if (args.contains("position-filename")) {
+        positionDataFilename = args["position-filename"];
+    }
+    if (args.contains("position-filename-prefix")) {
+        positionDataFilenamePrefix = args["position-filename-prefix"];
+    }
+
+    if ((runDuration.count() == 0) && !args.contains("keyboard")) {
+        std::cerr << "[No duration specified and keyboard input not enabled. Use --duration=N or --keyboard]\n";
+        return 1;
+	}
+
+    // Connect to the simulator
     if (!connect()) {
         std::cerr << "[ABORTING: Failed to connect to simulator]\n";
         return 1;
     }
 
+	// Set up keyboard input if requested
     if (args.contains("keyboard") && !setupKeys()) {
 		std::cerr << "[ABORTING: Failed to set up keyboard input]\n";
         return 1;
     }
 
+	// Define the data structures
     if (!defineAircraftInfo()) {
         disconnect();
 		std::cerr << "[ABORTING: Failed to define aircraft info structure]\n";
@@ -858,24 +820,27 @@ auto main(int argc, const char* argv[]) -> int
 		std::cerr << "[ABORTING: Failed to define aircraft position structure]\n";
         return 1;
 	}
-    
+    if (runDuration.count() > 0) {
+		// We have a defined runlength, so assume a single recording session
+        std::cerr << std::format("[Recording position data to '{}']\n", positionDataFilename);
+        if (!startPositionData(positionDataFilename)) {
+            disconnect();
+            std::cerr << "[ABORTING: Failed to start position data recording]\n";
+            return 1;
+        }
+    }
+
+	// Request the aircraft info once
     HRESULT hr = SimConnect_RequestDataOnSimObject(hSimConnect, REQID_AIRCRAFT_INFO, DEFID_AIRCRAFT_INFO, SIMCONNECT_OBJECT_ID_USER_AIRCRAFT, SIMCONNECT_PERIOD_ONCE);
     if (FAILED(hr)) {
         disconnect();
         std::cerr << std::format("[ABORTING: Failed to request aircraft info: HRESULT 0x{:08X}]\n", hr);
         return 1;
 	}
-	handleAircraftInfoMessage("aircraft_info.yaml");
 
-    if (runDuration.count() > 0) {
-        if (!startPositionData("aircraft_position.yaml")) {
-            disconnect();
-            std::cerr << "[ABORTING: Failed to start position data recording]\n";
-            return 1;
-		}
-    }
-	handleAircraftPositionUpdates(runDuration);
-	stopPositionData();
+	handleMessages(runDuration);
+
+    stopPositionData();
 
     disconnect();
 

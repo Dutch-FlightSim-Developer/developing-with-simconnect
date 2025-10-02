@@ -354,13 +354,13 @@ struct AircraftInfo {
 struct AircraftPosition {
 	long timestamp{ 0 };
 
-    double planeLatitude{ 0.0 };           // PLANE ALTITUDE (Radians)
-    double planeLongitude{ 0.0 };          // PLANE LONGITUDE (Radians)
+    double planeLatitude{ 0.0 };           // PLANE ALTITUDE (Degrees)
+    double planeLongitude{ 0.0 };          // PLANE LONGITUDE (Degrees)
     double planeAltitude{ 0.0 };           // PLANE ALTITUDE (Feet)
 
-    float planePitch{ 0.0f };               // PLANE PITCH DEGREES (Radians!)
-    float planeBank{ 0.0f };                // PLANE BANK DEGREES (Radians!)
-    float planeHeading{ 0.0f };             // PLANE HEADING DEGREES TRUE (Radians!)
+    float planePitch{ 0.0f };               // PLANE PITCH DEGREES (Degrees)
+    float planeBank{ 0.0f };                // PLANE BANK DEGREES (Degrees)
+    float planeHeading{ 0.0f };             // PLANE HEADING DEGREES TRUE (Degrees)
 
     float planeAirspeed{ 0.0f };            // AIRSPEED INDICATED (Knots)
 
@@ -372,9 +372,9 @@ struct AircraftPosition {
     float planeAccelerationY{ 0.0f };       // ACCELERATION BODY Y (Feet per second squared)
     float planeAccelerationZ{ 0.0f };       // ACCELERATION BODY Z (Feet per second squared)
 
-    float planeRotationVelocityX{ 0.0f };   // ROTATION VELOCITY BODY X (Radians per second)
-    float planeRotationVelocityY{ 0.0f };   // ROTATION VELOCITY BODY Y (Radians per second)
-    float planeRotationVelocityZ{ 0.0f };   // ROTATION VELOCITY BODY Z (Radians per second)
+    float planeRotationVelocityX{ 0.0f };   // ROTATION VELOCITY BODY X (Degrees per second)
+    float planeRotationVelocityY{ 0.0f };   // ROTATION VELOCITY BODY Y (Degrees per second)
+    float planeRotationVelocityZ{ 0.0f };   // ROTATION VELOCITY BODY Z (Degrees per second)
 };
 #pragma pack(pop) // Restore previous packing alignment
 
@@ -385,26 +385,32 @@ static std::vector<AircraftPosition> aircraftPositions;
 static DWORD dataSize{ 0 };
 
 
+/**
+ * First variation: Define aircraft position with only location and attitude.
+ */
 static bool defineAircraftPositionLocationOnly() {
 	dataSize = 3 * sizeof(double) + 3 * sizeof(float);
 
-    return addDataDefinitionField(DEFID_POSITION, "PLANE LATITUDE", "radians", SIMCONNECT_DATATYPE_FLOAT64, "Plane Latitude", 0.0001f) &&
-           addDataDefinitionField(DEFID_POSITION, "PLANE LONGITUDE", "radians", SIMCONNECT_DATATYPE_FLOAT64, "Plane Longitude", 0.0001f) &&
+    return addDataDefinitionField(DEFID_POSITION, "PLANE LATITUDE", "degrees", SIMCONNECT_DATATYPE_FLOAT64, "Plane Latitude", 0.0001f) &&
+           addDataDefinitionField(DEFID_POSITION, "PLANE LONGITUDE", "degrees", SIMCONNECT_DATATYPE_FLOAT64, "Plane Longitude", 0.0001f) &&
            addDataDefinitionField(DEFID_POSITION, "PLANE ALTITUDE", "feet", SIMCONNECT_DATATYPE_FLOAT64, "Plane Altitude", 0.0001f) &&
-           addDataDefinitionField(DEFID_POSITION, "PLANE PITCH DEGREES", "radian", SIMCONNECT_DATATYPE_FLOAT32, "Plane Pitch", 0.0001f) &&
-           addDataDefinitionField(DEFID_POSITION, "PLANE BANK DEGREES", "radians", SIMCONNECT_DATATYPE_FLOAT32, "Plane Bank", 0.0001f) &&
-           addDataDefinitionField(DEFID_POSITION, "PLANE HEADING DEGREES TRUE", "radians", SIMCONNECT_DATATYPE_FLOAT32, "Plane Heading", 0.0001f);
+           addDataDefinitionField(DEFID_POSITION, "PLANE PITCH DEGREES", "degrees", SIMCONNECT_DATATYPE_FLOAT32, "Plane Pitch", 0.0001f) &&
+           addDataDefinitionField(DEFID_POSITION, "PLANE BANK DEGREES", "degrees", SIMCONNECT_DATATYPE_FLOAT32, "Plane Bank", 0.0001f) &&
+           addDataDefinitionField(DEFID_POSITION, "PLANE HEADING DEGREES TRUE", "degrees", SIMCONNECT_DATATYPE_FLOAT32, "Plane Heading", 0.0001f);
 }
 
 
+/**
+ * Second variation: Define aircraft position with location, attitude, and speed.
+ */
 static bool defineAircraftPositionWithSpeed() {
 	dataSize = 3 * sizeof(double) + 7 * sizeof(float);
-    return addDataDefinitionField(DEFID_POSITION, "PLANE LATITUDE", "radians", SIMCONNECT_DATATYPE_FLOAT64, "Plane Latitude", 0.0001f) &&
-        addDataDefinitionField(DEFID_POSITION, "PLANE LONGITUDE", "radians", SIMCONNECT_DATATYPE_FLOAT64, "Plane Longitude", 0.0001f) &&
+    return addDataDefinitionField(DEFID_POSITION, "PLANE LATITUDE", "degrees", SIMCONNECT_DATATYPE_FLOAT64, "Plane Latitude", 0.0001f) &&
+        addDataDefinitionField(DEFID_POSITION, "PLANE LONGITUDE", "degrees", SIMCONNECT_DATATYPE_FLOAT64, "Plane Longitude", 0.0001f) &&
         addDataDefinitionField(DEFID_POSITION, "PLANE ALTITUDE", "feet", SIMCONNECT_DATATYPE_FLOAT64, "Plane Altitude", 0.0001f) &&
-        addDataDefinitionField(DEFID_POSITION, "PLANE PITCH DEGREES", "radian", SIMCONNECT_DATATYPE_FLOAT32, "Plane Pitch", 0.0001f) &&
-        addDataDefinitionField(DEFID_POSITION, "PLANE BANK DEGREES", "radians", SIMCONNECT_DATATYPE_FLOAT32, "Plane Bank", 0.0001f) &&
-        addDataDefinitionField(DEFID_POSITION, "PLANE HEADING DEGREES TRUE", "radians", SIMCONNECT_DATATYPE_FLOAT32, "Plane Heading", 0.0001f) &&
+        addDataDefinitionField(DEFID_POSITION, "PLANE PITCH DEGREES", "degrees", SIMCONNECT_DATATYPE_FLOAT32, "Plane Pitch", 0.0001f) &&
+        addDataDefinitionField(DEFID_POSITION, "PLANE BANK DEGREES", "degrees", SIMCONNECT_DATATYPE_FLOAT32, "Plane Bank", 0.0001f) &&
+        addDataDefinitionField(DEFID_POSITION, "PLANE HEADING DEGREES TRUE", "degrees", SIMCONNECT_DATATYPE_FLOAT32, "Plane Heading", 0.0001f) &&
         addDataDefinitionField(DEFID_POSITION, "AIRSPEED INDICATED", "knots", SIMCONNECT_DATATYPE_FLOAT32, "Airspeed Indicated", 0.1f) &&
         addDataDefinitionField(DEFID_POSITION, "VELOCITY BODY X", "feet per second", SIMCONNECT_DATATYPE_FLOAT32, "Velocity Body X", 0.01f) &&
         addDataDefinitionField(DEFID_POSITION, "VELOCITY BODY Y", "feet per second", SIMCONNECT_DATATYPE_FLOAT32, "Velocity Body Y", 0.01f) &&
@@ -412,13 +418,16 @@ static bool defineAircraftPositionWithSpeed() {
 }
 
 
+/**
+ * Third variation: Define aircraft position with full data set.
+ */
 static bool defineAircraftPositionFull() {
-    return addDataDefinitionField(DEFID_POSITION, "PLANE LATITUDE", "radians", SIMCONNECT_DATATYPE_FLOAT64, "Plane Latitude", 0.0001f) &&
-        addDataDefinitionField(DEFID_POSITION, "PLANE LONGITUDE", "radians", SIMCONNECT_DATATYPE_FLOAT64, "Plane Longitude", 0.0001f) &&
+    return addDataDefinitionField(DEFID_POSITION, "PLANE LATITUDE", "degrees", SIMCONNECT_DATATYPE_FLOAT64, "Plane Latitude", 0.0001f) &&
+        addDataDefinitionField(DEFID_POSITION, "PLANE LONGITUDE", "degrees", SIMCONNECT_DATATYPE_FLOAT64, "Plane Longitude", 0.0001f) &&
         addDataDefinitionField(DEFID_POSITION, "PLANE ALTITUDE", "feet", SIMCONNECT_DATATYPE_FLOAT64, "Plane Altitude", 0.0001f) &&
-        addDataDefinitionField(DEFID_POSITION, "PLANE PITCH DEGREES", "radian", SIMCONNECT_DATATYPE_FLOAT32, "Plane Pitch", 0.0001f) &&
-        addDataDefinitionField(DEFID_POSITION, "PLANE BANK DEGREES", "radians", SIMCONNECT_DATATYPE_FLOAT32, "Plane Bank", 0.0001f) &&
-        addDataDefinitionField(DEFID_POSITION, "PLANE HEADING DEGREES TRUE", "radians", SIMCONNECT_DATATYPE_FLOAT32, "Plane Heading", 0.0001f) &&
+        addDataDefinitionField(DEFID_POSITION, "PLANE PITCH DEGREES", "degrees", SIMCONNECT_DATATYPE_FLOAT32, "Plane Pitch", 0.0001f) &&
+        addDataDefinitionField(DEFID_POSITION, "PLANE BANK DEGREES", "degrees", SIMCONNECT_DATATYPE_FLOAT32, "Plane Bank", 0.0001f) &&
+        addDataDefinitionField(DEFID_POSITION, "PLANE HEADING DEGREES TRUE", "degrees", SIMCONNECT_DATATYPE_FLOAT32, "Plane Heading", 0.0001f) &&
         addDataDefinitionField(DEFID_POSITION, "AIRSPEED INDICATED", "knots", SIMCONNECT_DATATYPE_FLOAT32, "Airspeed Indicated", 0.1f) &&
         addDataDefinitionField(DEFID_POSITION, "VELOCITY BODY X", "feet per second", SIMCONNECT_DATATYPE_FLOAT32, "Velocity Body X", 0.01f) &&
         addDataDefinitionField(DEFID_POSITION, "VELOCITY BODY Y", "feet per second", SIMCONNECT_DATATYPE_FLOAT32, "Velocity Body Y", 0.01f) &&
@@ -426,9 +435,9 @@ static bool defineAircraftPositionFull() {
         addDataDefinitionField(DEFID_POSITION, "ACCELERATION BODY X", "feet per second squared", SIMCONNECT_DATATYPE_FLOAT32, "Acceleration Body X", 0.01f) &&
         addDataDefinitionField(DEFID_POSITION, "ACCELERATION BODY Y", "feet per second squared", SIMCONNECT_DATATYPE_FLOAT32, "Acceleration Body Y", 0.01f) &&
         addDataDefinitionField(DEFID_POSITION, "ACCELERATION BODY Z", "feet per second squared", SIMCONNECT_DATATYPE_FLOAT32, "Acceleration Body Z", 0.01f) &&
-        addDataDefinitionField(DEFID_POSITION, "ROTATION VELOCITY BODY X", "radians per second", SIMCONNECT_DATATYPE_FLOAT32, "Rotation Velocity Body X", 0.0001f) &&
-        addDataDefinitionField(DEFID_POSITION, "ROTATION VELOCITY BODY Y", "radians per second", SIMCONNECT_DATATYPE_FLOAT32, "Rotation Velocity Body Y", 0.0001f) &&
-        addDataDefinitionField(DEFID_POSITION, "ROTATION VELOCITY BODY Z", "radians per second", SIMCONNECT_DATATYPE_FLOAT32, "Rotation Velocity Body Z", 0.0001f);
+        addDataDefinitionField(DEFID_POSITION, "ROTATION VELOCITY BODY X", "degrees per second", SIMCONNECT_DATATYPE_FLOAT32, "Rotation Velocity Body X", 0.0001f) &&
+        addDataDefinitionField(DEFID_POSITION, "ROTATION VELOCITY BODY Y", "degrees per second", SIMCONNECT_DATATYPE_FLOAT32, "Rotation Velocity Body Y", 0.0001f) &&
+        addDataDefinitionField(DEFID_POSITION, "ROTATION VELOCITY BODY Z", "degrees per second", SIMCONNECT_DATATYPE_FLOAT32, "Rotation Velocity Body Z", 0.0001f);
 }
 
 
@@ -583,6 +592,9 @@ static bool loadAircraftInfo(std::string filename) {
 }
 
 
+/**
+ * Load the aircraft position data from a YAML file into memory.
+ */
 static bool loadPositionData(std::string filename) {
     std::ifstream ifs(filename);
     if (!ifs) {
@@ -717,6 +729,11 @@ static void sleepIfConnected(bool connected) {
 }
 
 
+/**
+ * Force the specified object to be on the ground. This to ensure the aircraft (or other vehicle) is
+ * not floating above or below the ground-level. Note MSFS 2024 has a bug where SimObjects can still
+ * end up being misaligned with the ground even due to miscalculations wrt to the gear height.
+ */
 static void setOnGround(DWORD objectId) {
     HRESULT hrSet = SimConnect_AddToDataDefinition(hSimConnect, DEFID_ONGROUND, "SIM ON GROUND", "Bool", SIMCONNECT_DATATYPE_INT32, 0.0f, 0);
     if (FAILED(hrSet)) {
@@ -948,13 +965,24 @@ static bool setupKeys()
 }
 
 
-auto main(int argc, const char* argv[]) -> int
+
+
+/**
+ * Gather command-line arguments into the args map.
+ *
+ * All commandline arguments starting with '--' are treated as flags and key-value pairs.
+ * The other arguments are treated as positional arguments with keys 'Arg0', 'Arg1', etc.
+ * Entry "Arg0" is always the program name.
+ *
+ * @param argc The number of command-line arguments.
+ * @param argv The array of command-line argument strings.
+ */
+static void gatherArgs(int argc, const char* argv[])
 {
     args.clear();
     int fixedArg{ 0 };
 
     args["Arg" + std::to_string(fixedArg++)] = argv[0];
-
     for (int i = 1; i < argc; ++i) {
         std::string arg = argv[i];
         if (arg.starts_with("--")) {
@@ -962,6 +990,7 @@ auto main(int argc, const char* argv[]) -> int
             if (eq != std::string::npos) {
                 std::string key = arg.substr(2, eq - 2);
                 std::string value = arg.substr(eq + 1);
+
                 args[key] = value;
             }
             else {
@@ -972,6 +1001,13 @@ auto main(int argc, const char* argv[]) -> int
             args["Arg" + std::to_string(fixedArg++)] = arg;
         }
     }
+}
+
+
+auto main(int argc, const char* argv[]) -> int
+{
+    gatherArgs(argc, argv);
+
     std::chrono::seconds runDuration{ 60 }; // Default to 1 minute
     if (args.contains("duration")) {
         try {

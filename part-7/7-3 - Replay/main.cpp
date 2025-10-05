@@ -53,8 +53,9 @@ constexpr static const SIMCONNECT_DATA_DEFINITION_ID DEFID_POSITION{ 2 };
 
 constexpr static SIMCONNECT_INPUT_GROUP_ID INPGRP_RECORD{ 1 };
 constexpr static SIMCONNECT_CLIENT_EVENT_ID EVT_TOGGLE_RECORDING{ 1 };
+constexpr static SIMCONNECT_CLIENT_EVENT_ID EVT_NEXT{ 2 };
 constexpr static SIMCONNECT_INPUT_GROUP_ID INPGRP_EXIT{ 2 };
-constexpr static SIMCONNECT_CLIENT_EVENT_ID EVT_EXIT{ 2 };
+constexpr static SIMCONNECT_CLIENT_EVENT_ID EVT_EXIT{ 3 };
 
 
 /**
@@ -362,8 +363,6 @@ struct AircraftPosition {
     float planeBank{ 0.0f };                // PLANE BANK DEGREES (Degrees)
     float planeHeading{ 0.0f };             // PLANE HEADING DEGREES TRUE (Degrees)
 
-    float planeAirspeed{ 0.0f };            // AIRSPEED INDICATED (Knots)
-
     float planeVelocityX{ 0.0f };           // VELOCITY BODY X (Feet per second)
     float planeVelocityY{ 0.0f };           // VELOCITY BODY Y (Feet per second)
     float planeVelocityZ{ 0.0f };           // VELOCITY BODY Z (Feet per second)
@@ -404,14 +403,13 @@ static bool defineAircraftPositionLocationOnly() {
  * Second variation: Define aircraft position with location, attitude, and speed.
  */
 static bool defineAircraftPositionWithSpeed() {
-	dataSize = 3 * sizeof(double) + 7 * sizeof(float);
+	dataSize = 3 * sizeof(double) + 6 * sizeof(float);
     return addDataDefinitionField(DEFID_POSITION, "PLANE LATITUDE", "degrees", SIMCONNECT_DATATYPE_FLOAT64, "Plane Latitude", 0.0001f) &&
         addDataDefinitionField(DEFID_POSITION, "PLANE LONGITUDE", "degrees", SIMCONNECT_DATATYPE_FLOAT64, "Plane Longitude", 0.0001f) &&
         addDataDefinitionField(DEFID_POSITION, "PLANE ALTITUDE", "feet", SIMCONNECT_DATATYPE_FLOAT64, "Plane Altitude", 0.0001f) &&
         addDataDefinitionField(DEFID_POSITION, "PLANE PITCH DEGREES", "degrees", SIMCONNECT_DATATYPE_FLOAT32, "Plane Pitch", 0.0001f) &&
         addDataDefinitionField(DEFID_POSITION, "PLANE BANK DEGREES", "degrees", SIMCONNECT_DATATYPE_FLOAT32, "Plane Bank", 0.0001f) &&
         addDataDefinitionField(DEFID_POSITION, "PLANE HEADING DEGREES TRUE", "degrees", SIMCONNECT_DATATYPE_FLOAT32, "Plane Heading", 0.0001f) &&
-        addDataDefinitionField(DEFID_POSITION, "AIRSPEED INDICATED", "knots", SIMCONNECT_DATATYPE_FLOAT32, "Airspeed Indicated", 0.1f) &&
         addDataDefinitionField(DEFID_POSITION, "VELOCITY BODY X", "feet per second", SIMCONNECT_DATATYPE_FLOAT32, "Velocity Body X", 0.01f) &&
         addDataDefinitionField(DEFID_POSITION, "VELOCITY BODY Y", "feet per second", SIMCONNECT_DATATYPE_FLOAT32, "Velocity Body Y", 0.01f) &&
         addDataDefinitionField(DEFID_POSITION, "VELOCITY BODY Z", "feet per second", SIMCONNECT_DATATYPE_FLOAT32, "Velocity Body Z", 0.01f);
@@ -422,13 +420,13 @@ static bool defineAircraftPositionWithSpeed() {
  * Third variation: Define aircraft position with full data set.
  */
 static bool defineAircraftPositionFull() {
+	dataSize = 3 * sizeof(double) + 12 * sizeof(float);
     return addDataDefinitionField(DEFID_POSITION, "PLANE LATITUDE", "degrees", SIMCONNECT_DATATYPE_FLOAT64, "Plane Latitude", 0.0001f) &&
         addDataDefinitionField(DEFID_POSITION, "PLANE LONGITUDE", "degrees", SIMCONNECT_DATATYPE_FLOAT64, "Plane Longitude", 0.0001f) &&
         addDataDefinitionField(DEFID_POSITION, "PLANE ALTITUDE", "feet", SIMCONNECT_DATATYPE_FLOAT64, "Plane Altitude", 0.0001f) &&
         addDataDefinitionField(DEFID_POSITION, "PLANE PITCH DEGREES", "degrees", SIMCONNECT_DATATYPE_FLOAT32, "Plane Pitch", 0.0001f) &&
         addDataDefinitionField(DEFID_POSITION, "PLANE BANK DEGREES", "degrees", SIMCONNECT_DATATYPE_FLOAT32, "Plane Bank", 0.0001f) &&
         addDataDefinitionField(DEFID_POSITION, "PLANE HEADING DEGREES TRUE", "degrees", SIMCONNECT_DATATYPE_FLOAT32, "Plane Heading", 0.0001f) &&
-        addDataDefinitionField(DEFID_POSITION, "AIRSPEED INDICATED", "knots", SIMCONNECT_DATATYPE_FLOAT32, "Airspeed Indicated", 0.1f) &&
         addDataDefinitionField(DEFID_POSITION, "VELOCITY BODY X", "feet per second", SIMCONNECT_DATATYPE_FLOAT32, "Velocity Body X", 0.01f) &&
         addDataDefinitionField(DEFID_POSITION, "VELOCITY BODY Y", "feet per second", SIMCONNECT_DATATYPE_FLOAT32, "Velocity Body Y", 0.01f) &&
         addDataDefinitionField(DEFID_POSITION, "VELOCITY BODY Z", "feet per second", SIMCONNECT_DATATYPE_FLOAT32, "Velocity Body Z", 0.01f) &&
@@ -672,9 +670,9 @@ static bool loadPositionData(std::string filename) {
             else if (key == "heading") {
                 position.planeHeading = std::stof(value);
             }
-            else if (key == "air-speed") {
-                position.planeAirspeed = std::stof(value);
-            }
+            //else if (key == "air-speed") {
+            //    position.planeAirspeed = std::stof(value);
+            //}
             else if (key == "velocity-x") {
                 position.planeVelocityX = std::stof(value);
             }
@@ -768,16 +766,15 @@ static void setOnGround(DWORD objectId) {
 /**
  * Handle messages from SimConnect.
  */
-static void handleMessages(std::chrono::seconds deadline)
+static void handleMessages()
 {
     bool processing{ true };
     std::chrono::steady_clock::time_point startTime = std::chrono::steady_clock::now();
-    std::chrono::steady_clock::time_point endTime = startTime + deadline;
 
     size_t positionIndex{ 0 };
     std::chrono::steady_clock::time_point replayStart{ startTime };
 
-    while (processing && (std::chrono::steady_clock::now() <= endTime)) {
+    while (processing) {
         if ((aircraftId != 0) && (replayStart != startTime) && (positionIndex < aircraftPositions.size())) {
             auto now = std::chrono::steady_clock::now();
             auto elapsed = now - replayStart;
@@ -820,7 +817,7 @@ static void handleMessages(std::chrono::seconds deadline)
         SIMCONNECT_RECV* pData{ nullptr };
         DWORD cbData{ 0 };
 
-        for (HRESULT hr{ S_OK }; (std::chrono::steady_clock::now() <= endTime) && SUCCEEDED(hr = SimConnect_GetNextDispatch(hSimConnect, &pData, &cbData)); sleepIfConnected(true)) {
+        for (HRESULT hr{ S_OK }; SUCCEEDED(hr = SimConnect_GetNextDispatch(hSimConnect, &pData, &cbData)); sleepIfConnected(true)) {
             switch (pData->dwID) {
             case SIMCONNECT_RECV_ID_EXCEPTION:
             {
@@ -883,6 +880,28 @@ static void handleMessages(std::chrono::seconds deadline)
                         std::cerr << "[Already running replay]\n";
                     }
                 }
+                else if (pEvent->uEventID == EVT_NEXT) {
+                    if (replayStart != startTime) {
+                        if (positionIndex < aircraftPositions.size()) {
+                            const AircraftPosition& pos = aircraftPositions[positionIndex];
+                            std::cerr << std::format("[Skipping to position #{}]\n", positionIndex + 1);
+							// compute msecs to next position and adjust replayStart accordingly
+							auto now = std::chrono::steady_clock::now();
+							auto elapsed = now - replayStart;
+							long elapsedMillis = static_cast<long>(std::chrono::duration_cast<std::chrono::milliseconds>(elapsed).count());
+							long offset = pos.timestamp - elapsedMillis;
+                            if (offset > 0) {
+                                replayStart -= std::chrono::milliseconds(offset);
+                            }
+                        }
+                        else {
+                            std::cerr << "[Already at the end of the position list]\n";
+                        }
+                    }
+                    else {
+                        std::cerr << "[Replay not started yet; press the Play/Pause media key to start]\n";
+                    }
+				}
                 else if (pEvent->uEventID == EVT_EXIT) {
                     std::cerr << "[Exit event received, shutting down]\n";
                     return;
@@ -918,12 +937,23 @@ static bool setupKeys()
         std::cerr << std::format("[Failed to map input event to client event: HRESULT 0x{:08X}]\n", hr);
         return false;
     }
-    hr = SimConnect_SetInputGroupState(hSimConnect, INPGRP_RECORD, SIMCONNECT_STATE_ON);
+    hr = SimConnect_AddClientEventToNotificationGroup(hSimConnect, INPGRP_RECORD, EVT_TOGGLE_RECORDING);
     if (FAILED(hr)) {
-        std::cerr << std::format("[Failed to enable input group: HRESULT 0x{:08X}]\n", hr);
+        std::cerr << std::format("[Failed to add client event to notification group: HRESULT 0x{:08X}]\n", hr);
         return false;
     }
-    hr = SimConnect_AddClientEventToNotificationGroup(hSimConnect, INPGRP_RECORD, EVT_TOGGLE_RECORDING);
+
+    hr = SimConnect_MapClientEventToSimEvent(hSimConnect, EVT_NEXT, "Forward.Recording");
+    if (FAILED(hr)) {
+        std::cerr << std::format("[Failed to map client event to sim event: HRESULT 0x{:08X}]\n", hr);
+        return false;
+    }
+    hr = SimConnect_MapInputEventToClientEvent_EX1(hSimConnect, INPGRP_RECORD, "VK_MEDIA_NEXT_TRACK", EVT_NEXT);
+    if (FAILED(hr)) {
+        std::cerr << std::format("[Failed to map input event to client event: HRESULT 0x{:08X}]\n", hr);
+        return false;
+    }
+    hr = SimConnect_AddClientEventToNotificationGroup(hSimConnect, INPGRP_RECORD, EVT_NEXT);
     if (FAILED(hr)) {
         std::cerr << std::format("[Failed to add client event to notification group: HRESULT 0x{:08X}]\n", hr);
         return false;
@@ -933,8 +963,11 @@ static bool setupKeys()
         std::cerr << std::format("[Failed to set notification group priority: HRESULT 0x{:08X}]\n", hr);
         return false;
     }
-    std::cerr << "[Press the Play/Pause media key to toggle recording]\n";
+    std::cerr
+        << "[Press the Play/Pause media key to toggle recording]\n"
+        << "[Press Next Track media key to skip to next replay position]\n";
 
+	// Setup Media stop key to exit the program
     hr = SimConnect_MapClientEventToSimEvent(hSimConnect, EVT_EXIT, "Exit.Program");
     if (FAILED(hr)) {
         std::cerr << std::format("[Failed to map client event to sim event: HRESULT 0x{:08X}]\n", hr);
@@ -1008,16 +1041,6 @@ auto main(int argc, const char* argv[]) -> int
 {
     gatherArgs(argc, argv);
 
-    std::chrono::seconds runDuration{ 60 }; // Default to 1 minute
-    if (args.contains("duration")) {
-        try {
-            runDuration = std::chrono::seconds(std::stoi(args["duration"]));
-        }
-        catch (const std::exception&) {
-            std::cerr << std::format("[Invalid duration '{}', using default of 60 seconds]\n", args["duration"]);
-            runDuration = std::chrono::seconds(60);
-        }
-    }
     std::string filename{ "aircraft_info.yaml" };
     if (args.contains("Arg1")) {
         filename = args["Arg1"];
@@ -1063,6 +1086,11 @@ auto main(int argc, const char* argv[]) -> int
             return 1;
         }
     }
+    if (args.contains("stopped")) {
+        aircraftInfo.onGround = 1;
+		aircraftInfo.planeAirspeed = 0.0f;
+        std::cerr << "[Forcing initial position to be on-ground and not-moving]\n";
+	}
     HRESULT hr = SimConnect_AICreateNonATCAircraft_EX1(hSimConnect,
         aircraftInfo.title.c_str(),
         aircraftInfo.livery.c_str(),
@@ -1082,7 +1110,7 @@ auto main(int argc, const char* argv[]) -> int
         std::cerr << std::format("[Failed to create AI aircraft: 0x{:08X}]\n", hr);
         disconnect();
     }
-    handleMessages(runDuration);
+    handleMessages();
 
     disconnect();
 

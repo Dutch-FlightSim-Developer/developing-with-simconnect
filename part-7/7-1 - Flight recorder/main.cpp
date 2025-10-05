@@ -397,9 +397,11 @@ static bool writeAircraftInfo() {
         << "  title: \"" << aircraftInfo.title << "\"\n"
         << "  livery: \"" << aircraftInfo.livery << "\"\n"
         << "initial-position:\n"
+        << std::setprecision(std::numeric_limits<double>::digits10)
         << "  latitude: " << aircraftInfo.planeLatitude << "\n"
         << "  longitude: " << aircraftInfo.planeLongitude << "\n"
         << "  altitude: " << aircraftInfo.planeAltitude << "\n"
+        << std::setprecision(std::numeric_limits<float>::digits10)
         << "  pitch: " << aircraftInfo.planePitch << "\n"
         << "  bank: " << aircraftInfo.planeBank << "\n"
         << "  heading: " << aircraftInfo.planeHeading << "\n"
@@ -564,9 +566,11 @@ static void handleMessages(std::chrono::seconds duration)
 
                     positionData
 						<< "- msecs: " << std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - startTime).count() << "\n"
+                        << std::setprecision(std::numeric_limits<double>::digits10)
                         << "  latitude: " << pos->planeLatitude << "\n"
                         << "  longitude: " << pos->planeLongitude << "\n"
                         << "  altitude: " << pos->planeAltitude << "\n"
+                        << std::setprecision(std::numeric_limits<float>::digits10)
                         << "  pitch: " << pos->planePitch << "\n"
                         << "  bank: " << pos->planeBank << "\n"
                         << "  heading: " << pos->planeHeading << "\n"
@@ -601,6 +605,7 @@ static void handleMessages(std::chrono::seconds duration)
                         if (startPositionData(positionDataFilename)) {
                             std::cerr << std::format("[Recording to '{}']\n", positionDataFilename);
                         }
+						startTime = std::chrono::steady_clock::now();
                     }
                 }
                 else if (pEvent->uEventID == EVT_EXIT) {
@@ -715,7 +720,7 @@ static bool defineAircraftPosition() {
         addDataDefinitionField(DEFID_AIRCRAFT_POSITION, "PLANE PITCH DEGREES", "degrees", SIMCONNECT_DATATYPE_FLOAT32, "Plane Pitch", 0.0001f) &&
         addDataDefinitionField(DEFID_AIRCRAFT_POSITION, "PLANE BANK DEGREES", "degrees", SIMCONNECT_DATATYPE_FLOAT32, "Plane Bank", 0.0001f) &&
         addDataDefinitionField(DEFID_AIRCRAFT_POSITION, "PLANE HEADING DEGREES TRUE", "degrees", SIMCONNECT_DATATYPE_FLOAT32, "Plane Heading", 0.0001f) &&
-        addDataDefinitionField(DEFID_AIRCRAFT_POSITION, "AIRSPEED INDICATED", "knots", SIMCONNECT_DATATYPE_FLOAT32, "Airspeed Indicated", 0.1f) &&
+        addDataDefinitionField(DEFID_AIRCRAFT_POSITION, "AIRSPEED TRUE", "knots", SIMCONNECT_DATATYPE_FLOAT32, "True Airspeed", 0.1f) &&
         addDataDefinitionField(DEFID_AIRCRAFT_POSITION, "VELOCITY BODY X", "feet per second", SIMCONNECT_DATATYPE_FLOAT32, "Velocity Body X", 0.01f) &&
         addDataDefinitionField(DEFID_AIRCRAFT_POSITION, "VELOCITY BODY Y", "feet per second", SIMCONNECT_DATATYPE_FLOAT32, "Velocity Body Y", 0.01f) &&
         addDataDefinitionField(DEFID_AIRCRAFT_POSITION, "VELOCITY BODY Z", "feet per second", SIMCONNECT_DATATYPE_FLOAT32, "Velocity Body Z", 0.01f) &&

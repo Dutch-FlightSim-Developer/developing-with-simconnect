@@ -102,34 +102,34 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClInclude Include="pch.h" />
+    <ClInclude Include=".\tests\pch.h" />
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="DataBlockBuilderTests.cpp" />
-    <ClCompile Include="DataBlockReaderTests.cpp" />
-    <ClCompile Include="DataBlockTests.cpp" />
-    <ClCompile Include="TestDataFrequency.cpp" />
-    <ClCompile Include="TestLogger.cpp" />
-    <ClCompile Include="TestMultiHandlerProc.cpp" />
-    <ClCompile Include="TestPeriodLimits.cpp" />
-    <ClCompile Include="TestSimObjectType.cpp" />
-    <ClCompile Include="TestDataDefinition.cpp" />
-    <ClCompile Include="pch.cpp">
+    <ClCompile Include=".\tests\DataBlockBuilderTests.cpp" />
+    <ClCompile Include=".\tests\DataBlockReaderTests.cpp" />
+    <ClCompile Include=".\tests\DataBlockTests.cpp" />
+    <ClCompile Include=".\tests\TestDataFrequency.cpp" />
+    <ClCompile Include=".\tests\TestLogger.cpp" />
+    <ClCompile Include=".\tests\TestMultiHandlerProc.cpp" />
+    <ClCompile Include=".\tests\TestPeriodLimits.cpp" />
+    <ClCompile Include=".\tests\TestSimObjectType.cpp" />
+    <ClCompile Include=".\tests\TestDataDefinition.cpp" />
+    <ClCompile Include=".\tests\pch.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Create</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Create</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Create</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Create</PrecompiledHeader>
     </ClCompile>
-    <ClCompile Include="TestDataDefinition_Float32.cpp" />
-    <ClCompile Include="TestDataDefinition_Float64.cpp" />
-    <ClCompile Include="TestDataDefinition_Int32.cpp" />
-    <ClCompile Include="TestDataDefinition_Int64.cpp" />
-    <ClCompile Include="TestDataDefinition_TestString.cpp" />
-    <ClCompile Include="TestSimpleHandler.cpp" />
-    <ClCompile Include="TestSimpleHandlerProc.cpp" />
+    <ClCompile Include=".\tests\TestDataDefinition_Float32.cpp" />
+    <ClCompile Include=".\tests\TestDataDefinition_Float64.cpp" />
+    <ClCompile Include=".\tests\TestDataDefinition_Int32.cpp" />
+    <ClCompile Include=".\tests\TestDataDefinition_Int64.cpp" />
+    <ClCompile Include=".\tests\TestDataDefinition_TestString.cpp" />
+    <ClCompile Include=".\tests\TestSimpleHandler.cpp" />
+    <ClCompile Include=".\tests\TestSimpleHandlerProc.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\src\CppSimConnect.vcxproj">
+    <ProjectReference Include=".\CppSimConnect.vcxproj">
       <Project>{3a82c8a2-ed97-4b6b-a1ce-d148ec5033a6}</Project>
     </ProjectReference>
   </ItemGroup>

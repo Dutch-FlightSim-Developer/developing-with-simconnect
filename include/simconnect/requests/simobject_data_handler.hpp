@@ -70,8 +70,8 @@ public:
      * @param msg The message to get the correlation ID from.
      * @returns The correlation ID from the message.
 	 */
-    unsigned long correlationId(const SIMCONNECT_RECV* msg) const {
-        return static_cast<const SIMCONNECT_RECV_SIMOBJECT_DATA*>(msg)->dwRequestID;
+    unsigned long correlationId(const SIMCONNECT_RECV& msg) const {
+        return static_cast<const SIMCONNECT_RECV_SIMOBJECT_DATA&>(msg).dwRequestID;
     }
 
 
@@ -376,7 +376,7 @@ public:
 
         if (dataDef.useMapping()) {
             registerHandler(requestId, [requestId, &dataDef, handler](const SIMCONNECT_RECV& msg) {
-                const StructType* data = reinterpret_cast<const StructType*>(&(reinterpret_cast<const SIMCONNECT_RECV_SIMOBJECT_DATA&>(msg)->dwData));
+                const StructType* data = reinterpret_cast<const StructType*>(&(reinterpret_cast<const SIMCONNECT_RECV_SIMOBJECT_DATA&>(msg).dwData));
                 handler(*data);
                 }, frequency.isOnce());
         }

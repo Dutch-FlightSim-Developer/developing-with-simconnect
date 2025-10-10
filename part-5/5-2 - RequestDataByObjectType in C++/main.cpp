@@ -306,8 +306,8 @@ void testGetData() {
 	SimConnect::WindowsEventHandler handler(connection);
 	handler.autoClosing(true);
 
-	handler.setDefaultHandler([](const SIMCONNECT_RECV* msg, DWORD len) {
-		std::cerr << std::format("Ignoring message of type {} (length {} bytes)\n", msg->dwID, len);
+	handler.setDefaultHandler([](const SIMCONNECT_RECV& msg) {
+		std::cerr << std::format("Ignoring message of type {} (length {} bytes)\n", msg.dwID, msg.dwSize);
 		});
 	handler.registerHandler<SIMCONNECT_RECV_OPEN>(SIMCONNECT_RECV_ID_OPEN, handleOpen);
 	handler.registerHandler<SIMCONNECT_RECV_QUIT>(SIMCONNECT_RECV_ID_QUIT, handleClose);

@@ -23,7 +23,8 @@ namespace SimConnect {
 /**
  * A SimConnect connection with support for Windows Messaging.
  */
-class WindowsMessagingConnection : public Connection {
+template <bool ThreadSafe = false>
+class WindowsMessagingConnection : public Connection<ThreadSafe> {
 	/**
 	 * The Windows handle to the Window whose message queue will receive notifications for incoming messages. 
 	 */
@@ -38,21 +39,21 @@ public:
 	/**
 	 * Constructor, using the default client name.
 	 */
-	WindowsMessagingConnection() : Connection() {}
+	WindowsMessagingConnection() : Connection<ThreadSafe>() {}
 
 
 	/**
 	 * Constructor.
 	 * @param name The name of the connection.
 	 */
-	WindowsMessagingConnection(std::string name) : Connection(name) {}
+	WindowsMessagingConnection(std::string name) : Connection<ThreadSafe>(name) {}
 
 	/**
 	 * Constructor, using the default client name.
 	 * @param hWnd The window handle to use for the SIMCONNECT messages.
 	 * @param userMessageId The message id to use for the SIMCONNECT messages.
 	 */
-    WindowsMessagingConnection(HWND hWnd, DWORD userMessageId) : Connection(), hWnd_(hWnd), userMessageId_(userMessageId) {}
+    WindowsMessagingConnection(HWND hWnd, DWORD userMessageId) : Connection<ThreadSafe>(), hWnd_(hWnd), userMessageId_(userMessageId) {}
 
 	/**
 	 * Constructor.
@@ -112,7 +113,7 @@ public:
 	 */
 	[[nodiscard]]
 	bool open(HWND hWnd, DWORD userMessageId, int configIndex = 0) {
-		if (isOpen()) {
+		if (this->isOpen()) {
 			return true;
 		}
 		hWnd_ = hWnd;
@@ -138,7 +139,7 @@ public:
         if (userMessageId_ < WM_USER) {
             throw SimConnectException("userMessageId is less than WM_USER.");
         }
-		return callOpen(hWnd_, userMessageId_, nullptr, configIndex);
+		return this->callOpen(hWnd_, userMessageId_, nullptr, configIndex);
     }
 };
 

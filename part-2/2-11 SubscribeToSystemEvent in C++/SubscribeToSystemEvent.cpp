@@ -92,7 +92,7 @@ auto main() -> int {
 	handler.registerHandler<SIMCONNECT_RECV_EVENT>(SIMCONNECT_RECV_ID_EVENT, handleEvent);
 
 	if (connection.open()) {
-		SimConnect::SystemEventHandler eventHandler;
+		SimConnect::SystemEventHandler<SimConnect::WindowsEventHandler<>> eventHandler;
 		eventHandler.enable(handler);
 
 		eventHandler.subscribeToSystemEvent(connection, SimConnect::Events::sim(), [](const SIMCONNECT_RECV_EVENT& msg) {
@@ -108,8 +108,8 @@ auto main() -> int {
 			std::cout << std::format("Received a 'Pause' event with value {}.\n", msg.dwData);
 			});
 
-		std::cout << "\n\nHandling messages for 10 minutes.\n";
-		handler.handle(10min);
+		std::cout << "\n\nHandling messages for 30 seconds.\n";
+		handler.handle(30s);
 	}
 	else {
 		std::cerr << "Failed to connect to simulator.\n";

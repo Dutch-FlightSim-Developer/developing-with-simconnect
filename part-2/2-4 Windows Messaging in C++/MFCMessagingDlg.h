@@ -22,8 +22,8 @@ class CMFCMessagingDlg : public CDialogEx
 	CStatic m_simConnectVersion;
 	CStatic m_simConnectBuild;
 
-	SimConnect::WindowsMessagingConnection m_connection;
-	SimConnect::SimpleHandler<SimConnect::WindowsMessagingConnection> m_handler;
+	SimConnect::WindowsMessagingConnection<> m_connection;
+	SimConnect::SimpleHandler<SimConnect::WindowsMessagingConnection<>> m_handler;
 
 	constexpr static auto WM_SIMCONNECT = WM_USER + 1;
 

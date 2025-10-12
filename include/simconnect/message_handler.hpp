@@ -36,10 +36,16 @@ using CorrelationHandlerType = std::function<void(const SIMCONNECT_RECV& msg)>;
  * The MessageHandler class provides for responsive handling of messages with correlation IDs.
  * 
  * @tparam T The type of the message handler, which must be derived from this class.
+ * @tparam M The type of the SimConnect message handler, which must be derived from SimConnectMessageHandler.
  * @tparam id The SIMCONNECT_RECV_IDs that this handler will respond to.
  */
-template <class T, SIMCONNECT_RECV_ID... id>
+template <class T, class M, SIMCONNECT_RECV_ID... id>
 class MessageHandler  {
+public:
+    using simconnect_message_handler_type = M;
+    using connection_type = typename M::connection_type;
+
+private:
     constexpr static size_t numIds = sizeof...(id);
     std::vector<std::tuple<SIMCONNECT_RECV_ID, CorrelationHandlerType>> oldHandlers_;
 
@@ -96,7 +102,6 @@ protected:
 	 * @param msgHandler The message handler where we must register the handler.
 	 * @param id The message type ID to register for.
      */
-    template <class simconnect_message_handler_type>
     void registerFor(simconnect_message_handler_type& msgHandler, SIMCONNECT_RECV_ID msgId) {
         auto defaultHandlerProc = msgHandler.defaultHandler();
         auto originalHandlerProc = msgHandler.getHandler(msgId);
@@ -138,11 +143,8 @@ public:
      * Enable the responsive handler by registering it with the given message type ID. The current handler will be called if
      * we don't know the correlation associated with this message.
      * 
-     * @tparam ConnectionType The connection type.
-     * @tparam HandlerType The handler type.
      * @param handler The handler to hook into.
      */
-    template <class simconnect_message_handler_type>
     void enable(simconnect_message_handler_type& msgHandler) {
         cleanup();
 

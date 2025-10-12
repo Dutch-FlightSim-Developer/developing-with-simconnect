@@ -1,6 +1,6 @@
 #pragma once
 /*
- * Copyright (c) 2024. Bert Laverman
+ * Copyright (c) 2024, 2025. Bert Laverman
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -26,7 +26,8 @@ namespace SimConnect {
 /**
  * A SimConnect connection with support for notifications through a Windows Event.
  */
-class WindowsEventConnection : public Connection {
+template <bool ThreadSafe = false>
+class WindowsEventConnection : public Connection<ThreadSafe> {
 
 	/**
 	 * The event handle to use for signalling that SIMCONNECT messages are available.
@@ -45,14 +46,14 @@ public:
 	 * Constructor.
 	 * @param name The name of the connection.
 	 */
-    WindowsEventConnection(std::string name) : Connection(name) {}
+    WindowsEventConnection(std::string name) : Connection<ThreadSafe>(name) {}
 
 
 	/**
 	 * Constructor, using the default client name.
 	 * @param eventHandle The event handle to use for signalling that SIMCONNECT messages are available.
 	 */
-    WindowsEventConnection(HANDLE eventHandle) : Connection(), eventHandle_(eventHandle) {}
+    WindowsEventConnection(HANDLE eventHandle) : Connection<ThreadSafe>(), eventHandle_(eventHandle) {}
 
 
 	/**
@@ -60,7 +61,7 @@ public:
 	 * @param name The name of the connection.
 	 * @param eventHandle The event handle to use for signalling that SIMCONNECT messages are available.
 	 */
-    WindowsEventConnection(std::string name, HANDLE eventHandle) : Connection(name), eventHandle_(eventHandle) {}
+    WindowsEventConnection(std::string name, HANDLE eventHandle) : Connection<ThreadSafe>(name), eventHandle_(eventHandle) {}
 
     ~WindowsEventConnection() {
         if (eventHandle_ != nullptr) {
@@ -83,7 +84,7 @@ public:
 	 */
 	[[nodiscard]]
 	bool open(HANDLE windowsEventHandle, int configIndex = 0) {
-		return callOpen(nullptr, 0, windowsEventHandle, configIndex);
+		return this->callOpen(nullptr, 0, windowsEventHandle, configIndex);
 	}
 
 	/**
@@ -118,4 +119,5 @@ public:
 		return ::WaitForSingleObject(eventHandle_, (duration <= std::chrono::milliseconds(0)) ? INFINITE : static_cast<DWORD>(duration.count())) == WAIT_OBJECT_0;
 	}
 };
-}
+
+} // namespace SimConnect

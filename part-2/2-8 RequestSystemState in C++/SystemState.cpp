@@ -71,15 +71,15 @@ auto main () -> int {
 		SimConnect::WindowsEventHandler handler(connection);		// Use a Windows Event.
 		handler.autoClosing(true);
 
-		handler.setDefaultHandler([](const SIMCONNECT_RECV* msg, DWORD len) {
-			std::cerr << std::format("Ignoring message of type {} (length {} bytes)\n", msg->dwID, len);
+		handler.setDefaultHandler([](const SIMCONNECT_RECV& msg) {
+			std::cerr << std::format("Ignoring message of type {} (length {} bytes)\n", msg.dwID, msg.dwSize);
 			});
 
 		handler.registerHandler<SIMCONNECT_RECV_OPEN>(SIMCONNECT_RECV_ID_OPEN, handleOpen);
 		handler.registerHandler<SIMCONNECT_RECV_QUIT>(SIMCONNECT_RECV_ID_QUIT, handleClose);
 
 		if (connection.open()) {
-			SimConnect::SystemStateHandler requestHandler;
+			SimConnect::SystemStateHandler<SimConnect::WindowsEventHandler<>> requestHandler;
 			requestHandler.enable(handler);
 
 			requestHandler.requestSystemState(connection, "AircraftLoaded",
@@ -118,7 +118,7 @@ auto main () -> int {
 		else {
 			std::cerr << "Failed to connect to the simulator.\n";
 		}
-		if (handler.getHandler(SIMCONNECT_RECV_ID_SYSTEM_STATE)) {
+		if (handler.getHandler(SIMCONNECT_RECV_ID_SYSTEM_STATE).proc()) {
 			throw SimConnect::SimConnectException("There is still a handler for SystemState messages!");
 		}
 	}

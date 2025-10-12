@@ -15,6 +15,8 @@
  */
 
 #include "pch.h"
+
+#include <tuple>
 #include <simconnect/simple_handler.hpp>
 #include <simconnect/messaging/simple_handler_proc.hpp>
 
@@ -22,34 +24,55 @@ using namespace SimConnect;
 
 // Mock connection type for testing
 class MockConnection {
+public:
+    using mutex_type = NoMutex;
+	using guard_type = NoGuard;
 private:
-    std::vector<SIMCONNECT_RECV> messages_;
+    std::vector<std::tuple<SIMCONNECT_RECV, DWORD>> messages_;
     size_t messageIndex_{0};
     bool isOpen_{true};
 
 public:
     MockConnection() = default;
     
-    void addMessage(const SIMCONNECT_RECV& msg) {
-        messages_.push_back(msg);
+    void addMessage(const SIMCONNECT_RECV& msg, DWORD size) {
+        messages_.emplace_back(msg, size);
     }
     
     void addMessage(SIMCONNECT_RECV_ID id, DWORD size = sizeof(SIMCONNECT_RECV)) {
         SIMCONNECT_RECV msg{};
         msg.dwID = static_cast<DWORD>(id);
-        msg.dwSize = size;
+        msg.dwSize = sizeof(SIMCONNECT_RECV);
         msg.dwVersion = 1;
-        addMessage(msg);
+        addMessage(msg, size);
     }
     
     bool getNextDispatch(SIMCONNECT_RECV*& msg, DWORD& size) {
         if (messageIndex_ >= messages_.size()) {
             return false;
         }
-        
-        msg = &messages_[messageIndex_++];
-        size = sizeof(SIMCONNECT_RECV);
+
+        msg = &std::get<0>(messages_[messageIndex_]);
+        size = std::get<1>(messages_[messageIndex_]);
+		messageIndex_++;
+
         return true;
+    }
+    
+    bool callDispatch(std::function<void(const SIMCONNECT_RECV*, DWORD)> dispatchFunc) {
+        SIMCONNECT_RECV* msg = nullptr;
+        DWORD size = 0;
+        
+        // Process all available messages (ignoring duration for simplicity in mock)
+        if (isOpen() && getNextDispatch(msg, size)) {
+            if (msg != nullptr) {
+                // Call the handler's dispatch method with the message
+                dispatchFunc(msg, size);
+
+                return true;
+            }
+        }
+        return false;
     }
     
     bool isOpen() const { return isOpen_; }
@@ -369,9 +392,9 @@ TEST(SimpleHandlerTests, MalformedMessageHandling) {
     msg.dwID = static_cast<DWORD>(SIMCONNECT_RECV_ID_OPEN);
     msg.dwSize = sizeof(SIMCONNECT_RECV) + 100;  // Claim larger size than actual
     msg.dwVersion = 1;
-    
-    connection.addMessage(msg);
-    
+
+    connection.addMessage(msg, sizeof(msg));
+
     bool handlerCalled = false;
     handler.setDefaultHandler([&handlerCalled](const SIMCONNECT_RECV&) {
         handlerCalled = true;

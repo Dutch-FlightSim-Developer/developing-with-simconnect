@@ -157,7 +157,8 @@ public:
     /**
      * Registers a DataDefinition
      */
-    void define(Connection& connection) {
+    template <class connection_type>
+    void define(connection_type& connection) {
         if (isDefined()) {
             return; // Already defined
         }

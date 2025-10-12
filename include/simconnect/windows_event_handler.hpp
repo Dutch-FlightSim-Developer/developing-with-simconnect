@@ -23,11 +23,14 @@ namespace SimConnect {
 /**
  * A SimConnect message handler.
  */
-template <class handler_type = SimpleHandlerProc<SIMCONNECT_RECV>, class logger_type = NullLogger>
-class WindowsEventHandler : public SimConnectMessageHandler<WindowsEventConnection, WindowsEventHandler<handler_type, logger_type>, handler_type, logger_type>
+template <bool ThreadSafe = false, class handler_type = SimpleHandlerProc<SIMCONNECT_RECV>, class logger_type = NullLogger>
+class WindowsEventHandler : public SimConnectMessageHandler<WindowsEventConnection<ThreadSafe>, WindowsEventHandler<ThreadSafe, handler_type, logger_type>, handler_type, logger_type>
 {
 public:
-    WindowsEventHandler(WindowsEventConnection& connection) : SimConnectMessageHandler<WindowsEventConnection, WindowsEventHandler<handler_type, logger_type>, handler_type, logger_type>(connection) {}
+	using connection_type = WindowsEventConnection<ThreadSafe>;
+
+
+    WindowsEventHandler(WindowsEventConnection<ThreadSafe>& connection) : SimConnectMessageHandler<WindowsEventConnection<ThreadSafe>, WindowsEventHandler<ThreadSafe, handler_type, logger_type>, handler_type, logger_type>(connection) {}
     ~WindowsEventHandler() {}
 
     WindowsEventHandler(const WindowsEventHandler&) = delete;

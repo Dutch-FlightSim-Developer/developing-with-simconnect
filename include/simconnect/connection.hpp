@@ -1,6 +1,6 @@
 #pragma once
 /*
- * Copyright (c) 2024. Bert Laverman
+ * Copyright (c) 2024, 2025. Bert Laverman
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,9 +20,13 @@
 #include <simconnect/events/events.hpp>
 #include <simconnect/requests/requests.hpp>
 #include <simconnect/data/data_definitions.hpp>
+#include <simconnect/data/init_position.hpp>
 #include <simconnect/data_frequency.hpp>
 
-#include <atomic>
+#include <string>
+
+#include <type_traits>
+#include <mutex>
 
 #if !defined(NDEBUG)
 #include <format>
@@ -32,15 +36,41 @@
 
 namespace SimConnect {
 
+
+class NoMutex
+{
+public:
+    void lock() noexcept {}
+    void unlock() noexcept {}
+    bool try_lock() noexcept { return true; }
+};
+
+class NoGuard
+{
+public:
+	NoGuard() noexcept {}
+    explicit NoGuard(NoMutex&) noexcept {}
+    explicit NoGuard(const NoMutex&) noexcept {}
+};
+
+
 /**
  * A SimConnect connection.
  */
+template <bool ThreadSafe = false>
 class Connection
 {
+public:
+    using mutex_type = std::conditional_t<ThreadSafe, std::mutex, NoMutex>;
+    using guard_type = std::conditional_t<ThreadSafe, std::lock_guard<mutex_type>, NoGuard>;
+
+
 private:
-	std::string clientName_;			///< The name of the client.
+    std::string clientName_;			///< The name of the client.
 	HANDLE hSimConnect_{ nullptr };		///< The SimConnect handle, if connected.
 	HRESULT hr_{ S_OK };				///< The last error code.
+
+    mutex_type mutex_;
 
 
 public:
@@ -109,7 +139,9 @@ protected:
 	 */
 	[[nodiscard]]
 	bool callOpen(HWND hWnd, DWORD userMessageId, HANDLE windowsEventHandle, DWORD configIndex = 0) {
-		if (isOpen()) {
+        guard_type guard(mutex_);
+
+        if (isOpen()) {
 			return true;
 		}
 		hr(SimConnect_Open(&hSimConnect_, clientName_.c_str(), hWnd, userMessageId, windowsEventHandle, configIndex));
@@ -172,7 +204,9 @@ public:
 	[[nodiscard]]
 	long fetchSendId() const {
 		if (SUCCEEDED(hr())) {
-			DWORD sendId{ 0 };
+            guard_type guard(mutex_);
+
+            DWORD sendId{ 0 };
 			SimConnect_GetLastSentPacketID(hSimConnect_, &sendId);
 			return sendId;
 		}
@@ -180,18 +214,33 @@ public:
 	}
 
 
+    /**
+     * Request IDs are managed by the Requests class.
+     * 
+     * @returns The Requests object.
+     */
+    [[nodiscard]]
+    Requests& requests() {
+        static Requests requests;
+
+        return requests;
+    }
+
+
 	// Calls to SimConnect
 
-	// Category "General"
-	//
-	// NOTE There is no call to SimConnect_Open here, as the required parameters depend on the type of connection.
+#pragma region General
+
+    // NOTE There is no call to SimConnect_Open here, as the required parameters depend on the type of connection.
 
 	/**
 	 * Closes the connection.
 	 * @throws SimConnectException if the call fails. This should only happen if the handle is invalid.
 	 */
 	void close() {
-		if (isOpen()) {
+        guard_type guard(mutex_);
+
+        if (isOpen()) {
 			hr(SimConnect_Close(hSimConnect_));
 			hSimConnect_ = nullptr;
 			if (FAILED(hr_)) {
@@ -210,6 +259,12 @@ public:
 	 */
 	[[nodiscard]]
 	bool getNextDispatch(SIMCONNECT_RECV*& msgPtr, DWORD& size) {
+        guard_type guard(mutex_);
+
+        if (!isOpen()) {
+            hr(E_FAIL);
+            return false;
+        }
 		hr(SimConnect_GetNextDispatch(hSimConnect_, &msgPtr, &size));
 
 		return succeeded();
@@ -217,17 +272,43 @@ public:
 
 
     /**
-     * Request IDs are managed by the Requests class.
+     * The callback function used by SimConnect_CallDispatch.
      * 
-     * @returns The Requests object.
+     * @param pData The message data.
+     * @param cbData The size of the message data.
+     * @param pContext The context pointer, which is a pointer to the function to call.
      */
-    [[nodiscard]]
-    Requests& requests() {
-        static Requests requests;
-
-        return requests;
+    static void CALLBACK dispatchCallback(SIMCONNECT_RECV* pData, DWORD cbData, void* pContext) {
+        if (pContext != nullptr) {
+            auto &func = *reinterpret_cast<std::function<void(const SIMCONNECT_RECV*, DWORD)>*>(pContext);
+            if (func) {
+                func(pData, cbData);
+            }
+        }
     }
 
+
+    /**
+     * Calls the given function for the next message.
+     * 
+     * @param dispatchFunc The function to call for the next message.
+     * @returns True if the call was successful.
+     */
+    [[nodiscard]]
+    bool callDispatch(std::function<void(const SIMCONNECT_RECV*, DWORD)> dispatchFunc) {
+        guard_type guard(mutex_);
+
+        if (!isOpen()) {
+            hr(E_FAIL);
+            return false;
+        }
+        hr(SimConnect_CallDispatch(hSimConnect_, &dispatchCallback, &dispatchFunc));
+
+        return succeeded();
+    }
+
+#pragma endregion
+#pragma region System State
 
 	/**
 	 * Requests a system state.
@@ -238,7 +319,9 @@ public:
 	int requestSystemState(std::string stateName) {
         auto requestId = requests().nextRequestID();
 
-		hr(SimConnect_RequestSystemState(hSimConnect_, requestId, stateName.c_str()));
+        guard_type guard(mutex_);
+
+        hr(SimConnect_RequestSystemState(hSimConnect_, requestId, stateName.c_str()));
 
 		return requestId;
 	}
@@ -250,17 +333,22 @@ public:
 	 * @returns The request ID used to identify the request.
 	 */
 	void requestSystemState(std::string stateName, unsigned long requestId) {
-		hr(SimConnect_RequestSystemState(hSimConnect_, requestId, stateName.c_str()));
+        guard_type guard(mutex_);
+
+        hr(SimConnect_RequestSystemState(hSimConnect_, requestId, stateName.c_str()));
 	}
 
-	// Category "Events and Data"
+#pragma endregion
+#pragma region System Events
 
     /**
      * Subscribe to an event.
      * @param event The event to subscribe to.
      */
 	void subscribeToSystemEvent(event event) {
-		hr(SimConnect_SubscribeToSystemEvent(hSimConnect_, event.id(), event.name().c_str()));
+        guard_type guard(mutex_);
+
+        hr(SimConnect_SubscribeToSystemEvent(hSimConnect_, event.id(), event.name().c_str()));
 	}
 
     
@@ -269,9 +357,13 @@ public:
     * @param event The event to unsubscribe from.
     */
     void unsubscribeFromSystemEvent(event event) {
+        guard_type guard(mutex_);
+
         hr(SimConnect_UnsubscribeFromSystemEvent(hSimConnect_, event.id()));
     }
 
+#pragma endregion
+#pragma region Data Definitions
 
     /**
      * Data Definitions are managed by the DataDefinitions class.
@@ -291,6 +383,8 @@ public:
      */
     void addDataDefinition(SIMCONNECT_DATA_DEFINITION_ID dataDef, const std::string& itemName, const std::string& itemUnits,
                            SIMCONNECT_DATATYPE itemDataType, float itemEpsilon = 0.0f, unsigned long itemDatumId = SIMCONNECT_UNUSED) {
+        guard_type guard(mutex_);
+
         hr(SimConnect_AddToDataDefinition(hSimConnect_, dataDef,
             itemName.c_str(), itemUnits.empty() ? nullptr : itemUnits.c_str(),
             itemDataType,
@@ -302,6 +396,8 @@ public:
 #endif
 	}
 
+#pragma endregion
+#pragma region Data Requests
 
     /**
      * Request data on the given object.
@@ -318,6 +414,8 @@ public:
         unsigned long objectId = SIMCONNECT_OBJECT_ID_USER_CURRENT,
         bool onlyWhenChanged = false)
     {
+        guard_type guard(mutex_);
+
         hr(SimConnect_RequestDataOnSimObject(hSimConnect_, requestId, dataDef,
             objectId,
             frequency,
@@ -347,6 +445,8 @@ public:
         unsigned long objectId = SIMCONNECT_OBJECT_ID_USER_CURRENT,
         bool onlyWhenChanged = false)
     {
+        guard_type guard(mutex_);
+
         hr(SimConnect_RequestDataOnSimObject(hSimConnect_, requestId, dataDef,
             objectId,
             frequency,
@@ -371,6 +471,8 @@ public:
     void stopDataRequest(SIMCONNECT_DATA_DEFINITION_ID dataDef, unsigned long requestId,
         unsigned long objectId = SIMCONNECT_OBJECT_ID_USER_CURRENT)
     {
+        guard_type guard(mutex_);
+
         hr(SimConnect_RequestDataOnSimObject(hSimConnect_, requestId, dataDef, objectId, SIMCONNECT_PERIOD_NEVER));
     }
 
@@ -388,8 +490,128 @@ public:
 	void requestDataByType(SIMCONNECT_DATA_DEFINITION_ID dataDef, unsigned long requestId,
 		unsigned long radiusInMeters, SIMCONNECT_SIMOBJECT_TYPE objectType)
 	{
+        guard_type guard(mutex_);
+
 		hr(SimConnect_RequestDataOnSimObjectType(hSimConnect_, requestId, dataDef, radiusInMeters, objectType));
 	}
+
+#pragma endregion
+#pragma region AI
+
+    /**
+     * Creates a non-ATC aircraft. (pre-2024, no livery)
+     * 
+     * @param title The title of the aircraft container.
+     * @param tailNumber The tail number of the aircraft.
+     * @param initPos The initial position of the aircraft.
+     * @param requestId The request ID.
+     */
+    void createNonATCAircraft(std::string title, std::string tailNumber,
+        Data::InitPosition initPos,
+        unsigned long requestId)
+    {
+        guard_type guard(mutex_);
+
+        hr(SimConnect_AICreateNonATCAircraft(hSimConnect_, title.c_str(), tailNumber.c_str(), initPos, requestId));
+    }
+
+
+    /**
+     * Creates a non-ATC aircraft. (2024 and later, with livery)
+     * 
+     * @param title The title of the aircraft container.
+     * @param livery The livery of the aircraft.
+     * @param tailNumber The tail number of the aircraft.
+     * @param initPos The initial position of the aircraft.
+     * @param requestId The request ID.
+     */
+    void createNonATCAircraft(std::string title, std::string livery, std::string tailNumber,
+        Data::InitPosition initPos,
+        unsigned long requestId)
+    {
+        guard_type guard(mutex_);
+
+        hr(SimConnect_AICreateNonATCAircraft_EX1(hSimConnect_, title.c_str(), livery.c_str(), tailNumber.c_str(), initPos, requestId));
+    }
+
+
+    /**
+     * Creates a parked ATC aircraft. (pre-2024, no livery)
+     * 
+     * @param title The title of the aircraft container.
+     * @param tailNumber The tail number of the aircraft.
+     * @param airportIcao The ICAO of the airport to park at.
+     * @param requestId The request ID.
+     */
+    void createParkedAircraft(std::string title, std::string tailNumber, std::string airportIcao, unsigned long requestId)
+    {
+        guard_type guard(mutex_);
+
+        hr(SimConnect_AICreateParkedATCAircraft(hSimConnect_, title.c_str(), tailNumber.c_str(), airportIcao.c_str(), requestId));
+    }
+
+
+    /**
+     * Creates a parked ATC aircraft. (2024 and later, with livery)
+     * 
+     * @param title The title of the aircraft container.
+     * @param livery The livery of the aircraft.
+     * @param tailNumber The tail number of the aircraft.
+     * @param airportIcao The ICAO of the airport to park at.
+     * @param requestId The request ID.
+     */
+    void createParkedAircraft(std::string title, std::string livery, std::string tailNumber, std::string airportIcao, unsigned long requestId)
+    {
+        guard_type guard(mutex_);
+
+        hr(SimConnect_AICreateParkedATCAircraft_EX1(hSimConnect_, title.c_str(), livery.c_str(), tailNumber.c_str(), airportIcao.c_str(), requestId));
+    }
+
+
+    /**
+     * Creates a SimObject. (pre-2024, no livery)
+     * 
+     * @param title The title of the aircraft container.
+     * @param initPos The initial position of the SimObject.
+     * @param requestId The request ID.
+     */
+    void createSimObject(std::string title, Data::InitPosition initPos, unsigned long requestId)
+    {
+        guard_type guard(mutex_);
+
+        hr(SimConnect_AICreateSimulatedObject(hSimConnect_, title.c_str(), initPos, requestId));
+    }
+
+
+    /**
+     * Creates a SimObject. (2024 and later, with livery)
+     * 
+     * @param title The title of the aircraft container.
+     * @param livery The livery of the aircraft.
+     * @param initPos The initial position of the SimObject.
+     * @param requestId The request ID.
+     */
+    void createSimObject(std::string title, std::string livery, Data::InitPosition initPos, unsigned long requestId)
+    {
+        guard_type guard(mutex_);
+
+        hr(SimConnect_AICreateSimulatedObject_EX1(hSimConnect_, title.c_str(), livery.c_str(), initPos, requestId));
+    }
+
+
+    /**
+     * Removes a SimObject.
+     * 
+     * @param objectId The object ID of the SimObject to remove.
+     */
+    void removeSimObject(unsigned long objectId, unsigned long requestId)
+    {
+        guard_type guard(mutex_);
+
+        hr(SimConnect_AIRemoveObject(hSimConnect_, objectId, requestId));
+    }
+
+#pragma endregion
 };
 
 } // namespace SimConnect

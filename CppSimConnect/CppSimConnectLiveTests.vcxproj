@@ -19,7 +19,7 @@
     </ProjectConfiguration>
   </ItemGroup>
   <PropertyGroup Label="Globals">
-    <ProjectGuid>{f87ae907-2436-40ed-8952-d90b24345668}</ProjectGuid>
+    <ProjectGuid>{da72d829-29b3-4d28-96cd-33320859ca6d}</ProjectGuid>
     <Keyword>Win32Proj</Keyword>
     <WindowsTargetPlatformVersion>10.0.26100.0</WindowsTargetPlatformVersion>
     <ConfigurationType>Application</ConfigurationType>
@@ -102,39 +102,25 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClInclude Include=".\tests\pch.h" />
+    <ClInclude Include=".\live-tests\pch.h" />
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include=".\tests\DataBlockBuilderTests.cpp" />
-    <ClCompile Include=".\tests\DataBlockReaderTests.cpp" />
-    <ClCompile Include=".\tests\DataBlockTests.cpp" />
-    <ClCompile Include=".\tests\TestDataFrequency.cpp" />
-    <ClCompile Include=".\tests\TestLogger.cpp" />
-    <ClCompile Include=".\tests\TestMultiHandlerProc.cpp" />
-    <ClCompile Include=".\tests\TestPeriodLimits.cpp" />
-    <ClCompile Include=".\tests\TestSimObjectType.cpp" />
-    <ClCompile Include=".\tests\TestDataDefinition.cpp" />
-    <ClCompile Include=".\tests\pch.cpp">
+    <ClCompile Include="live-tests\TestConnection.cpp" />
+    <ClCompile Include=".\live-tests\pch.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Create</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Create</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Create</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Create</PrecompiledHeader>
     </ClCompile>
-    <ClCompile Include=".\tests\TestDataDefinition_Float32.cpp" />
-    <ClCompile Include=".\tests\TestDataDefinition_Float64.cpp" />
-    <ClCompile Include=".\tests\TestDataDefinition_Int32.cpp" />
-    <ClCompile Include=".\tests\TestDataDefinition_Int64.cpp" />
-    <ClCompile Include=".\tests\TestDataDefinition_TestString.cpp" />
-    <ClCompile Include=".\tests\TestSimpleHandler.cpp" />
-    <ClCompile Include=".\tests\TestSimpleHandlerProc.cpp" />
+    <ClCompile Include="live-tests\TestSystemState.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="packages.config" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include=".\CppSimConnect.vcxproj">
       <Project>{3a82c8a2-ed97-4b6b-a1ce-d148ec5033a6}</Project>
     </ProjectReference>
-  </ItemGroup>
-  <ItemGroup>
-    <None Include="packages.config" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

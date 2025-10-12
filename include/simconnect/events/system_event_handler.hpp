@@ -35,11 +35,17 @@ using BaseEventHandler = std::function<void(const SIMCONNECT_RECV_EVENT&)>;
  * - Filename event messages (SIMCONNECT_RECV_EVENT_FILENAME) 
  * - Object add/remove messages (SIMCONNECT_RECV_EVENT_OBJECT_ADDREMOVE)
  */
-class SystemEventHandler : public MessageHandler<SystemEventHandler, 
+template <class M>
+class SystemEventHandler : public MessageHandler<SystemEventHandler<M>, M,
                                                  SIMCONNECT_RECV_ID_EVENT, 
                                                  SIMCONNECT_RECV_ID_EVENT_FILENAME,
-                                                 SIMCONNECT_RECV_ID_EVENT_OBJECT_ADDREMOVE> {
+                                                 SIMCONNECT_RECV_ID_EVENT_OBJECT_ADDREMOVE>
+{
+public:
+    using simconnect_message_handler_type = M;
+    using connection_type = typename M::connection_type;
 
+private:
     // No copies or moves
     SystemEventHandler(const SystemEventHandler&) = delete;
     SystemEventHandler(SystemEventHandler&&) = delete;
@@ -70,8 +76,8 @@ public:
      * @param systemStateEvent The event to subscribe to.
      * @param handler The handler to call when the event is received.
      */
-    void subscribeToSystemEvent(Connection& connection, event systemStateEvent, BaseEventHandler handler) {
-        registerHandler(systemStateEvent, [handler](const SIMCONNECT_RECV msg) {
+    void subscribeToSystemEvent(connection_type& connection, event systemStateEvent, BaseEventHandler handler) {
+        this->registerHandler(systemStateEvent, [handler](const SIMCONNECT_RECV msg) {
             handler(reinterpret_cast<const SIMCONNECT_RECV_EVENT&>(msg));
         }, false);
         connection.subscribeToSystemEvent(systemStateEvent);
@@ -83,9 +89,9 @@ public:
      * @param connection The connection to unsubscribe from.
      * @param systemStateEvent The event to unsubscribe from.
      */
-    void unsubscribeFromSystemEvent(Connection& connection, event systemStateEvent) {
+    void unsubscribeFromSystemEvent(connection_type& connection, event systemStateEvent) {
         connection.unsubscribeFromSystemEvent(systemStateEvent);
-        removeHandler(systemStateEvent);
+        this->removeHandler(systemStateEvent);
     }
 
 
@@ -97,10 +103,10 @@ public:
      * @param systemStateEvent The event to subscribe to.
      * @param handler The typed handler to call when the event is received.
      */
-    template<typename EventType>
-    void subscribeToSystemEvent(Connection& connection, event systemStateEvent, 
+    template <typename EventType>
+    void subscribeToSystemEvent(connection_type& connection, event systemStateEvent, 
                                std::function<void(const EventType&)> handler) {
-        registerHandler(systemStateEvent, [handler](const SIMCONNECT_RECV* msg, [[maybe_unused]] DWORD size) {
+        this->registerHandler(systemStateEvent, [handler](const SIMCONNECT_RECV* msg, [[maybe_unused]] DWORD size) {
             handler(*reinterpret_cast<const EventType*>(msg));
         }, false);
         connection.subscribeToSystemEvent(systemStateEvent);

@@ -34,15 +34,22 @@ namespace SimConnect {
  * SimConnect message handler base class. This class uses the Curiously Recurring Template Pattern (CRTP) to prevent
  * the need for a virtual function table.
  * 
- * @tparam connection_type The connection to handle messages from.
- * @tparam simconnect_message_handler_type The type of the SimConnect message handler, which must derive from this class.
- * @tparam handler_type The handler type.
- * @tparam logger_type The logger type, defaults to NullLogger.
+ * @tparam C The connection to handle messages from.
+ * @tparam M The type of the SimConnect message handler, which must derive from this class.
+ * @tparam H The handler type.
+ * @tparam L The logger type, defaults to NullLogger.
  */
-template <class connection_type, class simconnect_message_handler_type, class handler_type = SimpleHandlerProc<SIMCONNECT_RECV>, class logger_type = NullLogger>
+template <class C, class M, class H = SimpleHandlerProc<SIMCONNECT_RECV>, class L = NullLogger>
 class SimConnectMessageHandler
 {
-private:
+    using connection_type = C;
+    using message_handler_type = M;
+    using handler_type = H;
+    using logger_type = L;
+    using mutex_type = C::mutex_type;
+    using guard_type = C::guard_type;
+
+
 #if defined(SIMCONNECT_RECV_ID_FLOW_EVENT)                                                              // MSFS 2024, since SDK 1.4.0
     static constexpr SIMCONNECT_RECV_ID maxRecvId = SIMCONNECT_RECV_ID_FLOW_EVENT;
 #elif defined(SIMCONNECT_RECV_ID_ENUMERATE_INPUT_EVENT_PARAMS)                                          // MSFS 2020, since SDK 0.22.0
@@ -58,14 +65,16 @@ private:
 #endif
 
     /** Array of message handlers. */
-    std::array<handler_type, maxRecvId+1> handlers_;
+    std::array<H, maxRecvId+1> handlers_;
 	/** Default message handler. */
-    handler_type defaultHandler_;
+    H defaultHandler_;
 
     bool autoClosing_ = false;
 
-    logger_type logger_;
+    L logger_;
 
+
+    mutex_type mutex_;
 
     // No copies or moves
     SimConnectMessageHandler(const SimConnectMessageHandler&) = delete;
@@ -75,13 +84,13 @@ private:
 
 protected:
 	/** The connection to handle messages from. */
-    connection_type& connection_;
+    C& connection_;
 
 	/**
      * Constructor.
      * @param connection The connection to handle messages from.
      */
-    SimConnectMessageHandler(connection_type& connection) : connection_(connection), logger_("SimConnectMessageHandler") {};
+    SimConnectMessageHandler(C& connection) : connection_(connection), logger_("SimConnectMessageHandler") {};
 
 public:
     ~SimConnectMessageHandler() = default;
@@ -98,7 +107,8 @@ public:
      * 
      * @returns The default message handler.
      */
-    const handler_type& defaultHandler() const noexcept { return defaultHandler_; }
+    [[nodiscard]]
+    H defaultHandler() const noexcept { return defaultHandler_; }
 
 
     /**
@@ -107,27 +117,34 @@ public:
      * @param id The message type id.
      * @returns The message handler for the specified message type.
      */
-    const handler_type& getHandler(SIMCONNECT_RECV_ID id) const noexcept { return handlers_[id]; }
+    [[nodiscard]]
+    H getHandler(SIMCONNECT_RECV_ID id) const noexcept {
+        if (id < 0 || id > maxRecvId) {
+            return H{};
+        }
+        return handlers_[id];
+    }
 
 
     /**
      * Dispatches a SimConnect message to the correct handler.
-	 * @param msg The message to dispatch.
+     *
+     * @param msg The message to dispatch.
      */
     void dispatch(const SIMCONNECT_RECV* msg) {
-        auto handler = handlers_[msg->dwID].proc();
+        auto handler = getHandler(static_cast<SIMCONNECT_RECV_ID>(msg->dwID)).proc();
+        auto defHandler = defaultHandler().proc();
+        bool shouldClose = isAutoClosing() && (msg->dwID == SIMCONNECT_RECV_ID_QUIT);
+
         if (handler) {
             handler(*msg);
         }
-        else {
-            auto defHandler = defaultHandler().proc();
-            if (defHandler) {
-                defHandler(*msg);
-            }
+        else if (defHandler) {
+            defHandler(*msg);
         }
         // else ignore. (no specific handler, nor a default one)
 
-        if (isAutoClosing() && msg->dwID == SIMCONNECT_RECV_ID::SIMCONNECT_RECV_ID_QUIT) {
+        if (shouldClose) {
 			connection_.close();
 		}
     }
@@ -138,21 +155,23 @@ protected:
      * Dispatches any waiting messages.
      */
     void dispatchWaitingMessages() {
-        SIMCONNECT_RECV* msg = nullptr;
-        DWORD size = 0;
-
-        while (connection_.isOpen() && connection_.getNextDispatch(msg, size)) {
+        volatile bool gotMessages{ false };
+        while (connection_.callDispatch([this, &gotMessages](const SIMCONNECT_RECV* msg, DWORD size) {
             if (msg == nullptr) {
                 logger_.warn("Received null message from SimConnect");
-                continue;
+                return;
             }
             if (size < msg->dwSize) {
                 logger_.warn("Received message size {} is too small for message of type {} that claims to be size {}.", size, msg->dwID, msg->dwSize);
-                continue;
+                return;
             }
             dispatch(msg);
+            gotMessages = true;
+        }) && gotMessages) {
+            gotMessages = false; // Keep dispatching while there are messages
         }
     }
+
 
 public:
 
@@ -161,7 +180,8 @@ public:
      * 
      * @returns The connection associated with this handler.
      */
-    connection_type& connection() noexcept { return connection_; }
+    [[nodiscard]]
+    C& connection() noexcept { return connection_; }
 
 
     /**
@@ -175,7 +195,7 @@ public:
      * 
      * @param proc The message handler.
      */
-    void setDefaultHandler(handler_type::HandlerProcType proc) { defaultHandler_ = proc; }
+    void setDefaultHandler(H::HandlerProcType proc) { defaultHandler_ = proc; }
 
 
     /**
@@ -184,7 +204,11 @@ public:
      * @param id The message type id.
      * @param proc The message handler.
      */
-    void registerHandlerProc(SIMCONNECT_RECV_ID id, handler_type::HandlerProcType proc) { handlers_[id].setProc(proc); }
+    void registerHandlerProc(SIMCONNECT_RECV_ID id, H::HandlerProcType proc) {
+        guard_type guard(mutex_);
+
+        handlers_[id].setProc(proc);
+    }
 
 
     /**
@@ -208,7 +232,7 @@ public:
 	 * 
 	 * @param duration The maximum amount of time to wait for a message, defaults to 0ms meaning don't wait.
      */
-    void handle(std::chrono::milliseconds duration = std::chrono::milliseconds(0)) { static_cast<simconnect_message_handler_type*>(this)->dispatch(duration); }
+    void handle(std::chrono::milliseconds duration = std::chrono::milliseconds(0)) { static_cast<M*>(this)->dispatch(duration); }
 
 };
 

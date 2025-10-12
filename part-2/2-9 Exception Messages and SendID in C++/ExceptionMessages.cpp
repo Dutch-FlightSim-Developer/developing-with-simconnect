@@ -221,7 +221,7 @@ auto main() -> int {
 
 	std::cout << "Opening connection\n";
 	if (connection.open()) {
-		SimConnect::SystemStateHandler requestHandler;
+		SimConnect::SystemStateHandler<SimConnect::WindowsEventHandler<>> requestHandler;
 		requestHandler.enable(handler);
 
 		requestHandler.requestSystemState(connection, "AircraftLoaded",
@@ -255,7 +255,7 @@ auto main() -> int {
 			}); // Will cause an exception message
 
 		std::cout << "Handling messages\n";
-		handler.handle(30s);
+		handler.handle(10s);
 	}
 	else {
 		std::cerr << "Failed to open connection\n";

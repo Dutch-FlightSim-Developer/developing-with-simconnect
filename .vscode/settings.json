@@ -73,7 +73,14 @@
         "xstring": "cpp",
         "xtr1common": "cpp",
         "xtree": "cpp",
-        "variant": "cpp"
+        "variant": "cpp",
+        "fstream": "cpp",
+        "numbers": "cpp",
+        "regex": "cpp",
+        "unordered_set": "cpp"
     },
-    "idf.pythonInstallPath": "C:\\Users\\bertl\\.espressif\\tools\\idf-python\\3.11.2\\python.exe"
+    "idf.pythonInstallPath": "C:\\Users\\bertl\\.espressif\\tools\\idf-python\\3.11.2\\python.exe",
+    "cmake.ignoreCMakeListsMissing": true,
+    "folding.regions.enabled": true,
+    "editor.foldingStrategy": "auto",
 }

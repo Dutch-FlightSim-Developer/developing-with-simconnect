@@ -20,7 +20,13 @@
 
 namespace SimConnect {
 
-class SystemStateHandler : public MessageHandler<SystemStateHandler, SIMCONNECT_RECV_ID_SYSTEM_STATE> {
+template <class M>
+class SystemStateHandler : public MessageHandler<SystemStateHandler<M>, M, SIMCONNECT_RECV_ID_SYSTEM_STATE> {
+public:
+    using simconnect_message_handler_type = M;
+	using connection_type = typename simconnect_message_handler_type::connection_type;
+
+private:
 
     // No copies or moves
     SystemStateHandler(const SystemStateHandler&) = delete;
@@ -51,10 +57,10 @@ public:
      * @param name The name of the state to request.
      * @param requestHandler The handler to execute when the state is received.
      */
-    void requestSystemState(Connection& connection, std::string name, std::function<void(bool)> requestHandler) {
+    void requestSystemState(connection_type& connection, std::string name, std::function<void(bool)> requestHandler) {
         auto requestId = connection.requests().nextRequestID();
 
-        registerHandler(requestId, [requestHandler](const SIMCONNECT_RECV& msg) {
+        this->registerHandler(requestId, [requestHandler](const SIMCONNECT_RECV& msg) {
             auto& state = reinterpret_cast<const SIMCONNECT_RECV_SYSTEM_STATE&>(msg);
             requestHandler(state.dwInteger != 0);
         }, true);
@@ -69,10 +75,10 @@ public:
      * @param name The name of the state to request.
      * @param requestHandler The handler to execute when the state is received.
      */
-    void requestSystemState(Connection& connection, std::string name, std::function<void(std::string)> requestHandler) {
+    void requestSystemState(connection_type& connection, std::string name, std::function<void(std::string)> requestHandler) {
         auto requestId = connection.requests().nextRequestID();
 
-        registerHandler(requestId, [requestHandler](const SIMCONNECT_RECV& msg) {
+        this->registerHandler(requestId, [requestHandler](const SIMCONNECT_RECV& msg) {
             auto& state = reinterpret_cast<const SIMCONNECT_RECV_SYSTEM_STATE&>(msg);
             requestHandler(std::string(state.szString));
         }, true);

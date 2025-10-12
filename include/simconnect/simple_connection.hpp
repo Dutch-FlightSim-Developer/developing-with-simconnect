@@ -1,6 +1,6 @@
 #pragma once
 /*
- * Copyright (c) 2024. Bert Laverman
+ * Copyright (c) 2024, 2025. Bert Laverman
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -24,20 +24,21 @@ namespace SimConnect {
 /**
  * A SimConnect connection with no support for Windows Messaging or Events.
  */
-class SimpleConnection : public Connection
+template <bool ThreadSafe = false>
+class SimpleConnection : public Connection<ThreadSafe>
 {
 public:
 	/**
 	 * Constructor, using the default client name.
 	 */
-	SimpleConnection() : Connection() {}
+	SimpleConnection() : Connection<ThreadSafe>() {}
 
 
 	/**
 	 * Constructor.
 	 * @param name The name of the connection.
 	 */
-    SimpleConnection(std::string name) : Connection(name) {}
+    SimpleConnection(std::string name) : Connection<ThreadSafe>(name) {}
 
 
     ~SimpleConnection() {}
@@ -58,8 +59,8 @@ public:
 	 */
 	[[nodiscard]]
 	bool open(int configIndex = 0) {
-		return callOpen(nullptr, 0, nullptr, configIndex);
+		return this->callOpen(nullptr, 0, nullptr, configIndex);
 	}
 };
 
-}
+} // namespace SimConnect

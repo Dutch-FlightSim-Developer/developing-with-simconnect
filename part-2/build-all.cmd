@@ -10,9 +10,7 @@ cd "2-3 Windows Messaging in C"
 call ..\..\build.cmd WindowsMessaging
 cd ..
 
-cd "2-4 Windows Messaging in C++"
-call ..\..\build.cmd WindowsMessaging
-cd ..
+echo "NOT building 2-4 Windows Messaging in C++: MFC linkage doesn't work yet from the CLI build system"
 
 cd "2-5 Windows Event in C"
 call ..\..\build.cmd WindowsEvent

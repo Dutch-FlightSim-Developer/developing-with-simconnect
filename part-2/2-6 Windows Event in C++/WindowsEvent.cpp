@@ -17,6 +17,8 @@
 #include <simconnect/windows_event_connection.hpp>
 #include <simconnect/windows_event_handler.hpp>
 
+#include <simconnect/util/console_logger.hpp>
+
 #include <format>
 #include <iostream>
 
@@ -82,7 +84,7 @@ auto main() -> int {
 		std::cout << "Connected to the simulator. Will poll for messages until it quits or you press ^C.\n";
 
 		while (connection.isOpen()) {
-			std::cout << "Handling messages for 10 seconds using polling.\n";
+			std::cout << "Handling messages for 10 seconds using Windows Events.\n";
 			handler.handle(10s);
 		}
 	}

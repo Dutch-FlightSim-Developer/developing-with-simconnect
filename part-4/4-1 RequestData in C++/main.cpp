@@ -252,8 +252,8 @@ void setupAircraftInfoDefinition(SimConnect::DataDefinition<AircraftInfo>& def) 
 
 
 void testGetData() {
-	SimConnect::WindowsEventConnection connection;
-	SimConnect::WindowsEventHandler handler(connection);
+	SimConnect::WindowsEventConnection<> connection;
+	SimConnect::WindowsEventHandler<> handler(connection);
 	handler.autoClosing(true);
 
 	handler.setDefaultHandler([](const SIMCONNECT_RECV& msg) {
@@ -268,7 +268,7 @@ void testGetData() {
 
 	if (connection.open()) {
         setupAircraftInfoDefinition(aircraftDef);
-        SimConnect::SimObjectDataHandler dataHandler;
+        SimConnect::SimObjectDataHandler<SimConnect::WindowsEventHandler<>> dataHandler;
 		dataHandler.enable(handler);
 
 		auto dataRequest = dataHandler.requestDataOnce<AircraftInfo>(connection, aircraftDef, [](const AircraftInfo& info) {
@@ -281,7 +281,7 @@ void testGetData() {
                       << "  Longitude: " << info.longitude << " degrees\n";
         }, SIMCONNECT_OBJECT_ID_USER);
 		std::cout << "\n\nHandling messages for 10 minutes.\n";
-		handler.handle(10min);
+		handler.handle(20s);
 	}
 	else {
 		std::cerr << "Failed to connect to simulator.\n";

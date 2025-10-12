@@ -318,7 +318,7 @@ void testGetData() {
 
 	if (connection.open()) {
 		setupSimObjectInfoDefinition(aircraftDef);
-		SimConnect::SimObjectDataHandler dataHandler;
+		SimConnect::SimObjectDataHandler<SimConnect::WindowsEventHandler<>> dataHandler;
 		dataHandler.enable(handler);
 
 		auto aircraftRequest = dataHandler.requestDataByType<SimObjectInfo>(connection, aircraftDef, [](const SimObjectInfo& info) {

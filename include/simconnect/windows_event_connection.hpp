@@ -26,9 +26,12 @@ namespace SimConnect {
 /**
  * A SimConnect connection with support for notifications through a Windows Event.
  */
-template <bool ThreadSafe = false>
-class WindowsEventConnection : public Connection<ThreadSafe> {
+template <bool ThreadSafe = false, class L = NullLogger>
+class WindowsEventConnection : public Connection<ThreadSafe, L> {
+public:
+	using logger_type = typename L;
 
+private:
 	/**
 	 * The event handle to use for signalling that SIMCONNECT messages are available.
 	 */
@@ -46,14 +49,14 @@ public:
 	 * Constructor.
 	 * @param name The name of the connection.
 	 */
-    WindowsEventConnection(std::string name) : Connection<ThreadSafe>(name) {}
+    WindowsEventConnection(std::string name) : Connection<ThreadSafe, L>(name) {}
 
 
 	/**
 	 * Constructor, using the default client name.
 	 * @param eventHandle The event handle to use for signalling that SIMCONNECT messages are available.
 	 */
-    WindowsEventConnection(HANDLE eventHandle) : Connection<ThreadSafe>(), eventHandle_(eventHandle) {}
+    WindowsEventConnection(HANDLE eventHandle) : Connection<ThreadSafe, L>(), eventHandle_(eventHandle) {}
 
 
 	/**
@@ -61,7 +64,7 @@ public:
 	 * @param name The name of the connection.
 	 * @param eventHandle The event handle to use for signalling that SIMCONNECT messages are available.
 	 */
-    WindowsEventConnection(std::string name, HANDLE eventHandle) : Connection<ThreadSafe>(name), eventHandle_(eventHandle) {}
+    WindowsEventConnection(std::string name, HANDLE eventHandle) : Connection<ThreadSafe, L>(name), eventHandle_(eventHandle) {}
 
     ~WindowsEventConnection() {
         if (eventHandle_ != nullptr) {

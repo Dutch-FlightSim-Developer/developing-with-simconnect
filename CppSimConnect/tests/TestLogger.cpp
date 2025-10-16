@@ -33,6 +33,11 @@ private:
 public:
     StringLogger(std::string name = "TestLogger", LogLevel level = LogLevel::Info) 
         : Logger<StringLogger>(name, level) {}
+    StringLogger(const std::string&, StringLogger&, LogLevel) {}  // Constructor compatible with logger expectations
+
+    void doLog([[maybe_unused]] const std::string&, LogLevel level, const std::string& msg) {
+        logs_.push_back({level, msg});
+    }
 
     // This method is called by the base class Logger
     void log(LogLevel level, std::string message) {

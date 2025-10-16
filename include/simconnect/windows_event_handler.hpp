@@ -17,30 +17,41 @@
 
 
 #include <simconnect/simconnect_message_handler.hpp>
+#include <simconnect/windows_event_connection.hpp>
 
 namespace SimConnect {
+
 
 /**
  * A SimConnect message handler.
  */
-template <bool ThreadSafe = false, class handler_type = SimpleHandlerProc<SIMCONNECT_RECV>, class logger_type = NullLogger>
-class WindowsEventHandler : public SimConnectMessageHandler<WindowsEventConnection<ThreadSafe>, WindowsEventHandler<ThreadSafe, handler_type, logger_type>, handler_type, logger_type>
+template <bool ThreadSafe = false, class L = NullLogger, class M = SingleHandlerPolicy<SIMCONNECT_RECV>>
+class WindowsEventHandler : public SimConnectMessageHandler<WindowsEventConnection<ThreadSafe, L>, WindowsEventHandler<ThreadSafe, L, M>, M>
 {
 public:
-	using connection_type = WindowsEventConnection<ThreadSafe>;
+    using connection_type = typename WindowsEventConnection<ThreadSafe, L>;
+    using handler_id_type = typename M::handler_id_type;
+	using handler_proc_type = typename M::handler_proc_type;
+	using logger_type = L;
 
-
-    WindowsEventHandler(WindowsEventConnection<ThreadSafe>& connection) : SimConnectMessageHandler<WindowsEventConnection<ThreadSafe>, WindowsEventHandler<ThreadSafe, handler_type, logger_type>, handler_type, logger_type>(connection) {}
-    ~WindowsEventHandler() {}
-
+private:
     WindowsEventHandler(const WindowsEventHandler&) = delete;
     WindowsEventHandler(WindowsEventHandler&&) = delete;
     WindowsEventHandler& operator=(const WindowsEventHandler&) = delete;
     WindowsEventHandler& operator=(WindowsEventHandler&&) = delete;
 
+public:
+    WindowsEventHandler(connection_type& connection, LogLevel logLevel = LogLevel::Info)
+        : SimConnectMessageHandler<WindowsEventConnection<ThreadSafe, L>, WindowsEventHandler<ThreadSafe, L, M>, M>(connection, logLevel)
+    {
+    }
+
+    ~WindowsEventHandler() = default;
+
+
     /**
      * Handles incoming SimConnect messages.
-     * @param connection The connection to handle messages from.
+     * 
      * @param duration The maximum amount of time to wait for a message, defaults to 0ms meaning don't wait.
      */
     void dispatch(std::chrono::milliseconds duration = std::chrono::milliseconds(0)) {

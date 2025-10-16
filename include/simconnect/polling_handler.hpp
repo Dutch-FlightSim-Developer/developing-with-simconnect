@@ -27,26 +27,31 @@ namespace SimConnect {
  * A SimConnect message handler that employs polling.
  * 
  * **NOTE** This is not a good way to handle SimConnect messages.
+ * 
+ * @tparam C The SimConnect connection type.
+ * @tparam M The handler policy type.
  */
-template <class connection_type, class handler_type = SimpleHandlerProc<SIMCONNECT_RECV>, class logger_type = NullLogger>
-class PollingHandler : public SimConnectMessageHandler<connection_type, PollingHandler<connection_type, handler_type,  logger_type>, handler_type, logger_type>
+template <class C, class M = SingleHandlerPolicy<SIMCONNECT_RECV>>
+class PollingHandler : public SimConnectMessageHandler<C, PollingHandler<C, M, L>, M>
 {
 private:
     std::chrono::milliseconds sleep_duration_ = std::chrono::milliseconds(100);
 
-public:
-    PollingHandler(connection_type& connection)
-        : SimConnectMessageHandler<connection_type, PollingHandler<connection_type, handler_type, logger_type>>(connection)
-    {}
-    PollingHandler(connection_type& connection, std::chrono::milliseconds sleep_duration)
-        : SimConnectMessageHandler<connection_type, PollingHandler<connection_type, handler_type, logger_type>>(connection), sleep_duration_(sleep_duration)
-    {}
-    ~PollingHandler() {}
 
     PollingHandler(const PollingHandler&) = delete;
     PollingHandler(PollingHandler&&) = delete;
     PollingHandler& operator=(const PollingHandler&) = delete;
     PollingHandler& operator=(PollingHandler&&) = delete;
+
+public:
+    PollingHandler(connection_type& connection, LogLevel logLevel = LogLevel::Info)
+        : SimConnectMessageHandler<connection_type, PollingHandler<connection_type, handler_type, logger_type>>(connection, logLevel)
+    {}
+    PollingHandler(connection_type& connection, std::chrono::milliseconds sleep_duration, LogLevel logLevel = LogLevel::Info)
+        : SimConnectMessageHandler<connection_type, PollingHandler<connection_type, handler_type, logger_type>>(connection, logLevel), sleep_duration_(sleep_duration)
+    {}
+    ~PollingHandler() = default;
+
 
     std::chrono::milliseconds getSleepDuration() const noexcept { return sleep_duration_; }
     void setSleepDuration(std::chrono::milliseconds sleep_duration) noexcept { sleep_duration_ = sleep_duration; }

@@ -16,7 +16,11 @@
  */
 
 
+#include <chrono>
+#include <iomanip>
 #include <iostream>
+#include <sstream>
+
 
 #include <simconnect/util/logger.hpp>
 
@@ -32,6 +36,7 @@ namespace SimConnect {
 class ConsoleLogger : public Logger<ConsoleLogger> {
 public:
     ConsoleLogger(std::string name = "ConsoleLogger", LogLevel level = LogLevel::Info) : Logger<ConsoleLogger>(name, level) {}
+    ConsoleLogger(std::string name, ConsoleLogger& rootLogger, LogLevel level = LogLevel::Info) : Logger<ConsoleLogger>(name, rootLogger, level) {}
     ConsoleLogger(const ConsoleLogger&) = default;
     ConsoleLogger(ConsoleLogger&&) = default;
     ConsoleLogger& operator=(const ConsoleLogger&) = default;
@@ -39,8 +44,19 @@ public:
     ~ConsoleLogger() = default;
 
 
-    void log(LogLevel level, const std::string& message) const {
-        std::cout << "[" << LogLevelNames[static_cast<size_t>(level)] << "] " << message << std::endl;
+    void doLog(const std::string& loggerName, LogLevel level, const std::string& message) {
+        // Get current time
+        auto now = std::chrono::system_clock::now();
+        std::time_t now_c = std::chrono::system_clock::to_time_t(now);
+        std::tm tm_buf;
+#if defined(_WIN32)
+        localtime_s(&tm_buf, &now_c);
+#else
+        localtime_r(&now_c, &tm_buf);
+#endif
+        std::ostringstream oss;
+        oss << std::put_time(&tm_buf, "%Y-%m-%d %H:%M:%S");
+        std::cerr << "[" << oss.str() << "] [" << loggerName << "] [" << LogLevelNames[static_cast<size_t>(level)] << "] " << message << std::endl;
     }
 };
 

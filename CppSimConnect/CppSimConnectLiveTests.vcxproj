@@ -105,6 +105,7 @@
     <ClInclude Include=".\live-tests\pch.h" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="live-tests\TestBackgroundHandler.cpp" />
     <ClCompile Include="live-tests\TestConnection.cpp" />
     <ClCompile Include=".\live-tests\pch.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Create</PrecompiledHeader>

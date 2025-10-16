@@ -18,6 +18,8 @@
 
 #include <string>
 #include <format>
+#include <optional>
+#include <functional>
 
 
 namespace SimConnect {
@@ -47,28 +49,44 @@ constexpr const char* LogLevelNames[] = {
 
 
 /**
- * The Logger class provides a simple logging interface.
+ * The Logger class provides a simple logging interface with hierarchical support.
  * 
  * It supports different log levels and can be configured to log to different outputs.
+ * Non-root loggers delegate to their root logger while preserving name information.
  */
 template <class logger_type>
 class Logger {
     std::string name_;
     LogLevel level_{ LogLevel::Info };
+    std::optional<std::reference_wrapper<logger_type>> rootLogger_;
+
 
 public:
-    Logger(std::string name = "DefaultLogger", LogLevel level = LogLevel::Info) : name_(name), level_(level) {}
-    ~Logger() = default;
+    Logger(std::string name = "DefaultLogger", LogLevel level = LogLevel::Info)
+        : name_(std::move(name)), level_(level) {}
+
+    Logger(std::string name, logger_type& rootLogger, LogLevel level = LogLevel::Info)
+        : name_(std::move(name)), level_(level), rootLogger_(rootLogger) {}
 
     Logger(const Logger&) = default;
     Logger(Logger&&) = default;
     Logger& operator=(const Logger&) = default;
     Logger& operator=(Logger&&) = default;
 
+    ~Logger() = default;
 
     LogLevel level() const noexcept { return level_; }
     void level(LogLevel level) noexcept { level_ = level; }
-
+    const std::string& name() const noexcept { return name_; }
+    
+    bool isRootLogger() const noexcept { return !rootLogger_.has_value(); }
+    void rootLogger(logger_type& rootLogger) noexcept { rootLogger_.emplace(rootLogger); }
+    std::optional<std::reference_wrapper<logger_type>> getRootLogger() noexcept {
+        return rootLogger_;
+    }
+    std::optional<std::reference_wrapper<const logger_type>> getRootLogger() const noexcept { 
+        return rootLogger_; 
+    }
 
     inline bool isTraceEnabled() { return level() <= LogLevel::Trace; }
     inline bool isDebugEnabled() { return level() <= LogLevel::Debug; }
@@ -77,16 +95,38 @@ public:
     inline bool isErrorEnabled() { return level() <= LogLevel::Error; }
     inline bool isFatalEnabled() { return level() <= LogLevel::Fatal; }
 
+
+    /**
+     * Actual logging implementation to be provided by the derived logger_type.
+     * This method is called by the base Logger class to perform the logging.
+     * 
+     * @param loggerName The name of the logger (for context).
+     * @param level The log level of the message.
+     * @param message The message to log.
+     */
+    void doLog(const std::string& loggerName, LogLevel level, const std::string& message) {
+        static_cast<logger_type*>(this)->doLog(loggerName, level, message);
+    }
+
+
     /**
      * Logs a message at the specified log level.
+     * Non-root loggers delegate to their root logger with name information.
      * 
      * @param level The log level to log the message at.
      * @param message The message to log.
+     * @param loggerName The name of the originating logger (for delegation).
      */
-    void log(LogLevel level, std::string message) {
-        static_cast<logger_type*>(this)->log(level, message);
+    void log(LogLevel level, const std::string& message, const std::string& loggerName = {}) {
+        if (isRootLogger()) {
+            // Root logger handles the actual logging
+            const std::string& effectiveName = loggerName.empty() ? name_ : loggerName;
+            doLog(effectiveName, level, message);
+        } else {
+            // Non-root logger delegates to root with its own name
+            rootLogger_->get().doLog(name_, level, message);
+        }
     }
-
 
     /**
      * Logs a formatted message at the specified log level.
@@ -96,24 +136,24 @@ public:
      * @param args The arguments to format the message with.
      */
     template<typename... Args>
-    void log(LogLevel level, std::string format, Args&&... args) {
+    void log(LogLevel level, const std::string format, Args&&... args) {
         log(level, std::vformat(format, std::make_format_args(args...)));
     }
 
 
-    inline void trace(std::string txt) {
+    inline void trace(const std::string txt) {
         if (isTraceEnabled()) {
             log(LogLevel::Trace, txt);
         }
     }
     template<typename... Args>
-    inline void trace(std::string format, Args&&... args) {
+    inline void trace(const std::string format, Args&&... args) {
         if (isTraceEnabled()) {
             log(LogLevel::Trace, format, std::forward<Args>(args)...);
         }
     }
 
-    inline void debug(std::string txt) {
+    inline void debug(const std::string txt) {
         if (isDebugEnabled()) {
             log(LogLevel::Debug, txt);
         }
@@ -125,11 +165,12 @@ public:
         }
     }
 
-    inline void info(std::string txt) {
+    inline void info(const std::string txt) {
         if (isInfoEnabled()) {
             log(LogLevel::Info, txt);
         }
     }
+
     template<typename... Args>
     inline void info(const std::string format, Args&&... args) {
         if (isInfoEnabled()) {
@@ -137,7 +178,7 @@ public:
         }
     }
 
-    inline void warn(std::string txt) {
+    inline void warn(const std::string txt) {
         if (isWarnEnabled()) {
             log(LogLevel::Warn, txt);
         }
@@ -149,7 +190,7 @@ public:
         }
     }
 
-    inline void error(std::string txt) {
+    inline void error(const std::string txt) {
         if (isErrorEnabled()) {
             log(LogLevel::Error, txt);
         }
@@ -161,7 +202,7 @@ public:
         }
     }
 
-    inline void fatal(std::string txt) {
+    inline void fatal(const std::string txt) {
         if (isFatalEnabled()) {
             log(LogLevel::Fatal, txt);
         }

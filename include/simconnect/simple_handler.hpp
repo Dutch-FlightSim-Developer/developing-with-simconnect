@@ -22,16 +22,23 @@ namespace SimConnect {
 
 /**
  * A Simple SimConnect message handler. This handler has no blocking handler, so it will not wait for messages.
- * @tparam connection_type The SimConnect connection type.
- * @tparam handler_type The handler processor type.
- * @tparam logger_type The logger type.
+ * @tparam C The SimConnect connection type.
+ * @tparam H The handler processor type.
  */
-template <class connection_type, class handler_type = SimpleHandlerProc<SIMCONNECT_RECV>, class logger_type = NullLogger>
-class SimpleHandler : public SimConnectMessageHandler<connection_type, SimpleHandler<connection_type, handler_type, logger_type>, handler_type, logger_type>
+template <class C, class H = SingleHandlerPolicy<SIMCONNECT_RECV>>
+class SimpleHandler : public SimConnectMessageHandler<C, SimpleHandler<C, H>, H>
 {
 public:
-    SimpleHandler(connection_type& connection) : SimConnectMessageHandler<connection_type, SimpleHandler<connection_type, handler_type, logger_type>, handler_type, logger_type>(connection) {}
-    virtual ~SimpleHandler() {}
+    using connection_type = C;
+    using handler_type = H;
+
+
+    SimpleHandler(connection_type& connection, LogLevel logLevel = LogLevel::Info)
+        : SimConnectMessageHandler<connection_type, SimpleHandler<connection_type, handler_type>, handler_type>(connection, logLevel)
+    {
+    }
+
+    ~SimpleHandler()  = default;
 
     SimpleHandler(const SimpleHandler&) = delete;
     SimpleHandler(SimpleHandler&&) = delete;

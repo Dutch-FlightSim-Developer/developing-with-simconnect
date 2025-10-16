@@ -107,15 +107,6 @@
     <ClInclude Include="..\include\simconnect\windows_messaging_connection.hpp">
       <Filter>Header Files\SimConnect</Filter>
     </ClInclude>
-    <ClInclude Include="..\include\simconnect\messaging\handler_proc.hpp">
-      <Filter>Header Files\SimConnect\messaging</Filter>
-    </ClInclude>
-    <ClInclude Include="..\include\simconnect\messaging\multi_handler_proc.hpp">
-      <Filter>Header Files\SimConnect\messaging</Filter>
-    </ClInclude>
-    <ClInclude Include="..\include\simconnect\messaging\simple_handler_proc.hpp">
-      <Filter>Header Files\SimConnect\messaging</Filter>
-    </ClInclude>
     <ClInclude Include="..\include\simconnect\util\console_logger.hpp">
       <Filter>Header Files\SimConnect\util</Filter>
     </ClInclude>
@@ -129,6 +120,12 @@
       <Filter>Header Files\SimConnect\util</Filter>
     </ClInclude>
     <ClInclude Include="..\include\simconnect\simconnect_message_handler.hpp">
+      <Filter>Header Files\SimConnect</Filter>
+    </ClInclude>
+    <ClInclude Include="..\include\simconnect\messaging\handler_policy.hpp">
+      <Filter>Header Files\SimConnect\messaging</Filter>
+    </ClInclude>
+    <ClInclude Include="..\include\simconnect\background_simconnect_manager.hpp">
       <Filter>Header Files\SimConnect</Filter>
     </ClInclude>
   </ItemGroup>

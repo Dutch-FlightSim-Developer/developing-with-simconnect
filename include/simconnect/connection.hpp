@@ -22,6 +22,7 @@
 #include <simconnect/data/data_definitions.hpp>
 #include <simconnect/data/init_position.hpp>
 #include <simconnect/data_frequency.hpp>
+#include <simconnect/util/null_logger.hpp>
 
 #include <string>
 
@@ -57,10 +58,11 @@ public:
 /**
  * A SimConnect connection.
  */
-template <bool ThreadSafe = false>
+template <bool ThreadSafe = false, class L = NullLogger>
 class Connection
 {
 public:
+	using logger_type = L;
     using mutex_type = std::conditional_t<ThreadSafe, std::mutex, NoMutex>;
     using guard_type = std::conditional_t<ThreadSafe, std::lock_guard<mutex_type>, NoGuard>;
 
@@ -71,6 +73,9 @@ private:
 	HRESULT hr_{ S_OK };				///< The last error code.
 
     mutex_type mutex_;
+
+
+    logger_type logger_{ "SimConnect::Connection" }; ///< The logger for this connection.
 
 
 public:
@@ -128,6 +133,14 @@ public:
 	bool failed() const noexcept { return FAILED(hr()); }
 
 
+    /**
+     * Returns the logger.
+     * 
+     * @returns The logger.
+     */
+	logger_type& logger() noexcept { return logger_; }
+
+
 protected:
 	/**
 	 * Opens the connection.
@@ -170,7 +183,7 @@ public:
 	Connection& operator=(Connection&&) = delete;
 
 
-	/**
+    /**
 	 * Provides an implicit conversion to the SimConnect handle.
 	 * @returns The SimConnect handle.
 	 */

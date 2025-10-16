@@ -18,19 +18,44 @@
 
 #include <tuple>
 #include <simconnect/simple_handler.hpp>
-#include <simconnect/messaging/simple_handler_proc.hpp>
+
 
 using namespace SimConnect;
+
+// Mock logger for testing
+static std::vector<std::string> logs;
+
+class MockLogger : public Logger<MockLogger> {
+public:
+    MockLogger() = default;
+    MockLogger(const std::string&, LogLevel) {}  // Constructor compatible with logger expectations
+    MockLogger(const std::string&, MockLogger&, LogLevel) {}  // Constructor compatible with logger expectations
+
+    void doLog([[maybe_unused]] const std::string&, [[maybe_unused]] LogLevel, const std::string& msg) {
+        logs.push_back(msg);
+    }
+
+    void warn(const std::string& msg) {
+        logs.push_back("WARN: " + msg);
+    }
+
+    template<typename... Args>
+    void warn(const std::string& format, Args&&... args) {
+        logs.push_back("WARN: " + std::vformat(format, std::make_format_args(args...)));
+    }
+};
 
 // Mock connection type for testing
 class MockConnection {
 public:
     using mutex_type = NoMutex;
 	using guard_type = NoGuard;
+	using logger_type = MockLogger;
 private:
     std::vector<std::tuple<SIMCONNECT_RECV, DWORD>> messages_;
     size_t messageIndex_{0};
     bool isOpen_{true};
+	MockLogger logger_;
 
 public:
     MockConnection() = default;
@@ -85,24 +110,9 @@ public:
     
     size_t messageCount() const { return messages_.size(); }
     size_t processedCount() const { return messageIndex_; }
-};
 
-// Mock logger for testing
-static std::vector<std::string> logs;
 
-class MockLogger {
-public:
-    MockLogger() = default;
-    MockLogger(const std::string&) {}  // Constructor compatible with logger expectations
-    
-    void warn(const std::string& msg) {
-        logs.push_back("WARN: " + msg);
-    }
-    
-    template<typename... Args>
-    void warn(const std::string& format, Args&&... args) {
-        logs.push_back("WARN: " + std::vformat(format, std::make_format_args(args...)));
-    }
+	MockLogger& logger() noexcept { return logger_; }
 };
 
 // Test SimpleHandler basic functionality
@@ -385,7 +395,7 @@ TEST(SimpleHandlerTests, HandlerRetrieval) {
 // Then the handler should log a warning but continue processing
 TEST(SimpleHandlerTests, MalformedMessageHandling) {
     MockConnection connection;
-    SimpleHandler<MockConnection, SimpleHandlerProc<SIMCONNECT_RECV>, MockLogger> handler(connection);
+    SimpleHandler<MockConnection, SingleHandlerPolicy<SIMCONNECT_RECV>> handler(connection);
     
     // Add a message with incorrect size information
     SIMCONNECT_RECV msg{};

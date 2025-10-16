@@ -37,6 +37,7 @@ namespace SimConnect {
 enum class State {
     StartingUp,
     Connecting,
+    WaitingForOpen,
     Connected,
     Disconnecting,
     Disconnected,
@@ -47,6 +48,7 @@ constexpr const char* stateToString(State state) noexcept {
     switch (state) {
     case State::StartingUp: return "StartingUp";
     case State::Connecting: return "Connecting";
+    case State::WaitingForOpen: return "WaitingForOpen";
     case State::Connected: return "Connected";
     case State::Disconnecting: return "Disconnecting";
     case State::Disconnected: return "Disconnected";
@@ -125,6 +127,7 @@ private:
     std::chrono::milliseconds reconnectDelay_{ 3000 };
     std::chrono::milliseconds messageCheckInterval_{ 50 };
     std::chrono::milliseconds initialConnectDelay_{ 0 };
+    std::chrono::milliseconds openHandshakeTimeout_{ 10000 }; // 10 seconds timeout for OPEN message
     int maxReconnectAttempts_{ -1 }; // -1 = infinite
     int configIndex_{ 0 }; // SimConnect.cfg section index
 
@@ -141,6 +144,8 @@ private:
     StateCallback stateCallback_;
     ErrorCallback errorCallback_;
     std::string lastErrorMessage_;
+
+    std::chrono::steady_clock::time_point openWaitStartTime_;
 
 
     // Message handler registration storage
@@ -194,6 +199,10 @@ public:
 
     std::chrono::milliseconds initialConnectDelay() const noexcept { return initialConnectDelay_; }
     BackgroundSimConnectManager<C,H>& initialConnectDelay(std::chrono::milliseconds delay) noexcept { initialConnectDelay_ = delay; return *this; }
+
+
+    std::chrono::milliseconds openHandshakeTimeout() const noexcept { return openHandshakeTimeout_; }
+    BackgroundSimConnectManager<C,H>& openHandshakeTimeout(std::chrono::milliseconds timeout) noexcept { openHandshakeTimeout_ = timeout; return *this; }
 
 
     int maxReconnectAttempts() const noexcept { return maxReconnectAttempts_; }
@@ -414,6 +423,9 @@ private:
                 case State::Connecting:
                     handleConnecting();
                     break;
+                case State::WaitingForOpen:
+                    handleWaitingForOpen();
+                    break;
                 case State::Connected:
                     handleConnected();
                     break;
@@ -451,21 +463,29 @@ private:
             return;
         }
 
+        // Register critical handlers before opening connection to avoid race conditions
         handler_.registerHandler<SIMCONNECT_RECV_OPEN>(SIMCONNECT_RECV_ID_OPEN, [this](const SIMCONNECT_RECV_OPEN& msg) {
             simName_ = msg.szApplicationName;
-			simVersion_ = version(msg.dwApplicationVersionMajor, msg.dwApplicationVersionMinor);
-			simBuild_ = version(msg.dwApplicationBuildMajor, msg.dwApplicationBuildMinor);
-			simConnectVersion_ = version(msg.dwSimConnectVersionMajor, msg.dwSimConnectVersionMinor);
-			simConnectBuild_ = version(msg.dwSimConnectBuildMajor, msg.dwSimConnectBuildMinor);
+            simVersion_ = version(msg.dwApplicationVersionMajor, msg.dwApplicationVersionMinor);
+            simBuild_ = version(msg.dwApplicationBuildMajor, msg.dwApplicationBuildMinor);
+            simConnectVersion_ = version(msg.dwSimConnectVersionMajor, msg.dwSimConnectVersionMinor);
+            simConnectBuild_ = version(msg.dwSimConnectBuildMajor, msg.dwSimConnectBuildMinor);
 
             logger_.info("Connected to simulator: {} (version {}, build {}) via SimConnect version {} (build {})", 
                 simName_, simVersion_, simBuild_, simConnectVersion_, simConnectBuild_);
-		});
+            
+            // Apply any pending handler registrations now that we're fully connected
+            applyPendingHandlerRegistrations();
+            
+            transitionState(State::Connected);
+        });
+
         handler_.registerHandler<SIMCONNECT_RECV_QUIT>(SIMCONNECT_RECV_ID_QUIT, [this]([[maybe_unused]] const SIMCONNECT_RECV_QUIT& msg) {
             logger_.warn("Received QUIT message from simulator");
             setError(ErrorCode::ConnectionFailed, "Simulator quit");
-			transitionState(State::Disconnecting);
-		});
+            transitionState(State::Disconnecting);
+        });
+        
         logger_.info("Starting up with initial connect delay of {} ms", initialConnectDelay_.count());
         
         // Apply initial delay for autoConnect startup
@@ -497,7 +517,7 @@ private:
         auto result = attemptConnection();
         if (result.hasValue()) {
             reconnectAttempts_ = 0;
-            transitionState(State::Connected);
+            transitionState(State::WaitingForOpen);
         } else {
             reconnectAttempts_++;
             setError(result.error, std::format("Connection attempt {} failed: {}", reconnectAttempts_.load(), result.errorMessage));
@@ -512,6 +532,40 @@ private:
             }
             // Note: if shouldContinueRunning() returns true, we stay in Connecting state to retry
         }
+    }
+
+    void handleWaitingForOpen() noexcept {
+        if (!shouldAttemptConnection() || !shouldRun_) {
+            transitionState(State::Disconnecting);
+            return;
+        }
+
+        // Check if connection is still valid
+        if (!connection_.isOpen()) {
+            setError(ErrorCode::ConnectionFailed, "Connection lost while waiting for OPEN handshake");
+            transitionState(State::Disconnecting);
+            return;
+        }
+
+        // Check for timeout
+        auto now = std::chrono::steady_clock::now();
+        if (now - openWaitStartTime_ > openHandshakeTimeout_) {
+            setError(ErrorCode::ConnectionFailed, "Timeout waiting for SIMCONNECT_RECV_OPEN handshake");
+            transitionState(State::Disconnecting);
+            return;
+        }
+
+        // Process messages to receive the OPEN message
+        auto result = processMessages();
+        if (result.hasError()) {
+            setError(result.error, result.errorMessage);
+            transitionState(State::Disconnecting);
+            return;
+        }
+
+        // Wait briefly before checking again
+        std::unique_lock lock(mutex_);
+        cv_.wait_for(lock, std::chrono::milliseconds(50), [&] { return shouldStop(); });
     }
 
     void handleConnected() noexcept {
@@ -584,8 +638,8 @@ private:
             if (success) {
                 handler_.autoClosing(false); // We manage the lifecycle
                 
-                // Apply any pending handler registrations
-                applyPendingHandlerRegistrations();
+                // Record when we started waiting for OPEN
+                openWaitStartTime_ = std::chrono::steady_clock::now();
                 
                 return {std::monostate{}, ErrorCode::None, {}};
             } else {

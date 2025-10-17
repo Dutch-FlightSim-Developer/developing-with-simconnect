@@ -59,9 +59,6 @@
     <ClInclude Include="..\include\simconnect\events\events.hpp">
       <Filter>Header Files\SimConnect\Events</Filter>
     </ClInclude>
-    <ClInclude Include="..\include\simconnect\events\event_handler.hpp">
-      <Filter>Header Files\SimConnect\Events</Filter>
-    </ClInclude>
     <ClInclude Include="..\include\simconnect\requests\requests.hpp">
       <Filter>Header Files\SimConnect\Requests</Filter>
     </ClInclude>
@@ -127,6 +124,9 @@
     </ClInclude>
     <ClInclude Include="..\include\simconnect\background_simconnect_manager.hpp">
       <Filter>Header Files\SimConnect</Filter>
+    </ClInclude>
+    <ClInclude Include="..\include\simconnect\events\system_event_handler.hpp">
+      <Filter>Header Files\SimConnect\Events</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

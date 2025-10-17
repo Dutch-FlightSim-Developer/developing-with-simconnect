@@ -50,7 +50,7 @@ struct SimObjectIdHolder {
  * @tparam M The type of the SimConnect message handler, which must be derived from SimConnectMessageHandler.
  */
 template <class M>
-class SimObjectDataHandler : public MessageHandler<SimObjectDataHandler<M>, M, SIMCONNECT_RECV_ID_SIMOBJECT_DATA, SIMCONNECT_RECV_ID_SIMOBJECT_DATA_BYTYPE>
+class SimObjectDataHandler : public MessageHandler<SIMCONNECT_DATA_REQUEST_ID, SimObjectDataHandler<M>, M, SIMCONNECT_RECV_ID_SIMOBJECT_DATA, SIMCONNECT_RECV_ID_SIMOBJECT_DATA_BYTYPE>
 {
 public:
     using simconnect_message_handler_type = M;

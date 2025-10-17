@@ -31,10 +31,10 @@ TEST(TestConnection, ReceivesOpenMessage) {
     WindowsEventHandler<> handler(connection);
     std::atomic<bool> gotOpen{false};
 
-    handler.registerHandler<SIMCONNECT_RECV_OPEN>(SIMCONNECT_RECV_ID_OPEN, [&](const SIMCONNECT_RECV_OPEN&) {
+    [[maybe_unused]] auto openHandlerId = handler.registerHandler<SIMCONNECT_RECV_OPEN>(SIMCONNECT_RECV_ID_OPEN, [&](const SIMCONNECT_RECV_OPEN&) {
         gotOpen = true;
     });
-    handler.setDefaultHandler([](const SIMCONNECT_RECV&){});
+    [[maybe_unused]] auto defaultHandlerId = handler.registerDefaultHandler([](const SIMCONNECT_RECV&){});
 
     ASSERT_TRUE(connection.open());
 
@@ -58,10 +58,10 @@ TEST(TestConnection, ExceptionOnUnknownSystemState) {
     WindowsEventHandler<> handler(connection);
     std::atomic<bool> gotException{false};
 
-    handler.registerHandler<SIMCONNECT_RECV_EXCEPTION>(SIMCONNECT_RECV_ID_EXCEPTION, [&](const SIMCONNECT_RECV_EXCEPTION&) {
+    [[maybe_unused]] auto exceptionHandlerId = handler.registerHandler<SIMCONNECT_RECV_EXCEPTION>(SIMCONNECT_RECV_ID_EXCEPTION, [&](const SIMCONNECT_RECV_EXCEPTION&) {
         gotException = true;
     });
-    handler.setDefaultHandler([](const SIMCONNECT_RECV&) {});
+    [[maybe_unused]] auto defaultHandlerId = handler.registerDefaultHandler([](const SIMCONNECT_RECV&) {});
 
     ASSERT_TRUE(connection.open());
 

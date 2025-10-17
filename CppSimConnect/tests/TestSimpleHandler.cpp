@@ -51,6 +51,7 @@ public:
     using mutex_type = NoMutex;
 	using guard_type = NoGuard;
 	using logger_type = MockLogger;
+
 private:
     std::vector<std::tuple<SIMCONNECT_RECV, DWORD>> messages_;
     size_t messageIndex_{0};
@@ -127,9 +128,9 @@ TEST(SimpleHandlerTests, Construction) {
     
     // Should construct successfully
     EXPECT_NO_THROW(SimpleHandler<MockConnection> handler(connection));
-    
+
     SimpleHandler<MockConnection> handler(connection);
-    
+
     // Should be non-copyable and non-movable
     static_assert(!std::is_copy_constructible_v<SimpleHandler<MockConnection>>);
     static_assert(!std::is_move_constructible_v<SimpleHandler<MockConnection>>);
@@ -164,7 +165,7 @@ TEST(SimpleHandlerTests, DispatchWithDefaultHandler) {
     std::vector<SIMCONNECT_RECV_ID> receivedIds;
     
     // Set default handler
-    handler.setDefaultHandler([&receivedIds](const SIMCONNECT_RECV& msg) {
+    [[maybe_unused]] auto defaultHandlerId = handler.registerDefaultHandler([&receivedIds](const SIMCONNECT_RECV& msg) {
         receivedIds.push_back(static_cast<SIMCONNECT_RECV_ID>(msg.dwID));
     });
     
@@ -195,16 +196,16 @@ TEST(SimpleHandlerTests, DispatchWithSpecificHandlers) {
     int defaultCount = 0;
     
     // Register specific handlers
-    handler.registerHandlerProc(SIMCONNECT_RECV_ID_OPEN, [&openCount](const SIMCONNECT_RECV&) {
+    [[maybe_unused]] auto openHandlerId = handler.registerHandler(SIMCONNECT_RECV_ID_OPEN, [&openCount](const SIMCONNECT_RECV&) {
         openCount++;
     });
-    
-    handler.registerHandlerProc(SIMCONNECT_RECV_ID_QUIT, [&quitCount](const SIMCONNECT_RECV&) {
+
+    [[maybe_unused]] auto quitHandlerId = handler.registerHandler(SIMCONNECT_RECV_ID_QUIT, [&quitCount](const SIMCONNECT_RECV&) {
         quitCount++;
     });
     
     // Set default handler for unhandled messages
-    handler.setDefaultHandler([&defaultCount](const SIMCONNECT_RECV&) {
+    [[maybe_unused]] auto defaultHandlerId = handler.registerDefaultHandler([&defaultCount](const SIMCONNECT_RECV&) {
         defaultCount++;
     });
     
@@ -235,12 +236,12 @@ TEST(SimpleHandlerTests, DispatchWithTypedHandlers) {
     
     // Register typed handlers - these will receive SIMCONNECT_RECV references
     // but can be cast to specific types in real usage
-    handler.registerHandler<SIMCONNECT_RECV_OPEN>(SIMCONNECT_RECV_ID_OPEN, 
+    [[maybe_unused]] auto openHandlerId = handler.registerHandler<SIMCONNECT_RECV_OPEN>(SIMCONNECT_RECV_ID_OPEN,
         [&receivedOpenId](const SIMCONNECT_RECV_OPEN& msg) {
             receivedOpenId = msg.dwID;
         });
-    
-    handler.registerHandler<SIMCONNECT_RECV_QUIT>(SIMCONNECT_RECV_ID_QUIT,
+
+    [[maybe_unused]] auto quitHandlerId = handler.registerHandler<SIMCONNECT_RECV_QUIT>(SIMCONNECT_RECV_ID_QUIT,
         [&receivedQuitId](const SIMCONNECT_RECV_QUIT& msg) {
             receivedQuitId = msg.dwID;
         });
@@ -316,7 +317,7 @@ TEST(SimpleHandlerTests, DispatchStopsWhenConnectionCloses) {
     
     int processedCount = 0;
     
-    handler.setDefaultHandler([&processedCount, &connection](const SIMCONNECT_RECV& msg) {
+    [[maybe_unused]] auto defaultHandlerId = handler.registerDefaultHandler([&processedCount, &connection](const SIMCONNECT_RECV& msg) {
         processedCount++;
         if (msg.dwID == static_cast<DWORD>(SIMCONNECT_RECV_ID_QUIT)) {
             connection.close();  // Simulate connection closing
@@ -372,8 +373,8 @@ TEST(SimpleHandlerTests, HandlerRetrieval) {
     };
     
     // Register handlers
-    handler.registerHandlerProc(SIMCONNECT_RECV_ID_OPEN, openHandler);
-    handler.setDefaultHandler(defaultHandler);
+    [[maybe_unused]] auto openHandlerId = handler.registerHandler(SIMCONNECT_RECV_ID_OPEN, openHandler);
+    [[maybe_unused]] auto defaultHandlerId = handler.registerDefaultHandler(defaultHandler);
     
     // Get handler references (these variables document the interface)
     [[maybe_unused]] const auto& retrievedOpenHandler = handler.getHandler(SIMCONNECT_RECV_ID_OPEN);
@@ -395,7 +396,7 @@ TEST(SimpleHandlerTests, HandlerRetrieval) {
 // Then the handler should log a warning but continue processing
 TEST(SimpleHandlerTests, MalformedMessageHandling) {
     MockConnection connection;
-    SimpleHandler<MockConnection, SingleHandlerPolicy<SIMCONNECT_RECV>> handler(connection);
+    SimpleHandler<MockConnection> handler(connection);
     
     // Add a message with incorrect size information
     SIMCONNECT_RECV msg{};
@@ -406,7 +407,7 @@ TEST(SimpleHandlerTests, MalformedMessageHandling) {
     connection.addMessage(msg, sizeof(msg));
 
     bool handlerCalled = false;
-    handler.setDefaultHandler([&handlerCalled](const SIMCONNECT_RECV&) {
+    [[maybe_unused]] auto defaultHandlerId = handler.registerDefaultHandler([&handlerCalled](const SIMCONNECT_RECV&) {
         handlerCalled = true;
     });
 	logs.clear();  // Clear previous logs
@@ -436,7 +437,7 @@ TEST(SimpleHandlerTests, DispatchWithDuration) {
     connection.addMessage(SIMCONNECT_RECV_ID_OPEN);
     
     bool handlerCalled = false;
-    handler.setDefaultHandler([&handlerCalled](const SIMCONNECT_RECV&) {
+    [[maybe_unused]] auto defaultHandlerId = handler.registerDefaultHandler([&handlerCalled](const SIMCONNECT_RECV&) {
         handlerCalled = true;
     });
     

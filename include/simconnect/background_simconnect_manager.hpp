@@ -41,6 +41,7 @@ enum class State {
     Connected,
     Disconnecting,
     Disconnected,
+    Stopped,
     Error
 };
 
@@ -52,6 +53,7 @@ constexpr const char* stateToString(State state) noexcept {
     case State::Connected: return "Connected";
     case State::Disconnecting: return "Disconnecting";
     case State::Disconnected: return "Disconnected";
+	case State::Stopped: return "Stopped";
     case State::Error: return "Error";
     default: return "Unknown";
     }
@@ -109,7 +111,7 @@ using VoidResult = Result<std::monostate>;
  * @tparam C The connection type to use
  * @tparam H The handler type for SimConnect message processing
  */
-template <class C = WindowsEventConnection<true, NullLogger>, class H = WindowsEventHandler<true, NullLogger, MultiHandlerPolicy<>>>
+template <class C = WindowsEventConnection<true, NullLogger>, class H = WindowsEventHandler<true, NullLogger, MultiHandlerPolicy<SIMCONNECT_RECV>>>
 class BackgroundSimConnectManager {
 public:
     using connection_type = typename C;
@@ -131,7 +133,7 @@ private:
     int maxReconnectAttempts_{ -1 }; // -1 = infinite
     int configIndex_{ 0 }; // SimConnect.cfg section index
 
-    std::atomic<State> state_{ State::StartingUp };
+    std::atomic<State> state_{ State::Stopped };
     std::atomic<bool> shouldRun_{ false };
     std::atomic<bool> explicitDisconnect_{ false };
     std::atomic<int> reconnectAttempts_{ 0 };
@@ -146,6 +148,8 @@ private:
     std::string lastErrorMessage_;
 
     std::chrono::steady_clock::time_point openWaitStartTime_;
+
+    unsigned long long messageCheckCount_{ 0 };
 
 
     // Message handler registration storage
@@ -184,6 +188,10 @@ public:
         }
     }
 
+
+    unsigned long long messageCheckCount() const noexcept {
+        return messageCheckCount_;
+	}
 
     bool autoConnect() const noexcept { return autoConnect_; }
     BackgroundSimConnectManager<C,H>& autoConnect(bool autoConnect) noexcept { autoConnect_ = autoConnect; return *this; }
@@ -232,12 +240,16 @@ public:
      * Start the background thread.
      */
     void start() noexcept {
-        std::lock_guard lock(mutex_);
-        if (shouldRun_) {
-            return; // Already running
+        {
+            std::lock_guard lock(mutex_);
+            if (state_.load() != State::Stopped) {
+                return; // Already running
+            }
         }
 
         shouldRun_ = true;
+		transitionState(State::StartingUp);
+		explicitDisconnect_ = false;
         workerThread_ = std::jthread(&BackgroundSimConnectManager::workerLoop, this);
     }
 
@@ -251,11 +263,22 @@ public:
                 return; // Already stopped
             }
             shouldRun_ = false;
+			explicitDisconnect_ = true;
         }
         cv_.notify_all();
 
         // Don't join here - let destructor handle it to avoid potential deadlock
     }
+
+
+    /**
+     * Join the worker thread (blocks until thread exits).
+	 */
+    void join() noexcept {
+		logger_.info("Joining worker thread...");
+        workerThread_.join();
+	}
+
 
     /**
      * Request connection (useful when autoConnect is false or after explicit disconnect).
@@ -413,7 +436,7 @@ public:
 
 private:
     void workerLoop() noexcept {
-        while (shouldRun_) {
+        while (shouldRun_ && (state_.load() != State::Stopped)) {
             State currentState = state_.load();
 
             switch (currentState) {
@@ -441,10 +464,13 @@ private:
             }
         }
 
+		logger_.debug("Worker thread exiting...");
         // Cleanup on exit
         if (state_.load() != State::Disconnected) {
+			logger_.debug("Cleaning up connection on exit...");
             cleanupConnection();
         }
+		transitionState(State::Stopped);
     }
 
     inline std::string version(DWORD major, DWORD minor) const noexcept {
@@ -464,7 +490,7 @@ private:
         }
 
         // Register critical handlers before opening connection to avoid race conditions
-        handler_.registerHandler<SIMCONNECT_RECV_OPEN>(SIMCONNECT_RECV_ID_OPEN, [this](const SIMCONNECT_RECV_OPEN& msg) {
+        [[maybe_unused]] auto openHandlerId = handler_.registerHandler<SIMCONNECT_RECV_OPEN>(SIMCONNECT_RECV_ID_OPEN, [this](const SIMCONNECT_RECV_OPEN& msg) {
             simName_ = msg.szApplicationName;
             simVersion_ = version(msg.dwApplicationVersionMajor, msg.dwApplicationVersionMinor);
             simBuild_ = version(msg.dwApplicationBuildMajor, msg.dwApplicationBuildMinor);
@@ -480,7 +506,7 @@ private:
             transitionState(State::Connected);
         });
 
-        handler_.registerHandler<SIMCONNECT_RECV_QUIT>(SIMCONNECT_RECV_ID_QUIT, [this]([[maybe_unused]] const SIMCONNECT_RECV_QUIT& msg) {
+        [[maybe_unused]] auto quitHandlerId = handler_.registerHandler<SIMCONNECT_RECV_QUIT>(SIMCONNECT_RECV_ID_QUIT, [this]([[maybe_unused]] const SIMCONNECT_RECV_QUIT& msg) {
             logger_.warn("Received QUIT message from simulator");
             setError(ErrorCode::ConnectionFailed, "Simulator quit");
             transitionState(State::Disconnecting);
@@ -569,18 +595,22 @@ private:
     }
 
     void handleConnected() noexcept {
+        logger_.debug("handleConnected() called, messageCheckCount: {}", messageCheckCount_);
         if (!shouldAttemptConnection() || !shouldRun_) {
+            logger_.debug("Transitioning to Disconnecting: shouldAttemptConnection()={}, shouldRun_={}", (shouldAttemptConnection() ? "true" : "false"), (shouldRun_ ? "true" : "false"));
             transitionState(State::Disconnecting);
             return;
         }
 
         // Check if connection is still valid
         if (!connection_.isOpen()) {
+            logger_.debug("Transitioning to Disconnecting: Connection lost");
             setError(ErrorCode::ConnectionFailed, "Connection lost");
             transitionState(State::Disconnecting);
             return;
         }
 
+		logger_.debug("Processing messages...");
         // Process messages continuously with short timeout
         auto result = processMessages();
         if (result.hasError()) {
@@ -654,8 +684,9 @@ private:
     }
 
     VoidResult processMessages() noexcept {
+		messageCheckCount_++;
         try {
-            handler_.handle(messageCheckInterval_);
+            handler_.handle(/*messageCheckInterval_*/);
             return {std::monostate{}, ErrorCode::None, {}};
         } catch (const std::exception& e) {
             return {std::nullopt, ErrorCode::MessageProcessingFailed, std::string("Message processing error: ") + e.what()};
@@ -668,12 +699,12 @@ private:
         try {
             // Apply default handler
             if (defaultHandlerFunc_) {
-                handler_.setDefaultHandler(defaultHandlerFunc_);
+                [[maybe_unused]] auto defaultHandlerId = handler_.registerDefaultHandler(defaultHandlerFunc_);
             }
             
             // Apply message type handlers
             for (const auto& [messageId, handlerFunc] : pendingHandlerRegistrations_) {
-                handler_.registerHandlerProc(messageId, handlerFunc);
+                [[maybe_unused]] auto handlerId = handler_.registerHandler(messageId, handlerFunc);
             }
             
             // Apply correlation handler setup

@@ -36,7 +36,7 @@ using BaseEventHandler = std::function<void(const SIMCONNECT_RECV_EVENT&)>;
  * - Object add/remove messages (SIMCONNECT_RECV_EVENT_OBJECT_ADDREMOVE)
  */
 template <class M>
-class SystemEventHandler : public MessageHandler<SystemEventHandler<M>, M,
+class SystemEventHandler : public MessageHandler<DWORD, SystemEventHandler<M>, M,
                                                  SIMCONNECT_RECV_ID_EVENT, 
                                                  SIMCONNECT_RECV_ID_EVENT_FILENAME,
                                                  SIMCONNECT_RECV_ID_EVENT_OBJECT_ADDREMOVE>
@@ -77,7 +77,7 @@ public:
      * @param handler The handler to call when the event is received.
      */
     void subscribeToSystemEvent(connection_type& connection, event systemStateEvent, BaseEventHandler handler) {
-        this->registerHandler(systemStateEvent, [handler](const SIMCONNECT_RECV msg) {
+        this->registerHandler(systemStateEvent, [handler](const SIMCONNECT_RECV& msg) {
             handler(reinterpret_cast<const SIMCONNECT_RECV_EVENT&>(msg));
         }, false);
         connection.subscribeToSystemEvent(systemStateEvent);
@@ -106,7 +106,7 @@ public:
     template <typename EventType>
     void subscribeToSystemEvent(connection_type& connection, event systemStateEvent, 
                                std::function<void(const EventType&)> handler) {
-        this->registerHandler(systemStateEvent, [handler](const SIMCONNECT_RECV* msg, [[maybe_unused]] DWORD size) {
+        this->registerHandler(systemStateEvent, [handler](const SIMCONNECT_RECV& msg, [[maybe_unused]] DWORD size) {
             handler(*reinterpret_cast<const EventType*>(msg));
         }, false);
         connection.subscribeToSystemEvent(systemStateEvent);

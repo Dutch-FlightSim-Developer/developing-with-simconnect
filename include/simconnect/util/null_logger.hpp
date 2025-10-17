@@ -31,8 +31,7 @@ public:
 
     NullLogger() = default;
 	NullLogger(std::string name = "DefaultLogger", LogLevel level = LogLevel::Info) : Logger<NullLogger>(name, level) {}
-	template <class L>
-	NullLogger(std::string name, L& rootLogger, LogLevel level = LogLevel::Info) : Logger<NullLogger>(name, rootLogger, level) {}
+	NullLogger(std::string name, NullLogger& rootLogger, LogLevel level = LogLevel::Info) : Logger<NullLogger>(name, rootLogger, level) {}
 	NullLogger(const NullLogger&) = default;
 	NullLogger(NullLogger&&) = default;
 	NullLogger& operator=(const NullLogger&) = default;

@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-#include <concepts>
+#include <type_traits>
 
 
 namespace SimConnect{
@@ -24,9 +24,14 @@ namespace SimConnect{
 
 /**
  * A C++ concept to encapsulate a handler class derived from SimConnect::HandlerProc.
+ * 
+ * This concept can be used to constrain template parameters to only allow types that are derived from a specific base class.
+ * 
+ * @tparam B The base class.
+ * @tparam T The type to check.
  */
-template <class base_type, class T>
-concept DerivedType = std::is_base_of_v<base_type, T>;
+template <class B, class T>
+concept DerivedFrom = std::is_base_of_v<B, T>;
 
 
 } // namespace SimConnect

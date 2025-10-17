@@ -65,11 +65,11 @@ static void handleClose([[maybe_unused]] const SIMCONNECT_RECV_QUIT& msg) {
 
 auto main() -> int {
 	SimConnect::SimpleConnection connection;
-	SimConnect::PollingHandler handler(connection);
+	SimConnect::PollingHandler<SimConnect::SimpleConnection<>> handler(connection);
 	handler.autoClosing(true);	// Automatically close the connection if we receive a "Close" message.
 
 	// If we don't know the message, print an error.
-	handler.setDefaultHandler([](const SIMCONNECT_RECV& msg) {
+	handler.registerDefaultHandler([](const SIMCONNECT_RECV& msg) {
 			std::cerr << std::format("Ignoring message of type {} (length {} bytes)\n", msg.dwID, msg.dwSize);
 		});
 

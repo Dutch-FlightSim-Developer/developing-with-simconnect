@@ -31,9 +31,15 @@ namespace SimConnect {
  * @tparam C The SimConnect connection type.
  * @tparam M The handler policy type.
  */
-template <class C, class M = SingleHandlerPolicy<SIMCONNECT_RECV>>
-class PollingHandler : public SimConnectMessageHandler<C, PollingHandler<C, M, L>, M>
+template <class C, class M = MultiHandlerPolicy<SIMCONNECT_RECV>>
+class PollingHandler : public SimConnectMessageHandler<C, PollingHandler<C, M>, M>
 {
+public:
+    using connection_type = C;
+    using handler_type = M;
+	using logger_type = typename connection_type::logger_type;
+
+
 private:
     std::chrono::milliseconds sleep_duration_ = std::chrono::milliseconds(100);
 
@@ -45,10 +51,11 @@ private:
 
 public:
     PollingHandler(connection_type& connection, LogLevel logLevel = LogLevel::Info)
-        : SimConnectMessageHandler<connection_type, PollingHandler<connection_type, handler_type, logger_type>>(connection, logLevel)
-    {}
+        : SimConnectMessageHandler<connection_type, PollingHandler<connection_type, handler_type>>(connection, "PollingHandler", logLevel)
+    {
+    }
     PollingHandler(connection_type& connection, std::chrono::milliseconds sleep_duration, LogLevel logLevel = LogLevel::Info)
-        : SimConnectMessageHandler<connection_type, PollingHandler<connection_type, handler_type, logger_type>>(connection, logLevel), sleep_duration_(sleep_duration)
+        : SimConnectMessageHandler<connection_type, PollingHandler<connection_type, handler_type>>(connection, "PollingHandler", logLevel), sleep_duration_(sleep_duration)
     {}
     ~PollingHandler() = default;
 

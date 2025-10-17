@@ -19,6 +19,7 @@
 #include <simconnect/windows_event_handler.hpp>
 #include <simconnect/events/system_events.hpp>
 #include <simconnect/events/system_event_handler.hpp>
+#include <simconnect/util/console_logger.hpp>
 
 #include <iostream>
 
@@ -80,11 +81,11 @@ static void handleEvent(const SIMCONNECT_RECV_EVENT& msg) {
  * Demonstrate how to subscribe to system events.
  */
 auto main() -> int {
-	SimConnect::WindowsEventConnection connection;
-	SimConnect::WindowsEventHandler handler(connection);
+	SimConnect::WindowsEventConnection<false, SimConnect::ConsoleLogger> connection;
+	SimConnect::WindowsEventHandler handler(connection, SimConnect::LogLevel::Debug);
 	handler.autoClosing(true);
 
-	handler.setDefaultHandler([](const SIMCONNECT_RECV& msg) {
+	handler.registerDefaultHandler([](const SIMCONNECT_RECV& msg) {
 		std::cerr << std::format("Ignoring message of type {} (length {} bytes)\n", msg.dwID, msg.dwSize);
 	});
 	handler.registerHandler<SIMCONNECT_RECV_OPEN>(SIMCONNECT_RECV_ID_OPEN, handleOpen);
@@ -92,7 +93,7 @@ auto main() -> int {
 	handler.registerHandler<SIMCONNECT_RECV_EVENT>(SIMCONNECT_RECV_ID_EVENT, handleEvent);
 
 	if (connection.open()) {
-		SimConnect::SystemEventHandler<SimConnect::WindowsEventHandler<>> eventHandler;
+		SimConnect::SystemEventHandler<SimConnect::WindowsEventHandler<false, SimConnect::ConsoleLogger>> eventHandler;
 		eventHandler.enable(handler);
 
 		eventHandler.subscribeToSystemEvent(connection, SimConnect::Events::sim(), [](const SIMCONNECT_RECV_EVENT& msg) {

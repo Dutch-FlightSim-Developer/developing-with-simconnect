@@ -407,3 +407,4 @@ tester-lib2/
 # Ignore CLion files
 *.iml
 .idea/
+/part-6/ListAircraftMSFS

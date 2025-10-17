@@ -33,7 +33,7 @@ TEST(TestSystemState, RequestAircraftLoaded) {
     std::atomic<bool> gotResult{false};
     std::string result;
 
-    handler.setDefaultHandler([](const SIMCONNECT_RECV&) {});
+    [[maybe_unused]] auto defaultHandlerId = handler.registerDefaultHandler([](const SIMCONNECT_RECV&) {});
     ASSERT_TRUE(connection.open());
 
     SystemStateHandler<WindowsEventHandler<>> requestHandler;
@@ -60,7 +60,7 @@ TEST(TestSystemState, RequestDialogMode) {
     std::atomic<bool> gotResult{false};
     std::atomic<bool> dialogMode{false};
 
-    handler.setDefaultHandler([](const SIMCONNECT_RECV&) {});
+    [[maybe_unused]] auto defaultHandlerId = handler.registerDefaultHandler([](const SIMCONNECT_RECV&) {});
     ASSERT_TRUE(connection.open());
 
     SystemStateHandler<WindowsEventHandler<>> requestHandler;
@@ -86,10 +86,10 @@ TEST(TestSystemState, ExceptionOnUnknownSystemState) {
     WindowsEventHandler<> handler(connection);
     std::atomic<bool> gotException{false};
 
-    handler.registerHandler<SIMCONNECT_RECV_EXCEPTION>(SIMCONNECT_RECV_ID_EXCEPTION, [&](const SIMCONNECT_RECV_EXCEPTION&) {
+    [[maybe_unused]] auto exceptionHandlerId = handler.registerHandler<SIMCONNECT_RECV_EXCEPTION>(SIMCONNECT_RECV_ID_EXCEPTION, [&](const SIMCONNECT_RECV_EXCEPTION&) {
         gotException = true;
     });
-    handler.setDefaultHandler([](const SIMCONNECT_RECV&) {});
+    [[maybe_unused]] auto defaultHandlerId = handler.registerDefaultHandler([](const SIMCONNECT_RECV&) {});
     ASSERT_TRUE(connection.open());
 
     SystemStateHandler<WindowsEventHandler<>> requestHandler;

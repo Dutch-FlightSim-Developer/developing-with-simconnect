@@ -17,10 +17,12 @@
 
 #include <map>
 #include <tuple>
+#include <array>
 #include <vector>
 #include <functional>
 
 
+#include <simconnect/messaging/message_dispatcher.hpp>
 #include <simconnect/data_definition.hpp>
 #include <simconnect/simconnect_message_handler.hpp>
 #include <simconnect/requests/request.hpp>
@@ -29,27 +31,31 @@
 namespace SimConnect {
 
 
-using CorrelationHandlerType = std::function<void(const SIMCONNECT_RECV& msg)>;
-
-
 /**
  * The MessageHandler class provides for responsive handling of messages with correlation IDs.
  * 
- * @tparam T The type of the message handler, which must be derived from this class.
+ * @tparam ID The type of the correlation id.
+ * @tparam D The type of the message handler, which must be derived from this class.
  * @tparam M The type of the SimConnect message handler, which must be derived from SimConnectMessageHandler.
  * @tparam id The SIMCONNECT_RECV_IDs that this handler will respond to.
  */
-template <class T, class M, SIMCONNECT_RECV_ID... id>
-class MessageHandler  {
+template <class ID, class D, class M, SIMCONNECT_RECV_ID... id>
+class MessageHandler : public MessageDispatcher<ID, SIMCONNECT_RECV, M, MultiHandlerPolicy<SIMCONNECT_RECV>>
+{
 public:
+	using correlation_id_type = ID;
     using simconnect_message_handler_type = M;
     using connection_type = typename M::connection_type;
+	using logger_type = typename M::logger_type;
+	using handler_type = MultiHandlerPolicy<SIMCONNECT_RECV>;
+	using handler_id_type = typename handler_type::handler_id_type;
+	using handler_proc_type = typename handler_type::handler_proc_type;
+
 
 private:
     constexpr static size_t numIds = sizeof...(id);
-    std::vector<std::tuple<SIMCONNECT_RECV_ID, CorrelationHandlerType>> oldHandlers_;
-
-    std::map<unsigned long, std::tuple<CorrelationHandlerType, bool>> messageHandlers_;
+    std::array<std::tuple<SIMCONNECT_RECV_ID, handler_id_type>, numIds> registrations_;
+    std::map<correlation_id_type, std::tuple<handler_type, bool>> messageHandlers_;
     std::function<void()> cleanup_;
 
 
@@ -90,7 +96,6 @@ protected:
             cleanup_();
             cleanup_ = nullptr;
 
-            oldHandlers_.clear();
             messageHandlers_.clear();
         }
     }
@@ -102,26 +107,20 @@ protected:
 	 * @param msgHandler The message handler where we must register the handler.
 	 * @param id The message type ID to register for.
      */
-    void registerFor(simconnect_message_handler_type& msgHandler, SIMCONNECT_RECV_ID msgId) {
-        auto defaultHandlerProc = msgHandler.defaultHandler();
-        auto originalHandlerProc = msgHandler.getHandler(msgId);
-
-        oldHandlers_.emplace_back(msgId, originalHandlerProc);
-
-        msgHandler.registerHandlerProc(msgId, [this, defaultHandlerProc, originalHandlerProc] (const SIMCONNECT_RECV& msg) {
+    void registerFor(size_t& index, simconnect_message_handler_type& msgHandler, SIMCONNECT_RECV_ID msgId) {
+        registrations_ [index++] = std::make_tuple(msgId, msgHandler.registerHandler(msgId, [this] (const SIMCONNECT_RECV& msg) {
             if (!dispatch(msg)) {
-                if (originalHandlerProc.proc()) {
-                    originalHandlerProc(msg);
-                } else if (defaultHandlerProc.proc()) {
+				auto defaultHandlerProc = this->defaultHandler();
+                if (defaultHandlerProc.hasHandlers()) {
                     defaultHandlerProc(msg);
                 }
             }
-		});
+		}));
     }
 
 
 public:
-    MessageHandler() : oldHandlers_(numIds) {}
+    MessageHandler() = default;
     ~MessageHandler() {
         cleanup();
     }
@@ -135,7 +134,7 @@ public:
      * @returns The correlation ID from the message.
      */
     unsigned long correlationId(const SIMCONNECT_RECV& msg) const {
-        return static_cast<const T*>(this)->correlationId(msg);
+        return static_cast<const D*>(this)->correlationId(msg);
     }
 
 
@@ -148,12 +147,12 @@ public:
     void enable(simconnect_message_handler_type& msgHandler) {
         cleanup();
 
-        (registerFor(msgHandler, id), ...);
+        size_t regIndex{ 0 };
+        (registerFor(regIndex, msgHandler, id), ...);
         cleanup_ = [this, &msgHandler]() {
-            for (const auto& [id, proc] : oldHandlers_) {
-                msgHandler.registerHandlerProc(id, proc);
-			}
-			oldHandlers_.clear();
+            for (const auto& [id, handler] : registrations_) {
+                msgHandler.unRegisterHandler(id, handler);
+            }
         };
     }
 
@@ -165,8 +164,26 @@ public:
      * @param correlationHandler The handler to register.
      * @param autoRemove True to automatically remove the handler after it has been called.
      */
-    void registerHandler(unsigned long correlationId, CorrelationHandlerType correlationHandler, bool autoRemove) {
-        messageHandlers_[correlationId] = std::make_tuple(correlationHandler, autoRemove);
+    void registerHandler(correlation_id_type correlationId, handler_proc_type correlationHandler, bool autoRemove) {
+        if (!messageHandlers_.contains(correlationId)) {
+            messageHandlers_.emplace(correlationId, std::make_tuple(handler_type{}, autoRemove));
+		}
+        std::get<0>(messageHandlers_[correlationId]).setProc(std::move(correlationHandler));
+    }
+
+
+    /**
+     * Registers a message handler for a specific message id.
+     *
+     * @param id The message id.
+     * @param handler The message handler's id.
+     */
+    void unRegisterHandler(correlation_id_type id, handler_id_type handler) noexcept {
+		auto idHandler = this->getHandler(id);
+
+        if (idHandler.hasHandlers()) {
+            idHandler.clear(handler);
+		}
     }
 
 
@@ -177,7 +194,7 @@ public:
      * 
      * @param correlationId The correlation ID.
      */
-    void removeHandler(unsigned long correlationId) {
+    void removeHandler(correlation_id_type correlationId) {
         messageHandlers_.erase(correlationId);
     }
 

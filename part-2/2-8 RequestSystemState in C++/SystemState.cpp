@@ -71,7 +71,7 @@ auto main () -> int {
 		SimConnect::WindowsEventHandler handler(connection);		// Use a Windows Event.
 		handler.autoClosing(true);
 
-		handler.setDefaultHandler([](const SIMCONNECT_RECV& msg) {
+		handler.registerDefaultHandler([](const SIMCONNECT_RECV& msg) {
 			std::cerr << std::format("Ignoring message of type {} (length {} bytes)\n", msg.dwID, msg.dwSize);
 			});
 

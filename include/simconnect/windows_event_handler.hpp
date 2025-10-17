@@ -25,7 +25,7 @@ namespace SimConnect {
 /**
  * A SimConnect message handler.
  */
-template <bool ThreadSafe = false, class L = NullLogger, class M = SingleHandlerPolicy<SIMCONNECT_RECV>>
+template <bool ThreadSafe = false, class L = NullLogger, class M = MultiHandlerPolicy<SIMCONNECT_RECV>>
 class WindowsEventHandler : public SimConnectMessageHandler<WindowsEventConnection<ThreadSafe, L>, WindowsEventHandler<ThreadSafe, L, M>, M>
 {
 public:
@@ -42,25 +42,27 @@ private:
 
 public:
     WindowsEventHandler(connection_type& connection, LogLevel logLevel = LogLevel::Info)
-        : SimConnectMessageHandler<WindowsEventConnection<ThreadSafe, L>, WindowsEventHandler<ThreadSafe, L, M>, M>(connection, logLevel)
+        : SimConnectMessageHandler<WindowsEventConnection<ThreadSafe, L>, WindowsEventHandler<ThreadSafe, L, M>, M>(connection, "WindowsEventHandler", logLevel)
     {
     }
 
     ~WindowsEventHandler() = default;
 
 
+	static constexpr std::chrono::milliseconds noWait{ 0 };
+
     /**
      * Handles incoming SimConnect messages.
      * 
      * @param duration The maximum amount of time to wait for a message, defaults to 0ms meaning don't wait.
      */
-    void dispatch(std::chrono::milliseconds duration = std::chrono::milliseconds(0)) {
+    void dispatch(std::chrono::milliseconds duration = noWait) {
         const auto deadline = std::chrono::steady_clock::now() + duration;
         do {
             if (this->isAutoClosing() && !this->connection_.isOpen()) {
                 break;
             }
-            if (this->connection_.checkForMessage(std::chrono::duration_cast<std::chrono::milliseconds>(deadline - std::chrono::steady_clock::now()))) {
+            if (this->connection_.checkForMessage((duration == noWait) ? noWait : (std::chrono::duration_cast<std::chrono::milliseconds>(deadline - std::chrono::steady_clock::now())))) {
                 this->dispatchWaitingMessages();
             }
         } while (deadline > std::chrono::steady_clock::now());

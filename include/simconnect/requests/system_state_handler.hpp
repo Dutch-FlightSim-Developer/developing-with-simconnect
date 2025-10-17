@@ -20,8 +20,9 @@
 
 namespace SimConnect {
 
+
 template <class M>
-class SystemStateHandler : public MessageHandler<SystemStateHandler<M>, M, SIMCONNECT_RECV_ID_SYSTEM_STATE> {
+class SystemStateHandler : public MessageHandler<DWORD, SystemStateHandler<M>, M, SIMCONNECT_RECV_ID_SYSTEM_STATE> {
 public:
     using simconnect_message_handler_type = M;
 	using connection_type = typename simconnect_message_handler_type::connection_type;

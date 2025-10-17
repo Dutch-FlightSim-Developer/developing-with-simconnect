@@ -23,10 +23,10 @@ CMFCMessagingDlg::CMFCMessagingDlg()
 {
 	m_hIcon = AfxGetApp()->LoadIcon(IDR_MAINFRAME);
 
-	m_handler.registerHandlerProc(
+	m_handler.registerHandler(
 		SIMCONNECT_RECV_ID_OPEN,
 		[this](const SIMCONNECT_RECV& msg) { this->onOpen(*reinterpret_cast<const SIMCONNECT_RECV_OPEN*>(&msg)); });
-	m_handler.registerHandlerProc(
+	m_handler.registerHandler(
 		SIMCONNECT_RECV_ID_QUIT,
 		[this]([[maybe_unused]] const SIMCONNECT_RECV& msg) { this->onQuit(); });
 }
@@ -38,10 +38,10 @@ CMFCMessagingDlg::CMFCMessagingDlg(CWnd* pParent)
 {
 	m_hIcon = AfxGetApp()->LoadIcon(IDR_MAINFRAME);
 
-	m_handler.registerHandlerProc(
+	m_handler.registerHandler(
 		SIMCONNECT_RECV_ID_OPEN,
 		[this](const SIMCONNECT_RECV& msg) { this->onOpen(*reinterpret_cast<const SIMCONNECT_RECV_OPEN*>(&msg)); });
-	m_handler.registerHandlerProc(
+	m_handler.registerHandler(
 		SIMCONNECT_RECV_ID_QUIT,
 		[this]([[maybe_unused]] const SIMCONNECT_RECV& msg) { this->onQuit(); });
 }

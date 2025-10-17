@@ -212,7 +212,7 @@ auto main() -> int {
 	SimConnect::WindowsEventHandler handler(connection);
 	handler.autoClosing(true);
 
-	handler.setDefaultHandler([](const SIMCONNECT_RECV& msg) {
+	handler.registerDefaultHandler([](const SIMCONNECT_RECV& msg) {
 		std::cerr << std::format("Ignoring message of type {} (length {} bytes)\n", msg.dwID, msg.dwSize);
 		});
 	handler.registerHandler<SIMCONNECT_RECV_EXCEPTION>(SIMCONNECT_RECV_ID_EXCEPTION, handleException);

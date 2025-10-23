@@ -330,6 +330,8 @@ public:
 	 */
     [[nodiscard]]
 	int requestSystemState(std::string stateName) {
+		logger().trace("Requesting system state '{}'", stateName);
+
         auto requestId = requests().nextRequestID();
 
         guard_type guard(mutex_);
@@ -346,6 +348,8 @@ public:
 	 * @returns The request ID used to identify the request.
 	 */
 	void requestSystemState(std::string stateName, unsigned long requestId) {
+        logger().trace("Requesting system state '{}'", stateName);
+
         guard_type guard(mutex_);
 
         hr(SimConnect_RequestSystemState(hSimConnect_, requestId, stateName.c_str()));
@@ -359,6 +363,8 @@ public:
      * @param event The event to subscribe to.
      */
 	void subscribeToSystemEvent(event event) {
+        logger().trace("Subscribing to system event '{}'", event.name());
+
         guard_type guard(mutex_);
 
         hr(SimConnect_SubscribeToSystemEvent(hSimConnect_, event.id(), event.name().c_str()));
@@ -370,6 +376,8 @@ public:
     * @param event The event to unsubscribe from.
     */
     void unsubscribeFromSystemEvent(event event) {
+        logger().trace("Unsubscribing to system event '{}'", event.name());
+
         guard_type guard(mutex_);
 
         hr(SimConnect_UnsubscribeFromSystemEvent(hSimConnect_, event.id()));

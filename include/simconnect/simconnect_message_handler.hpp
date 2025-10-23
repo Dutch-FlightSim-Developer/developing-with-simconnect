@@ -42,6 +42,7 @@ namespace SimConnect {
 template <class C, class M, class H = MultiHandlerPolicy<SIMCONNECT_RECV>>
 class SimConnectMessageHandler : public MessageDispatcher<SIMCONNECT_RECV_ID, SIMCONNECT_RECV, M, H, typename C::logger_type>
 {
+public:
     using connection_type = C;
     using message_handler_type = M;
     using handler_type = H;
@@ -52,6 +53,7 @@ class SimConnectMessageHandler : public MessageDispatcher<SIMCONNECT_RECV_ID, SI
     using guard_type = typename C::guard_type;
 
 
+private:
 #if defined(SIMCONNECT_RECV_ID_FLOW_EVENT)                                                              // MSFS 2024, since SDK 1.4.0
     static constexpr SIMCONNECT_RECV_ID maxRecvId = SIMCONNECT_RECV_ID_FLOW_EVENT;
 #elif defined(SIMCONNECT_RECV_ID_ENUMERATE_INPUT_EVENT_PARAMS)                                          // MSFS 2020, since SDK 0.22.0

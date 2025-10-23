@@ -18,6 +18,10 @@
 #include <simconnect/windows_event_connection.hpp>
 #include <simconnect/windows_event_handler.hpp>
 
+#include <simconnect/requests/system_state_handler.hpp>
+#include <simconnect/events/system_event_handler.hpp>
+#include <simconnect/events/system_events.hpp>
+
 #include <atomic>
 #include <chrono>
 #include <condition_variable>
@@ -142,6 +146,7 @@ private:
     std::jthread workerThread_;
     mutable std::mutex mutex_;
     std::condition_variable cv_;
+    std::condition_variable stateCv_;
     
     StateCallback stateCallback_;
     ErrorCallback errorCallback_;
@@ -149,14 +154,17 @@ private:
 
     std::chrono::steady_clock::time_point openWaitStartTime_;
 
-    unsigned long long messageCheckCount_{ 0 };
-
 
     // Message handler registration storage
     std::vector<std::pair<SIMCONNECT_RECV_ID, std::function<void(const SIMCONNECT_RECV&)>>> pendingHandlerRegistrations_;
     std::function<void(const SIMCONNECT_RECV&)> defaultHandlerFunc_;
     std::function<void(handler_type&)> correlationHandlerSetup_;
 
+    // Simulator state handlers
+    SystemStateHandler<handler_type> systemStateHandler_;
+
+    // Simulator event handlers
+    SystemEventHandler<handler_type> systemEventHandler_;
 
     // Simulator information
     std::string simName_{};
@@ -177,6 +185,8 @@ public:
         : connection_(std::move(clientName))
         , handler_(connection_)
         , logger_("SimConnect::BackgroundSimConnectManager", connection_.logger())
+        , systemStateHandler_(handler_)
+        , systemEventHandler_(handler_)
         , configIndex_(configIndex)
     {
     }
@@ -189,9 +199,7 @@ public:
     }
 
 
-    unsigned long long messageCheckCount() const noexcept {
-        return messageCheckCount_;
-	}
+#pragma region Behaviour configuration
 
     bool autoConnect() const noexcept { return autoConnect_; }
     BackgroundSimConnectManager<C,H>& autoConnect(bool autoConnect) noexcept { autoConnect_ = autoConnect; return *this; }
@@ -235,6 +243,45 @@ public:
         handler_.logger().level(level); 
         return *this;
     }
+
+#pragma endregion
+
+#pragma region Handler accessors
+
+    /**
+     * Return the SimConnect message handler.
+     * 
+     * @returns The SimConnect message handler.
+     */
+    [[nodiscard]]
+    handler_type& simConnectHandler() noexcept {
+        return handler_;
+	}
+
+
+    /**
+     * Return the System State handler.
+     * 
+     * @returns The System State handler.
+     */
+    [[nodiscard]]
+    SystemStateHandler<handler_type>& systemState() noexcept {
+        return systemStateHandler_;
+    }
+
+    /**
+     * Return the System Event handler.
+     * 
+     * @returns The System Event handler.
+     */
+    [[nodiscard]]
+    SystemEventHandler<handler_type>& systemEvent() noexcept {
+        return systemEventHandler_;
+    }
+
+#pragma endregion
+
+#pragma region Control methods
 
     /**
      * Start the background thread.
@@ -298,6 +345,10 @@ public:
         explicitDisconnect_ = true;
         cv_.notify_all();
     }
+
+#pragma endregion
+
+#pragma region Accessor methods
 
     /**
      * Get current state.
@@ -365,74 +416,7 @@ public:
         errorCallback_ = std::move(callback);
     }
 
-    /**
-     * Register a message handler for a specific message type.
-     * Safe to call whether connected or not - will apply when connection is established.
-     */
-    template<SIMCONNECT_RECV_ID MessageId>
-    void registerMessageHandler(std::function<void(const SIMCONNECT_RECV&)> handlerFunc) noexcept {
-        std::lock_guard lock(mutex_);
-        pendingHandlerRegistrations_.emplace_back(MessageId, std::move(handlerFunc));
-        
-        // Apply immediately if connected
-        if (isConnected()) {
-            try {
-                handler_.template registerHandlerProc<MessageId>(pendingHandlerRegistrations_.back().second);
-            } catch (...) {
-                // Ignore registration errors - will retry on next connection
-            }
-        }
-    }
-
-    /**
-     * Register a default message handler (called for unhandled message types).
-     */
-    void registerDefaultMessageHandler(std::function<void(const SIMCONNECT_RECV&)> handlerFunc) noexcept {
-        std::lock_guard lock(mutex_);
-        defaultHandlerFunc_ = std::move(handlerFunc);
-        
-        // Apply immediately if connected
-        if (isConnected()) {
-            try {
-                handler_.setDefaultHandler(defaultHandlerFunc_);
-            } catch (...) {
-                // Ignore registration errors - will retry on next connection
-            }
-        }
-    }
-
-    /**
-     * Register a correlation-based message handler.
-     * This requires a MessageHandler template to be used with the handler.
-     */
-    template<typename MessageHandlerType>
-    void enableCorrelationHandler(MessageHandlerType& correlationHandler) noexcept {
-        std::lock_guard lock(mutex_);
-        
-        // Store for later application
-        correlationHandlerSetup_ = [&correlationHandler](auto& handler) {
-            try {
-                correlationHandler.enable(handler);
-            } catch (...) {
-                // Ignore setup errors
-            }
-        };
-        
-        // Apply immediately if connected
-        if (isConnected() && correlationHandlerSetup_) {
-            correlationHandlerSetup_(handler_);
-        }
-    }
-
-    /**
-     * Clear all registered message handlers.
-     */
-    void clearMessageHandlers() noexcept {
-        std::lock_guard lock(mutex_);
-        pendingHandlerRegistrations_.clear();
-        defaultHandlerFunc_ = nullptr;
-        correlationHandlerSetup_ = nullptr;
-    }
+#pragma endregion
 
 private:
     void workerLoop() noexcept {
@@ -464,16 +448,22 @@ private:
             }
         }
 
-		logger_.debug("Worker thread exiting...");
+		logger_.info("Worker thread exiting...");
         // Cleanup on exit
         if (state_.load() != State::Disconnected) {
-			logger_.debug("Cleaning up connection on exit...");
+			logger_.trace("Cleaning up connection on exit...");
             cleanupConnection();
         }
 		transitionState(State::Stopped);
     }
 
-    inline std::string version(DWORD major, DWORD minor) const noexcept {
+
+#pragma region State handling
+
+    /**
+     * Helper to format version strings.
+     */
+    std::string version(DWORD major, DWORD minor) const noexcept {
         if (major == 0) {
             return "Unknown";
         } else if (minor == 0) {
@@ -483,14 +473,19 @@ private:
         }
 	}
 
+
+    /**
+     * Handle StartingUp state.
+     * @note This state transitions to Connecting or Disconnected.
+     */
     void handleStartingUp() noexcept {
         if (!shouldAttemptConnection() || !shouldRun_) {
             transitionState(State::Disconnected);
             return;
         }
 
-        // Register critical handlers before opening connection to avoid race conditions
-        [[maybe_unused]] auto openHandlerId = handler_.registerHandler<SIMCONNECT_RECV_OPEN>(SIMCONNECT_RECV_ID_OPEN, [this](const SIMCONNECT_RECV_OPEN& msg) {
+        // Register essential handlers for connection state management
+        handler_.registerHandler<SIMCONNECT_RECV_OPEN>(SIMCONNECT_RECV_ID_OPEN, [this](const SIMCONNECT_RECV_OPEN& msg) {
             simName_ = msg.szApplicationName;
             simVersion_ = version(msg.dwApplicationVersionMajor, msg.dwApplicationVersionMinor);
             simBuild_ = version(msg.dwApplicationBuildMajor, msg.dwApplicationBuildMinor);
@@ -505,8 +500,8 @@ private:
             
             transitionState(State::Connected);
         });
-
-        [[maybe_unused]] auto quitHandlerId = handler_.registerHandler<SIMCONNECT_RECV_QUIT>(SIMCONNECT_RECV_ID_QUIT, [this]([[maybe_unused]] const SIMCONNECT_RECV_QUIT& msg) {
+        
+        handler_.registerHandler<SIMCONNECT_RECV_QUIT>(SIMCONNECT_RECV_ID_QUIT, [this]([[maybe_unused]]const SIMCONNECT_RECV_QUIT& msg) {
             logger_.warn("Received QUIT message from simulator");
             setError(ErrorCode::ConnectionFailed, "Simulator quit");
             transitionState(State::Disconnecting);
@@ -527,6 +522,14 @@ private:
         }
     }
 
+
+    /**
+     * Handle Connecting state.
+     * 
+     * In this state, we attempt to open the SimConnect connection.
+     * 
+     * @note This state transitions to WaitingForOpen, Disconnected, or Error.
+     */
     void handleConnecting() noexcept {
         if (!shouldAttemptConnection() || !shouldRun_) {
             transitionState(State::Disconnected);
@@ -560,6 +563,13 @@ private:
         }
     }
 
+
+    /**
+     * Handle WaitingForOpen state.
+     * 
+     * In this state, we wait for the SIMCONNECT_RECV_OPEN message to confirm the connection.
+     * @note This state transitions to Connected, Disconnected, or Error.
+     */
     void handleWaitingForOpen() noexcept {
         if (!shouldAttemptConnection() || !shouldRun_) {
             transitionState(State::Disconnecting);
@@ -594,23 +604,29 @@ private:
         cv_.wait_for(lock, std::chrono::milliseconds(50), [&] { return shouldStop(); });
     }
 
+
+    /**
+     * Handle Connected state.
+     * 
+     * In this state, we continuously process messages.
+     * @note This state transitions to Disconnecting on error or disconnection.
+     */
     void handleConnected() noexcept {
-        logger_.debug("handleConnected() called, messageCheckCount: {}", messageCheckCount_);
         if (!shouldAttemptConnection() || !shouldRun_) {
-            logger_.debug("Transitioning to Disconnecting: shouldAttemptConnection()={}, shouldRun_={}", (shouldAttemptConnection() ? "true" : "false"), (shouldRun_ ? "true" : "false"));
+            logger_.trace("Transitioning to Disconnecting: shouldAttemptConnection()={}, shouldRun_={}", (shouldAttemptConnection() ? "true" : "false"), (shouldRun_ ? "true" : "false"));
             transitionState(State::Disconnecting);
             return;
         }
 
         // Check if connection is still valid
         if (!connection_.isOpen()) {
-            logger_.debug("Transitioning to Disconnecting: Connection lost");
+            logger_.trace("Transitioning to Disconnecting: Connection lost");
             setError(ErrorCode::ConnectionFailed, "Connection lost");
             transitionState(State::Disconnecting);
             return;
         }
 
-		logger_.debug("Processing messages...");
+		logger_.trace("Processing messages...");
         // Process messages continuously with short timeout
         auto result = processMessages();
         if (result.hasError()) {
@@ -624,19 +640,28 @@ private:
         cv_.wait_for(lock, messageCheckInterval_, [&] { return shouldStop(); });
     }
 
+
+    /**
+     * Handle Disconnecting state.
+     * 
+     * In this state, we clean up the connection.
+     * @note This state transitions to Disconnected.
+     */
     void handleDisconnecting() noexcept {
         cleanupConnection();
         transitionState(State::Disconnected);
     }
 
+
+    /**
+     * Handle Disconnected state.
+     * 
+     * In this state, we wait for connect() calls or auto-reconnect.
+     * @note This state transitions to Connecting when appropriate.
+     */
     void handleDisconnected() noexcept {
         if (shouldAttemptConnection() && shouldRun_) {
-            //// Check if this is initial startup with autoConnect
-            //if (autoConnect_ && initialConnectDelay_.count() > 0) {
-            //    transitionState(State::StartingUp);
-            //} else {
-                transitionState(State::Connecting);
-            //}
+            transitionState(State::Connecting);
         } else {
             // Wait for connect() call or stop
             std::unique_lock lock(mutex_);
@@ -646,6 +671,13 @@ private:
         }
     }
 
+
+    /**
+     * Handle Error state.
+     * 
+     * In this state, we wait for manual intervention.
+     * @note This state transitions to Disconnected when appropriate.
+     */
     void handleError() noexcept {
         // Wait in error state until manual intervention
         {
@@ -660,6 +692,10 @@ private:
             transitionState(State::Disconnected);
         }
     }
+
+#pragma endregion
+
+#pragma region State support
 
     VoidResult attemptConnection() noexcept {
         try {
@@ -684,7 +720,6 @@ private:
     }
 
     VoidResult processMessages() noexcept {
-		messageCheckCount_++;
         try {
             handler_.handle(/*messageCheckInterval_*/);
             return {std::monostate{}, ErrorCode::None, {}};
@@ -727,6 +762,10 @@ private:
         }
     }
 
+#pragma endregion
+
+#pragma region State queries
+
     bool shouldAttemptConnection() const noexcept {
         return autoConnect_ && !explicitDisconnect_;
     }
@@ -739,11 +778,16 @@ private:
         return !shouldRun_ || explicitDisconnect_;
 	}
 
+#pragma endregion
+
+#pragma region State housekeeping
+
     void transitionState(State newState) noexcept {
         State oldState = state_.exchange(newState);
 
         if (oldState != newState) {
             notifyStateChange(newState, oldState);
+			stateCv_.notify_all();
         }
     }
 
@@ -790,6 +834,30 @@ private:
                 // Ignore callback exceptions
             }
         }
+    }
+
+#pragma endregion
+
+public:
+
+    /**
+     * Wait for the state to change to the desired state.
+     * 
+     * @param desiredState The desired state to wait for.
+     * @param timeout The maximum time to wait for the state change.
+     * @returns True if the state changed to the desired state, false if the timeout was reached.
+     */
+    bool waitForState(State desiredState, std::chrono::milliseconds timeout = std::chrono::milliseconds(0)) noexcept {
+		auto deadline = std::chrono::steady_clock::now() + timeout;
+		auto milliSecondsRemaining = timeout;
+
+        while ((state_.load() != desiredState) && (milliSecondsRemaining.count() > 0)) {
+            std::unique_lock lock(mutex_);
+            stateCv_.wait_for(lock, milliSecondsRemaining, [&] { return getState() == desiredState; });
+			milliSecondsRemaining = std::chrono::milliseconds((deadline - std::chrono::steady_clock::now()).count());
+		}
+
+        return getState() == desiredState;
     }
 };
 

@@ -20,6 +20,16 @@
 
 namespace SimConnect {
 
+namespace SystemState {
+
+    constexpr static const char* aircraftLoaded = "AircraftLoaded";
+    constexpr static const char* flightLoaded = "FlightLoaded";
+    constexpr static const char* flightPlan = "FlightPlan";
+    constexpr static const char* dialogMode = "DialogMode";
+    constexpr static const char* sim = "Sim";
+
+}
+
 
 template <class M>
 class SystemStateHandler : public MessageHandler<DWORD, SystemStateHandler<M>, M, SIMCONNECT_RECV_ID_SYSTEM_STATE> {
@@ -27,7 +37,10 @@ public:
     using simconnect_message_handler_type = M;
 	using connection_type = typename simconnect_message_handler_type::connection_type;
 
+
 private:
+    simconnect_message_handler_type& simConnectMessageHandler_;
+
 
     // No copies or moves
     SystemStateHandler(const SystemStateHandler&) = delete;
@@ -36,7 +49,10 @@ private:
     SystemStateHandler& operator=(SystemStateHandler&&) = delete;
 
 public:
-    SystemStateHandler() = default;
+    SystemStateHandler(simconnect_message_handler_type& handler) : simConnectMessageHandler_(handler)
+    {
+        this->enable(simConnectMessageHandler_);
+    }
     ~SystemStateHandler() = default;
 
 
@@ -54,36 +70,34 @@ public:
     /**
      * Requests a bool-valued system state.
      * 
-     * @param connection The connection to request the state from.
      * @param name The name of the state to request.
      * @param requestHandler The handler to execute when the state is received.
      */
-    void requestSystemState(connection_type& connection, std::string name, std::function<void(bool)> requestHandler) {
-        auto requestId = connection.requests().nextRequestID();
+    void requestSystemState(std::string name, std::function<void(bool)> requestHandler) {
+        auto requestId = simConnectMessageHandler_.connection().requests().nextRequestID();
 
         this->registerHandler(requestId, [requestHandler](const SIMCONNECT_RECV& msg) {
             auto& state = reinterpret_cast<const SIMCONNECT_RECV_SYSTEM_STATE&>(msg);
             requestHandler(state.dwInteger != 0);
         }, true);
-        connection.requestSystemState(name, requestId);
+        simConnectMessageHandler_.connection().requestSystemState(name, requestId);
     }
 
 
     /**
      * Requests a string-valued system state.
      * 
-     * @param connection The connection to request the state from.
      * @param name The name of the state to request.
      * @param requestHandler The handler to execute when the state is received.
      */
-    void requestSystemState(connection_type& connection, std::string name, std::function<void(std::string)> requestHandler) {
-        auto requestId = connection.requests().nextRequestID();
+    void requestSystemState(std::string name, std::function<void(std::string)> requestHandler) {
+        auto requestId = simConnectMessageHandler_.connection().requests().nextRequestID();
 
         this->registerHandler(requestId, [requestHandler](const SIMCONNECT_RECV& msg) {
             auto& state = reinterpret_cast<const SIMCONNECT_RECV_SYSTEM_STATE&>(msg);
             requestHandler(std::string(state.szString));
         }, true);
-        connection.requestSystemState(name, requestId);
+        simConnectMessageHandler_.connection().requestSystemState(name, requestId);
     }
 
 };

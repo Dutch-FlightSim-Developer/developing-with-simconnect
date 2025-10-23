@@ -46,6 +46,9 @@ public:
     using connection_type = typename M::connection_type;
 
 private:
+    simconnect_message_handler_type& simConnectMessageHandler_;
+
+
     // No copies or moves
     SystemEventHandler(const SystemEventHandler&) = delete;
     SystemEventHandler(SystemEventHandler&&) = delete;
@@ -53,7 +56,10 @@ private:
     SystemEventHandler& operator=(SystemEventHandler&&) = delete;
 
 public:
-    SystemEventHandler() = default;
+    SystemEventHandler(simconnect_message_handler_type& handler) : simConnectMessageHandler_(handler)
+    {
+        this->enable(simConnectMessageHandler_);
+    }
     ~SystemEventHandler() = default;
 
 
@@ -80,7 +86,7 @@ public:
         this->registerHandler(systemStateEvent, [handler](const SIMCONNECT_RECV& msg) {
             handler(reinterpret_cast<const SIMCONNECT_RECV_EVENT&>(msg));
         }, false);
-        connection.subscribeToSystemEvent(systemStateEvent);
+        simConnectMessageHandler_.connection().subscribeToSystemEvent(systemStateEvent);
     }
 
     /**
@@ -90,7 +96,7 @@ public:
      * @param systemStateEvent The event to unsubscribe from.
      */
     void unsubscribeFromSystemEvent(connection_type& connection, event systemStateEvent) {
-        connection.unsubscribeFromSystemEvent(systemStateEvent);
+        simConnectMessageHandler_.connection().unsubscribeFromSystemEvent(systemStateEvent);
         this->removeHandler(systemStateEvent);
     }
 
@@ -109,7 +115,7 @@ public:
         this->registerHandler(systemStateEvent, [handler](const SIMCONNECT_RECV& msg, [[maybe_unused]] DWORD size) {
             handler(*reinterpret_cast<const EventType*>(msg));
         }, false);
-        connection.subscribeToSystemEvent(systemStateEvent);
+        simConnectMessageHandler_.connection().subscribeToSystemEvent(systemStateEvent);
     }
 };
 

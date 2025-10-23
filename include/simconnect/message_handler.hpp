@@ -51,12 +51,16 @@ public:
 	using handler_id_type = typename handler_type::handler_id_type;
 	using handler_proc_type = typename handler_type::handler_proc_type;
 
+    using mutex_type = typename simconnect_message_handler_type::mutex_type;
+    using guard_type = typename simconnect_message_handler_type::guard_type;
 
 private:
     constexpr static size_t numIds = sizeof...(id);
     std::array<std::tuple<SIMCONNECT_RECV_ID, handler_id_type>, numIds> registrations_;
     std::map<correlation_id_type, std::tuple<handler_type, bool>> messageHandlers_;
     std::function<void()> cleanup_;
+
+    mutex_type mutex_;
 
 
     // No copies or moves
@@ -77,13 +81,23 @@ protected:
      */
     [[nodiscard]]
     bool dispatch(const SIMCONNECT_RECV& msg) {
-        auto corrId = correlationId(msg);
-        auto it = messageHandlers_.find(corrId);
-        if (it != messageHandlers_.end()) {
-            auto& [handler, remove] = it->second;
+        handler_type handler;
+        bool remove{ false };
+
+        {
+            guard_type lock(mutex_);
+            auto corrId = correlationId(msg);
+            auto it = messageHandlers_.find(corrId);
+            if (it != messageHandlers_.end()) {
+                handler = std::get<0>(it->second);
+                remove = std::get<1>(it->second);
+            }
+        }
+        if (handler.hasHandlers()) {
             handler(msg);
             if (remove) {
-                messageHandlers_.erase(it);
+                std::lock_guard lock(mutex_);
+                messageHandlers_.erase(correlationId(msg));
             }
             return true;
         }
@@ -92,6 +106,8 @@ protected:
 
 
     void cleanup() {
+        std::lock_guard lock(mutex_);
+
         if (cleanup_) {
             cleanup_();
             cleanup_ = nullptr;
@@ -147,6 +163,7 @@ public:
     void enable(simconnect_message_handler_type& msgHandler) {
         cleanup();
 
+        std::lock_guard lock(mutex_);
         size_t regIndex{ 0 };
         (registerFor(regIndex, msgHandler, id), ...);
         cleanup_ = [this, &msgHandler]() {
@@ -165,6 +182,8 @@ public:
      * @param autoRemove True to automatically remove the handler after it has been called.
      */
     void registerHandler(correlation_id_type correlationId, handler_proc_type correlationHandler, bool autoRemove) {
+        std::lock_guard lock(mutex_);
+
         if (!messageHandlers_.contains(correlationId)) {
             messageHandlers_.emplace(correlationId, std::make_tuple(handler_type{}, autoRemove));
 		}
@@ -179,7 +198,9 @@ public:
      * @param handler The message handler's id.
      */
     void unRegisterHandler(correlation_id_type id, handler_id_type handler) noexcept {
-		auto idHandler = this->getHandler(id);
+        std::lock_guard lock(mutex_);
+
+        auto idHandler = this->getHandler(id);
 
         if (idHandler.hasHandlers()) {
             idHandler.clear(handler);
@@ -195,6 +216,8 @@ public:
      * @param correlationId The correlation ID.
      */
     void removeHandler(correlation_id_type correlationId) {
+        std::lock_guard lock(mutex_);
+
         messageHandlers_.erase(correlationId);
     }
 

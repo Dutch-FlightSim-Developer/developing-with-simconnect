@@ -21,6 +21,7 @@
 #pragma warning(pop)
 
 #include <iostream>
+#include <fstream>
 #include <format>
 #include <string>
 #include <chrono>
@@ -479,10 +480,40 @@ static bool sendEvent(const std::string& eventName, DWORD value)
 }
 
 
+static std::map<std::string, DWORD> eventNames;
+
+static void loadEventNames(const std::string& filename)
+{
+    eventNames.clear();
+    std::cerr << std::format("[Loading event names from file '{}']\n", filename);
+    
+    std::ifstream file(filename);
+    if (!file) {
+        std::cerr << std::format("[Failed to open event names file: '{}']\n", filename);
+        return;
+    }
+
+    std::string line;
+    while (std::getline(file, line)) {
+        auto pos = line.find(' ');
+        if (pos != std::string::npos) {
+            std::string name = line.substr(0, pos);
+            DWORD id = std::stoul(line.substr(pos + 1));
+            eventNames[name] = id;
+        }
+    }
+
+    std::cerr << std::format("[Loaded {} event names]\n", eventNames.size());
+}
+
+
 auto main([[maybe_unused]] int argc, [[maybe_unused]] const char* argv[]) -> int
 {
     gatherArgs(argc, argv);
 
+    if (args.contains("names")) {
+        loadEventNames(args["names"]);
+    }
     if (!args.contains("Arg1")) {
         std::cerr << "[ABORTING: No event name specified.]\n";
         return 1;
@@ -499,6 +530,9 @@ auto main([[maybe_unused]] int argc, [[maybe_unused]] const char* argv[]) -> int
 		}
     }
 
+    if (eventNames.contains(eventName)) {
+        eventName = std::format("#{}", eventNames[eventName]);
+    }
 	std::cerr << std::format("Going to transmit event '{}' with value '0x{:04x}'\n", eventName, eventValue);
 
     if (!connect()) {

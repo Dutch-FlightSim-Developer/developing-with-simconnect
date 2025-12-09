@@ -259,6 +259,9 @@ public:
 			if (FAILED(hr_)) {
 				throw SimConnectException("SimConnect_Close failed");
 			}
+            
+            // Clear all mapped event flags to allow re-mapping on reconnect
+            event::clearAllMappedFlags();
 		}
 	}
 
@@ -321,6 +324,7 @@ public:
     }
 
 #pragma endregion
+
 #pragma region System State
 
 	/**
@@ -356,6 +360,178 @@ public:
 	}
 
 #pragma endregion
+
+#pragma region Notification Groups
+
+    /**
+     * Sets the priority of a notification group.
+     * 
+     * @param groupId The notification group ID.
+     * @param priority The priority to set.
+     */
+    void setNotificationGroupPriority(SIMCONNECT_NOTIFICATION_GROUP_ID groupId, int priority) {
+        logger().trace("Setting notification group ID {} priority to {}", groupId, priority);
+
+        guard_type guard(mutex_);
+
+        hr(SimConnect_SetNotificationGroupPriority(hSimConnect_, groupId, priority));
+    }
+
+
+    /**
+     * Adds a client event to a notification group.
+     * 
+     * @param groupId The notification group ID.
+     * @param evt The event to add.
+     * @param maskable True if the event is maskable.
+     */
+    void addClientEventToNotificationGroup(SIMCONNECT_NOTIFICATION_GROUP_ID groupId, event evt, bool maskable = false) {
+        logger().trace("Adding event '{}' to notification group ID {} (maskable={})", evt.name(), groupId, maskable);
+
+        guard_type guard(mutex_);
+
+        hr(SimConnect_AddClientEventToNotificationGroup(hSimConnect_, groupId, evt.id(), maskable ? 1 : 0));
+    }
+
+
+    /**
+     * Removes a client event from a notification group.
+     * 
+     * @param groupId The notification group ID.
+     * @param evt The event to remove.
+     */
+    void removeClientEventFromNotificationGroup(SIMCONNECT_NOTIFICATION_GROUP_ID groupId, event evt) {
+        logger().trace("Removing event '{}' from notification group ID {}", evt.name(), groupId);
+
+        guard_type guard(mutex_);
+
+        hr(SimConnect_RemoveClientEvent(hSimConnect_, groupId, evt.id()));
+    }
+
+
+    /**
+     * Clears all events from a notification group.
+     * 
+     * @param groupId The notification group ID.
+     */
+    void clearNotificationGroup(SIMCONNECT_NOTIFICATION_GROUP_ID groupId) {
+        logger().trace("Clearing notification group ID {}", groupId);
+
+        guard_type guard(mutex_);
+
+        hr(SimConnect_ClearNotificationGroup(hSimConnect_, groupId));
+    }
+
+#pragma endregion
+
+#pragma region Events
+
+    /**
+     * Maps a client event to a simulator event.
+     * The event will be mapped using its own name.
+     * 
+     * @param evt The event to map.
+     */
+    void mapClientEvent(event evt) {
+        // Check if already mapped to avoid SIMCONNECT_EXCEPTION_EVENT_ID_DUPLICATE (exception 9)
+        if (evt.isMapped()) {
+            logger().trace("Event '{}' (ID {}) is already mapped, skipping", evt.name(), evt.id());
+            return;
+        }
+
+        logger().trace("Mapping client event ID {} to sim event '{}'", evt.id(), evt.name());
+
+        guard_type guard(mutex_);
+
+        hr(SimConnect_MapClientEventToSimEvent(hSimConnect_, evt.id(), evt.name().c_str()));
+        
+        if (SUCCEEDED(hr_)) {
+            evt.setMapped();
+        }
+    }
+
+
+    /**
+     * Sends an Event.
+     * 
+     * @param objectId The object ID to send the event to.
+     * @param evt The event to send.
+     * @param groupId The notification group ID.
+     * @param data The optional data to send with the event.
+     */
+    void transmitClientEvent(SIMCONNECT_OBJECT_ID objectId, event evt, SIMCONNECT_NOTIFICATION_GROUP_ID groupId, unsigned long data = 0) {
+        logger().trace("Transmitting client event '{}' to object ID {} in group ID {} with data {}",
+            evt.name(), objectId, groupId, data);
+
+        guard_type guard(mutex_);
+
+        hr(SimConnect_TransmitClientEvent(hSimConnect_, objectId, evt.id(), data, groupId, 0));
+    }
+
+
+    /**
+     * Sends an Event, not in a group, but with a priority.
+     * 
+     * @param objectId The object ID to send the event to.
+     * @param evt The event to send.
+     * @param priority The priority of the event.
+     * @param data The optional data to send with the event.
+     */
+    void transmitClientEventWithPriority(SIMCONNECT_OBJECT_ID objectId, event evt, unsigned long priority, unsigned long data = 0) {
+        logger().trace("Transmitting client event '{}' to object ID {} with priority {} and data {}",
+            evt.name(), objectId, priority, data);
+
+        guard_type guard(mutex_);
+
+        hr(SimConnect_TransmitClientEvent(hSimConnect_, objectId, evt.id(), data, priority, SIMCONNECT_EVENT_FLAG_GROUPID_IS_PRIORITY));
+    }
+
+
+    /**
+     * Send an Event with more data.
+     * 
+     * @param objectId The object ID to send the event to.
+     * @param evt The event to send.
+     * @param groupId The notification group ID to send the event to.
+     * @param data0 The first data value to send with the event.
+     * @param data1 The second data value to send with the event.
+     * @param data2 The third data value to send with the event.
+     * @param data3 The fourth data value to send with the event.
+     * @param data4 The fifth data value to send with the event.
+     */
+    void transmitClientEvent(SIMCONNECT_OBJECT_ID objectId, event evt, SIMCONNECT_NOTIFICATION_GROUP_ID groupId, unsigned long data0, unsigned long data1, unsigned long data2 = 0, unsigned long data3 = 0, unsigned long data4 = 0) {
+        logger().trace("Transmitting client event '{}' to object ID {} in group ID {} with data {}, {}, {}, {}, {}",
+            evt.name(), objectId, groupId, data0, data1, data2, data3, data4);
+
+        guard_type guard(mutex_);
+
+        hr(SimConnect_TransmitClientEvent_EX1(hSimConnect_, objectId, evt.id(), groupId, 0, data0, data1, data2, data3, data4));
+    }
+
+
+    /**
+     * Send an Event with more data, not in a group, but with a priority.
+     * 
+     * @param objectId The object ID to send the event to.
+     * @param evt The event to send.
+     * @param priority The priority of the event.
+     * @param data0 The first data value to send with the event.
+     * @param data1 The second data value to send with the event.
+     * @param data2 The third data value to send with the event.
+     * @param data3 The fourth data value to send with the event.
+     * @param data4 The fifth data value to send with the event.
+     */
+    void transmitClientEventWithPriority(SIMCONNECT_OBJECT_ID objectId, event evt, unsigned long priority, unsigned long data0, unsigned long data1, unsigned long data2 = 0, unsigned long data3 = 0, unsigned long data4 = 0) {
+        logger().trace("Transmitting client event '{}' to object ID {} with priority {} and data {}, {}, {}, {}, {}",
+            evt.name(), objectId, priority, data0, data1, data2, data3, data4);
+
+        guard_type guard(mutex_);
+
+        hr(SimConnect_TransmitClientEvent_EX1(hSimConnect_, objectId, evt.id(), priority, SIMCONNECT_EVENT_FLAG_GROUPID_IS_PRIORITY, data0, data1, data2, data3, data4));
+    }
+
+#pragma endregion
+
 #pragma region System Events
 
     /**
@@ -384,6 +560,7 @@ public:
     }
 
 #pragma endregion
+
 #pragma region Data Definitions
 
     /**
@@ -418,6 +595,7 @@ public:
 	}
 
 #pragma endregion
+
 #pragma region Data Requests
 
     /**
@@ -517,6 +695,7 @@ public:
 	}
 
 #pragma endregion
+
 #pragma region AI
 
     /**

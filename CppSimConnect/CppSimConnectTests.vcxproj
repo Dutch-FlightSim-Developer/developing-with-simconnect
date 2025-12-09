@@ -127,11 +127,6 @@
     <ClCompile Include=".\tests\TestSimpleHandler.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include=".\CppSimConnect.vcxproj">
-      <Project>{3a82c8a2-ed97-4b6b-a1ce-d148ec5033a6}</Project>
-    </ProjectReference>
-  </ItemGroup>
-  <ItemGroup>
     <None Include="packages.config" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

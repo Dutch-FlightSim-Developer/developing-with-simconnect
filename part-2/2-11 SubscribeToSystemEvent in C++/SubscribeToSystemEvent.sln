@@ -4,11 +4,6 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 VisualStudioVersion = 17.12.35527.113
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "SubscribeToSystemEvent", "SubscribeToSystemEvent.vcxproj", "{02432241-16A7-412A-B16E-126980B76BEA}"
-	ProjectSection(ProjectDependencies) = postProject
-		{3A82C8A2-ED97-4B6B-A1CE-D148EC5033A6} = {3A82C8A2-ED97-4B6B-A1CE-D148EC5033A6}
-	EndProjectSection
-EndProject
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "CppSimConnect", "..\..\CppSimConnect\CppSimConnect.vcxproj", "{3A82C8A2-ED97-4B6B-A1CE-D148EC5033A6}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -26,14 +21,6 @@ Global
 		{02432241-16A7-412A-B16E-126980B76BEA}.Release|x64.Build.0 = Release|x64
 		{02432241-16A7-412A-B16E-126980B76BEA}.Release|x86.ActiveCfg = Release|Win32
 		{02432241-16A7-412A-B16E-126980B76BEA}.Release|x86.Build.0 = Release|Win32
-		{3A82C8A2-ED97-4B6B-A1CE-D148EC5033A6}.Debug|x64.ActiveCfg = Debug|x64
-		{3A82C8A2-ED97-4B6B-A1CE-D148EC5033A6}.Debug|x64.Build.0 = Debug|x64
-		{3A82C8A2-ED97-4B6B-A1CE-D148EC5033A6}.Debug|x86.ActiveCfg = Debug|Win32
-		{3A82C8A2-ED97-4B6B-A1CE-D148EC5033A6}.Debug|x86.Build.0 = Debug|Win32
-		{3A82C8A2-ED97-4B6B-A1CE-D148EC5033A6}.Release|x64.ActiveCfg = Release|x64
-		{3A82C8A2-ED97-4B6B-A1CE-D148EC5033A6}.Release|x64.Build.0 = Release|x64
-		{3A82C8A2-ED97-4B6B-A1CE-D148EC5033A6}.Release|x86.ActiveCfg = Release|Win32
-		{3A82C8A2-ED97-4B6B-A1CE-D148EC5033A6}.Release|x86.Build.0 = Release|Win32
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

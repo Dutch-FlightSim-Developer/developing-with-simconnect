@@ -36,10 +36,10 @@ TEST(TestSystemState, RequestAircraftLoaded) {
     [[maybe_unused]] auto defaultHandlerId = handler.registerDefaultHandler([](const SIMCONNECT_RECV&) {});
     ASSERT_TRUE(connection.open());
 
-    SystemStateHandler<WindowsEventHandler<>> requestHandler;
+    SystemStateHandler<WindowsEventHandler<>> requestHandler(handler);
     requestHandler.enable(handler);
 
-    requestHandler.requestSystemState(connection, "AircraftLoaded", [&](std::string value) {
+    requestHandler.requestSystemState("AircraftLoaded", [&](std::string value) {
         result = value;
         gotResult = true;
     });
@@ -63,10 +63,10 @@ TEST(TestSystemState, RequestDialogMode) {
     [[maybe_unused]] auto defaultHandlerId = handler.registerDefaultHandler([](const SIMCONNECT_RECV&) {});
     ASSERT_TRUE(connection.open());
 
-    SystemStateHandler<WindowsEventHandler<>> requestHandler;
+    SystemStateHandler<WindowsEventHandler<>> requestHandler(handler);
     requestHandler.enable(handler);
 
-    requestHandler.requestSystemState(connection, "DialogMode", [&](bool value) {
+    requestHandler.requestSystemState("DialogMode", [&](bool value) {
         dialogMode = value;
         gotResult = true;
     });
@@ -92,10 +92,10 @@ TEST(TestSystemState, ExceptionOnUnknownSystemState) {
     [[maybe_unused]] auto defaultHandlerId = handler.registerDefaultHandler([](const SIMCONNECT_RECV&) {});
     ASSERT_TRUE(connection.open());
 
-    SystemStateHandler<WindowsEventHandler<>> requestHandler;
+    SystemStateHandler<WindowsEventHandler<>> requestHandler(handler);
     requestHandler.enable(handler);
 
-    requestHandler.requestSystemState(connection, "UnknownState", std::function<void(std::string)>([](std::string){}));
+    requestHandler.requestSystemState("UnknownState", std::function<void(std::string)>([](std::string){}));
 
     // Wait up to 2 seconds for the exception message
     for (int i = 0; i < 20 && !gotException; ++i) {

@@ -268,10 +268,9 @@ void testGetData() {
 
 	if (connection.open()) {
         setupAircraftInfoDefinition(aircraftDef);
-        SimConnect::SimObjectDataHandler<SimConnect::WindowsEventHandler<>> dataHandler;
-		dataHandler.enable(handler);
+        SimConnect::SimObjectDataHandler<SimConnect::WindowsEventHandler<>> dataHandler(handler);
 
-		auto dataRequest = dataHandler.requestDataOnce<AircraftInfo>(connection, aircraftDef, [](const AircraftInfo& info) {
+		auto dataRequest = dataHandler.requestDataOnce<AircraftInfo>(aircraftDef, [](const AircraftInfo& info) {
             std::cout << "Aircraft Info unmarshalled:\n"
                       << "  Title: " << info.title << "\n"
                       << "  Tail Number: " << info.tailNumber << "\n"
@@ -280,8 +279,8 @@ void testGetData() {
                       << "  Latitude: " << info.latitude << " degrees\n"
                       << "  Longitude: " << info.longitude << " degrees\n";
         }, SIMCONNECT_OBJECT_ID_USER);
-		std::cout << "\n\nHandling messages for 10 minutes.\n";
-		handler.handle(20s);
+		std::cout << "\n\nHandling messages for 10 seconds.\n";
+		handler.handle(10s);
 	}
 	else {
 		std::cerr << "Failed to connect to simulator.\n";

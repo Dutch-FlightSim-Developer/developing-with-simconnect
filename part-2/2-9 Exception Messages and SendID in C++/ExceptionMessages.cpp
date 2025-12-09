@@ -221,35 +221,35 @@ auto main() -> int {
 
 	std::cout << "Opening connection\n";
 	if (connection.open()) {
-		SimConnect::SystemStateHandler<SimConnect::WindowsEventHandler<>> requestHandler;
+		SimConnect::SystemStateHandler<SimConnect::WindowsEventHandler<>> requestHandler(handler);
 		requestHandler.enable(handler);
 
-		requestHandler.requestSystemState(connection, "AircraftLoaded",
+		requestHandler.requestSystemState("AircraftLoaded",
 			[](std::string aircraft) {
 				std::cout << std::format("Currently loaded aircraft '{}'.\n", aircraft);
 			});
 
-		requestHandler.requestSystemState(connection, "DialogMode",
+		requestHandler.requestSystemState("DialogMode",
 			[](bool inDialog) {
 				std::cout << (inDialog ? "The user is now in a dialog.\n" : "The user is now NOT in a dialog.\n");
 			});
 
-		requestHandler.requestSystemState(connection, "FlightLoaded",
+		requestHandler.requestSystemState("FlightLoaded",
 			[](std::string flight) {
 				std::cout << std::format("Currently loaded flight '{}'.\n", flight);
 			});
 
-		requestHandler.requestSystemState(connection, "FlightPlan",
+		requestHandler.requestSystemState("FlightPlan",
 			[](std::string flightPlan) {
 				std::cout << std::format("Currently loaded flightplan '{}'.\n", flightPlan);
 			});
 
-		requestHandler.requestSystemState(connection, "Sim",
+		requestHandler.requestSystemState("Sim",
 			[](bool flying) {
 				std::cout << (flying ? "The user is now in control of the aircraft.\n" : "The user is now navigating the UI.\n");
 			});
 
-		requestHandler.requestSystemState(connection, "SimLoaded",
+		requestHandler.requestSystemState("SimLoaded",
 			[](std::string simulator) {
 				std::cout << std::format("Currently loaded simulator '{}'.\n", simulator);
 			}); // Will cause an exception message

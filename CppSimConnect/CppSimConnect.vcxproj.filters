@@ -33,11 +33,6 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include=".\src\events.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-  </ItemGroup>
-  <ItemGroup>
     <ClInclude Include="..\include\simconnect.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
@@ -126,6 +121,15 @@
       <Filter>Header Files\SimConnect</Filter>
     </ClInclude>
     <ClInclude Include="..\include\simconnect\events\system_event_handler.hpp">
+      <Filter>Header Files\SimConnect\Events</Filter>
+    </ClInclude>
+    <ClInclude Include="..\include\simconnect\events\event_handler.hpp">
+      <Filter>Header Files\SimConnect\Events</Filter>
+    </ClInclude>
+    <ClInclude Include="..\include\simconnect\messaging\message_dispatcher.hpp">
+      <Filter>Header Files\SimConnect\messaging</Filter>
+    </ClInclude>
+    <ClInclude Include="..\include\simconnect\events\notification_group.hpp">
       <Filter>Header Files\SimConnect\Events</Filter>
     </ClInclude>
   </ItemGroup>

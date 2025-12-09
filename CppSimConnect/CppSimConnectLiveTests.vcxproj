@@ -113,15 +113,15 @@
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Create</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Create</PrecompiledHeader>
     </ClCompile>
+    <ClCompile Include="live-tests\TestEventHandler.cpp" />
+    <ClCompile Include="live-tests\TestEvents.cpp" />
+    <ClCompile Include="live-tests\TestMultiClient.cpp" />
+    <ClCompile Include="live-tests\TestNotificationGroups.cpp" />
+    <ClCompile Include="live-tests\TestSystemEvents.cpp" />
     <ClCompile Include="live-tests\TestSystemState.cpp" />
   </ItemGroup>
   <ItemGroup>
     <None Include="packages.config" />
-  </ItemGroup>
-  <ItemGroup>
-    <ProjectReference Include=".\CppSimConnect.vcxproj">
-      <Project>{3a82c8a2-ed97-4b6b-a1ce-d148ec5033a6}</Project>
-    </ProjectReference>
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

@@ -19,9 +19,6 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include=".\src\events.cpp" />
-  </ItemGroup>
-  <ItemGroup>
     <ClInclude Include="..\include\simconnect.hpp" />
     <ClInclude Include="..\include\simconnect\background_simconnect_manager.hpp" />
     <ClInclude Include="..\include\simconnect\connection.hpp" />
@@ -32,10 +29,13 @@
     <ClInclude Include="..\include\simconnect\data_definition.hpp" />
     <ClInclude Include="..\include\simconnect\data_frequency.hpp" />
     <ClInclude Include="..\include\simconnect\events\events.hpp" />
+    <ClInclude Include="..\include\simconnect\events\event_handler.hpp" />
+    <ClInclude Include="..\include\simconnect\events\notification_group.hpp" />
     <ClInclude Include="..\include\simconnect\events\system_events.hpp" />
     <ClInclude Include="..\include\simconnect\events\system_event_handler.hpp" />
     <ClInclude Include="..\include\simconnect\handler.hpp" />
     <ClInclude Include="..\include\simconnect\messaging\handler_policy.hpp" />
+    <ClInclude Include="..\include\simconnect\messaging\message_dispatcher.hpp" />
     <ClInclude Include="..\include\simconnect\polling_handler.hpp" />
     <ClInclude Include="..\include\simconnect\requests\request.hpp" />
     <ClInclude Include="..\include\simconnect\requests\requests.hpp" />

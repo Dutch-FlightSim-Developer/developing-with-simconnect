@@ -19,7 +19,6 @@
 #include <simconnect/windows_event_handler.hpp>
 
 #include <simconnect/requests/system_state_handler.hpp>
-#include <simconnect/events/system_event_handler.hpp>
 #include <simconnect/events/system_events.hpp>
 
 #include <atomic>
@@ -164,7 +163,8 @@ private:
     SystemStateHandler<handler_type> systemStateHandler_;
 
     // Simulator event handlers
-    SystemEventHandler<handler_type> systemEventHandler_;
+    EventHandler<handler_type> eventHandler_;
+	SystemEvents<handler_type> systemEvents_;
 
     // Simulator information
     std::string simName_{};
@@ -186,7 +186,8 @@ public:
         , handler_(connection_)
         , logger_("SimConnect::BackgroundSimConnectManager", connection_.logger())
         , systemStateHandler_(handler_)
-        , systemEventHandler_(handler_)
+		, eventHandler_(handler_)
+        , systemEvents_(eventHandler_)
         , configIndex_(configIndex)
     {
     }
@@ -270,13 +271,13 @@ public:
     }
 
     /**
-     * Return the System Event handler.
+     * Return the System Events delegate.
      * 
-     * @returns The System Event handler.
+     * @returns The System Events delegate.
      */
     [[nodiscard]]
-    SystemEventHandler<handler_type>& systemEvent() noexcept {
-        return systemEventHandler_;
+    SystemEvents<handler_type>& systemEvents() noexcept {
+        return systemEvents_;
     }
 
 #pragma endregion

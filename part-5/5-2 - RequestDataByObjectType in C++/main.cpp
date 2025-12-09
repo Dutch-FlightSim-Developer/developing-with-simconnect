@@ -27,6 +27,8 @@
 #include <simconnect/data/data_block_builder.hpp>
 #include <simconnect/requests/simobject_data_handler.hpp>
 
+#include <simconnect/util/console_logger.hpp>
+
 
 using namespace std::chrono_literals;
 
@@ -253,21 +255,27 @@ void handleSimObjectDataMap(std::unordered_map<unsigned long, SimObjectInfo>& re
 
 	for (const auto& [id, obj] : result) {
 		if (obj.category == "Airplane") {
+			std::cout << std::format("Adding airplane '{}'.\n", obj.title);
 			++objectCount[SIMCONNECT_SIMOBJECT_TYPE_AIRCRAFT];
 		}
 		else if (obj.category == "Helicopter") {
+			std::cout << std::format("Adding helicopter '{}'.\n", obj.title);
 			++objectCount[SIMCONNECT_SIMOBJECT_TYPE_HELICOPTER];
 		}
 		else if (obj.category == "Boat") {
+			std::cout << std::format("Adding boat '{}'.\n", obj.title);
 			++objectCount[SIMCONNECT_SIMOBJECT_TYPE_BOAT];
 		}
 		else if (obj.category == "GroundVehicle") {
+			std::cout << std::format("Adding ground vehicle '{}'.\n", obj.title);
 			++objectCount[SIMCONNECT_SIMOBJECT_TYPE_GROUND];
 		}
 		else if (obj.category == "Animal") {
+			std::cout << std::format("Adding animal '{}'.\n", obj.title);
 			++objectCount[SIMCONNECT_SIMOBJECT_TYPE_ANIMAL];
 		}
 		else {
+			std::cout << std::format("Adding unknown category '{}' for '{}'.\n", obj.category, obj.title);
 			unknownCategories.insert(obj.category);
 		}
 		titlesPerCategory[obj.category].insert(obj.title);
@@ -302,9 +310,10 @@ void handleSimObjectDataMap(std::unordered_map<unsigned long, SimObjectInfo>& re
 
 
 void testGetData() {
-	SimConnect::WindowsEventConnection connection;
-	SimConnect::WindowsEventHandler handler(connection);
+	SimConnect::WindowsEventConnection<false, SimConnect::ConsoleLogger> connection;
+	SimConnect::WindowsEventHandler<false, SimConnect::ConsoleLogger> handler(connection);
 	handler.autoClosing(true);
+	//connection.logger().level(SimConnect::LogLevel::Trace);
 
 	handler.registerDefaultHandler([](const SIMCONNECT_RECV& msg) {
 		std::cerr << std::format("Ignoring message of type {} (length {} bytes)\n", msg.dwID, msg.dwSize);
@@ -318,10 +327,9 @@ void testGetData() {
 
 	if (connection.open()) {
 		setupSimObjectInfoDefinition(aircraftDef);
-		SimConnect::SimObjectDataHandler<SimConnect::WindowsEventHandler<>> dataHandler;
-		dataHandler.enable(handler);
+		SimConnect::SimObjectDataHandler<SimConnect::WindowsEventHandler<false, SimConnect::ConsoleLogger>> dataHandler(handler);
 
-		auto aircraftRequest = dataHandler.requestDataByType<SimObjectInfo>(connection, aircraftDef, [](const SimObjectInfo& info) {
+		auto aircraftRequest = dataHandler.requestDataByType<SimObjectInfo>(aircraftDef, [](const SimObjectInfo& info) {
 			std::cout
 				<< "Aircraft Info unmarshalled:\n"
 				<< "  Object ID: " << info.objectId << "\n"
@@ -331,9 +339,9 @@ void testGetData() {
 				std::cout << "All data received.\n";
 			}, 10000, SIMCONNECT_SIMOBJECT_TYPE_AIRCRAFT);
 
-		auto allRequest = dataHandler.requestDataByType<SimObjectInfo>(connection, aircraftDef, &handleSimObjectDataMap, 0, SIMCONNECT_SIMOBJECT_TYPE_ALL);
-		std::cout << "\n\nHandling messages for 10 minutes.\n";
-		handler.handle(10min);
+		auto allRequest = dataHandler.requestDataByType<SimObjectInfo>(aircraftDef, &handleSimObjectDataMap, 0, SIMCONNECT_SIMOBJECT_TYPE_ALL);
+		std::cout << "\n\nHandling messages for 10 seconds.\n";
+		handler.handle(10s);
 	}
 	else {
 		std::cerr << "Failed to connect to simulator.\n";

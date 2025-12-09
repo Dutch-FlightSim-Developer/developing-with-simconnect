@@ -54,19 +54,19 @@ public:
 
 
 private:
-#if defined(SIMCONNECT_RECV_ID_FLOW_EVENT)                                                              // MSFS 2024, since SDK 1.4.0
+//#if defined(SIMCONNECT_RECV_ID_FLOW_EVENT)                                                              // MSFS 2024, since SDK 1.4.0
     static constexpr SIMCONNECT_RECV_ID maxRecvId = SIMCONNECT_RECV_ID_FLOW_EVENT;
-#elif defined(SIMCONNECT_RECV_ID_ENUMERATE_INPUT_EVENT_PARAMS)                                          // MSFS 2020, since SDK 0.22.0
-    static constexpr SIMCONNECT_RECV_ID maxRecvId = SIMCONNECT_RECV_ID_ENUMERATE_INPUT_EVENT_PARAMS;
-#elif defined(SIMCONNECT_RECV_ID_JETWAY_DATA)                                                           // MSFS 2020, since SDK 0.21.0
-    static constexpr SIMCONNECT_RECV_ID maxRecvId = SIMCONNECT_RECV_ID_JETWAY_DATA;
-#elif defined(SIMCONNECT_RECV_ID_FACILITY_DATA_END)                                                     // MSFS 2020, since SDK 0.19.0
-    static constexpr SIMCONNECT_RECV_ID maxRecvId = SIMCONNECT_RECV_ID_FACILITY_DATA_END;
-#elif defined(SIMCONNECT_RECV_ID_PICK)                                                                  // MSFS 2020, Experimental
-    static constexpr SIMCONNECT_RECV_ID maxRecvId = SIMCONNECT_RECV_ID_PICK;
-#else                                                                                                   // FSX, since SP2
-    static constexpr SIMCONNECT_RECV_ID maxRecvId = SIMCONNECT_RECV_ID_EVENT_RACE_LAP;
-#endif
+//#elif defined(SIMCONNECT_RECV_ID_ENUMERATE_INPUT_EVENT_PARAMS)                                          // MSFS 2020, since SDK 0.22.0
+//    static constexpr SIMCONNECT_RECV_ID maxRecvId = SIMCONNECT_RECV_ID_ENUMERATE_INPUT_EVENT_PARAMS;
+//#elif defined(SIMCONNECT_RECV_ID_JETWAY_DATA)                                                           // MSFS 2020, since SDK 0.21.0
+//    static constexpr SIMCONNECT_RECV_ID maxRecvId = SIMCONNECT_RECV_ID_JETWAY_DATA;
+//#elif defined(SIMCONNECT_RECV_ID_FACILITY_DATA_END)                                                     // MSFS 2020, since SDK 0.19.0
+//    static constexpr SIMCONNECT_RECV_ID maxRecvId = SIMCONNECT_RECV_ID_FACILITY_DATA_END;
+//#elif defined(SIMCONNECT_RECV_ID_PICK)                                                                  // MSFS 2020, Experimental
+//    static constexpr SIMCONNECT_RECV_ID maxRecvId = SIMCONNECT_RECV_ID_PICK;
+//#else                                                                                                   // FSX, since SP2
+//    static constexpr SIMCONNECT_RECV_ID maxRecvId = SIMCONNECT_RECV_ID_EVENT_RACE_LAP;
+//#endif
 
     /** Array of message handlers. */
     std::array<H, maxRecvId+1> handlers_;

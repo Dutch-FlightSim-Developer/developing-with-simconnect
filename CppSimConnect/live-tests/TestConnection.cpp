@@ -65,12 +65,12 @@ TEST(TestConnection, ExceptionOnUnknownSystemState) {
 
     ASSERT_TRUE(connection.open());
 
-    SystemStateHandler<WindowsEventHandler<>> requestHandler;
+    SystemStateHandler<WindowsEventHandler<>> requestHandler(handler);
     requestHandler.enable(handler);
 
     // Request an unknown system state, should trigger exception
     // Use the string overload explicitly
-    requestHandler.requestSystemState(connection, "UnknownState", std::function<void(std::string)>([](std::string){}));
+    requestHandler.requestSystemState("UnknownState", std::function<void(std::string)>([](std::string){}));
 
     // Wait up to 2 seconds for the exception message
     for (int i = 0; i < 20 && !gotException; ++i) {

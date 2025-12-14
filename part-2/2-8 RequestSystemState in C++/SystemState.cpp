@@ -14,10 +14,13 @@
  * limitations under the License.
  */
 
+#include <simconnect.hpp>
 #include <simconnect/windows_event_connection.hpp>
 #include <simconnect/windows_event_handler.hpp>
 #include <simconnect/requests/system_state_handler.hpp>
 
+#include <chrono>
+#include <string>
 #include <format>
 #include <iostream>
 
@@ -26,13 +29,13 @@ using namespace std::chrono_literals;
 
 
 /**
- * Produce a nicely formatted version string.
- *
- * @param major the major version number. If `0`, the version is considered to be unknown.
- * @param minor the minor version number. If `0`, the minor version number is not appended.
- * @return the formatted version string.
+ * Return a formatted string of the version. if the major number is 0, it returns "Unknown". The lower number is ignored if 0.
+ * 
+ * @param major The major version number.
+ * @param minor The minor version number.
+ * @returns a string with the formatted version number.
  */
-inline static std::string version(int major, int minor) {
+inline static std::string version(unsigned long major, unsigned long minor) {
 	if (major == 0) {
 		return "Unknown";
 	}
@@ -41,84 +44,84 @@ inline static std::string version(int major, int minor) {
 
 
 /**
- * Handle a `SIMCONNECT_RECV_OPEN` message.
- *
- * @param msg the message.
+ * Print the information of the "Open" message, which tells us some details about the simulator.
+ * 
+ * @param msg The message received.
  */
-static void handleOpen(const SIMCONNECT_RECV_OPEN& msg) {
-	std::cout << "Connected to " << msg.szApplicationName
-		<< " version " << version(msg.dwApplicationVersionMajor, msg.dwApplicationVersionMinor) << std::endl
-		<< "  build " << version(msg.dwApplicationBuildMajor, msg.dwApplicationBuildMinor) << std::endl
-		<< "  using SimConnect version " << version(msg.dwSimConnectVersionMajor, msg.dwSimConnectVersionMinor) << std::endl
-		<< "  build " << version(msg.dwSimConnectBuildMajor, msg.dwSimConnectBuildMinor) << std::endl;
+static void handleOpen(const SIMCONNECT_RECV_OPEN& msg) { // NOLINT(misc-include-cleaner)
+	std::cout << "Connected to " << &msg.szApplicationName[0]
+		<< " version " << version(msg.dwApplicationVersionMajor, msg.dwApplicationVersionMinor) << '\n'
+		<< "  build " << version(msg.dwApplicationBuildMajor, msg.dwApplicationBuildMinor) << '\n'
+		<< "  using SimConnect version " << version(msg.dwSimConnectVersionMajor, msg.dwSimConnectVersionMinor) << '\n'
+		<< "  build " << version(msg.dwSimConnectBuildMajor, msg.dwSimConnectBuildMinor) << '\n';
 }
 
 
 /**
- * Handle a `SIMCONNECT_RECV_QUIT` message.
- *
- * @param msg the message.
+ * Tell the user the simulator is shutting down.
+ * 
+ * @param msg The message received.
  */
-static void handleClose([[ maybe_unused]] const SIMCONNECT_RECV_QUIT& msg) {
+static void handleClose([[maybe_unused]] const SIMCONNECT_RECV_QUIT& msg) { // NOLINT(misc-include-cleaner)
 	std::cout << "Simulator shutting down.\n";
 }
 
 
 /** Main entry point. */
-auto main () -> int {
+auto main () -> int { // NOLINT(bugprone-exception-escape)
 	try {
 		SimConnect::WindowsEventConnection connection;				// Use a Windows Event.
 		SimConnect::WindowsEventHandler handler(connection);		// Use a Windows Event.
 		handler.autoClosing(true);
 
-		handler.registerDefaultHandler([](const SIMCONNECT_RECV& msg) {
+		handler.registerDefaultHandler([](const SIMCONNECT_RECV& msg) { // NOLINT(misc-include-cleaner)
 			std::cerr << std::format("Ignoring message of type {} (length {} bytes)\n", msg.dwID, msg.dwSize);
 			});
 
-		handler.registerHandler<SIMCONNECT_RECV_OPEN>(SIMCONNECT_RECV_ID_OPEN, handleOpen);
-		handler.registerHandler<SIMCONNECT_RECV_QUIT>(SIMCONNECT_RECV_ID_QUIT, handleClose);
+		handler.registerHandler<SIMCONNECT_RECV_OPEN>(SIMCONNECT_RECV_ID_OPEN, handleOpen); // NOLINT(misc-include-cleaner)
+		handler.registerHandler<SIMCONNECT_RECV_QUIT>(SIMCONNECT_RECV_ID_QUIT, handleClose); // NOLINT(misc-include-cleaner)
 
 		if (connection.open()) {
-			SimConnect::SystemStateHandler<SimConnect::WindowsEventHandler<>> requestHandler;
-			requestHandler.enable(handler);
+			SimConnect::SystemStateHandler<SimConnect::WindowsEventHandler<>> requestHandler(handler);
 
-			requestHandler.requestSystemState(connection, "AircraftLoaded",
+			requestHandler.requestSystemState("AircraftLoaded",
 				[](std::string aircraft) {
 					std::cout << std::format("Currently loaded aircraft '{}'.\n", aircraft);
 				});
 
-			requestHandler.requestSystemState(connection, "DialogMode",
+			requestHandler.requestSystemState("DialogMode",
 				[](bool inDialog) {
 					std::cout << (inDialog ? "The simulator is now in dialog mode.\n" : "The simulator is now NOT in dialog mode.\n");
 				});
 
-			requestHandler.requestSystemState(connection, "FlightLoaded",
+			requestHandler.requestSystemState("FlightLoaded",
 				[](std::string flight) {
 					std::cout << std::format("Currently loaded flight '{}'.\n", flight);
 				});
 
-			requestHandler.requestSystemState(connection, "FlightPlan",
+			requestHandler.requestSystemState("FlightPlan",
 				[](std::string flightPlan) {
 					std::cout << std::format("Currently loaded flightplan '{}'.\n", flightPlan);
 				});
 
-			requestHandler.requestSystemState(connection, "Sim",
+			requestHandler.requestSystemState("Sim",
 				[](bool flying) {
 					std::cout << (flying ? "The simulator is running.\n" : "The simulator is stopped.\n");
 				});
 
-			requestHandler.requestSystemState(connection, "SimLoaded",
+			requestHandler.requestSystemState("SimLoaded",
 				[](std::string simulator) {
 					std::cout << std::format("Currently loaded simulator '{}'.\n", simulator);
 				}); // Will cause an exception message
 
 			std::cout << "Handling messages\n";
-			handler.handle(10s);
+            constexpr auto duration = 10s;
+			handler.handle(duration);
 		}
 		else {
 			std::cerr << "Failed to connect to the simulator.\n";
 		}
-		if (handler.getHandler(SIMCONNECT_RECV_ID_SYSTEM_STATE).proc()) {
+		if (handler.getHandler(SIMCONNECT_RECV_ID_SYSTEM_STATE).proc()) { // NOLINT(misc-include-cleaner)
 			throw SimConnect::SimConnectException("There is still a handler for SystemState messages!");
 		}
 	}

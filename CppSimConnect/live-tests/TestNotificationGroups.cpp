@@ -14,10 +14,12 @@
  * limitations under the License.
  */
 
-#include "pch.h"
+#include "gtest/gtest.h"
 
 #include <simconnect/windows_event_connection.hpp>
 #include <simconnect/windows_event_handler.hpp>
+
+#include <simconnect/events/events.hpp>
 #include <simconnect/events/event_handler.hpp>
 #include <simconnect/events/notification_group.hpp>
 
@@ -27,6 +29,9 @@
 using namespace SimConnect;
 using namespace std::chrono_literals;
 
+
+//NOLINTBEGIN(readability-function-cognitive-complexity)
+
 TEST(TestNotificationGroups, BasicGroupCreation) {
     WindowsEventConnection<> connection("NotificationGroupTest");
     WindowsEventHandler<> handler(connection);
@@ -34,9 +39,7 @@ TEST(TestNotificationGroups, BasicGroupCreation) {
     
     std::atomic<bool> gotOpen{false};
 
-    handler.registerHandler<SIMCONNECT_RECV_OPEN>(
-        SIMCONNECT_RECV_ID_OPEN,
-        [&](const SIMCONNECT_RECV_OPEN&) {
+    handler.registerHandler<SIMCONNECT_RECV_OPEN>(SIMCONNECT_RECV_ID_OPEN, [&](const SIMCONNECT_RECV_OPEN&) { // NOLINT(misc-include-cleaner)
             gotOpen = true;
         }
     );
@@ -44,8 +47,10 @@ TEST(TestNotificationGroups, BasicGroupCreation) {
     ASSERT_TRUE(connection.open());
 
     // Wait for open message
-    for (int i = 0; i < 20 && !gotOpen; ++i) {
-        handler.dispatch(100ms);
+    constexpr int maxWaitIterations = 20;
+    constexpr auto waitInterval = 100ms;
+    for (int i = 0; i < maxWaitIterations && !gotOpen; ++i) {
+        handler.dispatch(waitInterval);
     }
     ASSERT_TRUE(gotOpen);
 
@@ -54,6 +59,7 @@ TEST(TestNotificationGroups, BasicGroupCreation) {
     EXPECT_FALSE(brakeEvt.isMapped()) << "Event should not be mapped before adding to group";
 
     // Create a notification group and add event - mapping happens automatically
+    [[maybe_unused]]
     auto group = eventHandler
         .createNotificationGroup()
         .withHighestPriority()
@@ -81,12 +87,16 @@ TEST(TestNotificationGroups, FluentAPIUsage) {
 
     ASSERT_TRUE(connection.open());
 
-    for (int i = 0; i < 20 && !gotOpen; ++i) {
-        handler.dispatch(100ms);
+    // Wait for open message
+    constexpr int maxWaitIterations = 20;
+    constexpr auto waitInterval = 100ms;
+    for (int i = 0; i < maxWaitIterations && !gotOpen; ++i) {
+        handler.dispatch(waitInterval);
     }
     ASSERT_TRUE(gotOpen);
 
     // Use factory method and fluent API to configure notification group
+    [[maybe_unused]]
     auto group = eventHandler
         .createNotificationGroup()
         .withStandardPriority()
@@ -115,17 +125,22 @@ TEST(TestNotificationGroups, PriorityHandling) {
 
     ASSERT_TRUE(connection.open());
 
-    for (int i = 0; i < 20 && !gotOpen; ++i) {
-        handler.dispatch(100ms);
+    // Wait for open message
+    constexpr int maxWaitIterations = 20;
+    constexpr auto waitInterval = 100ms;
+    for (int i = 0; i < maxWaitIterations && !gotOpen; ++i) {
+        handler.dispatch(waitInterval);
     }
     ASSERT_TRUE(gotOpen);
 
     // Create two groups with different priorities
+    [[maybe_unused]]
     auto highPriorityGroup = eventHandler
         .createNotificationGroup()
         .withHighestPriority()
         .addEvent(event::get("Brakes"));
 
+    [[maybe_unused]]
     auto lowPriorityGroup = eventHandler
         .createNotificationGroup()
         .withLowestPriority()
@@ -152,12 +167,16 @@ TEST(TestNotificationGroups, MaskableEvents) {
 
     ASSERT_TRUE(connection.open());
 
-    for (int i = 0; i < 20 && !gotOpen; ++i) {
-        handler.dispatch(100ms);
+    // Wait for open message
+    constexpr int maxWaitIterations = 20;
+    constexpr auto waitInterval = 100ms;
+    for (int i = 0; i < maxWaitIterations && !gotOpen; ++i) {
+        handler.dispatch(waitInterval);
     }
     ASSERT_TRUE(gotOpen);
 
     // Create group with both maskable and non-maskable events
+    [[maybe_unused]]
     auto group = eventHandler
         .createNotificationGroup()
         .withMaskablePriority()
@@ -185,8 +204,11 @@ TEST(TestNotificationGroups, MultipleGroupsPerClient) {
 
     ASSERT_TRUE(connection.open());
 
-    for (int i = 0; i < 20 && !gotOpen; ++i) {
-        handler.dispatch(100ms);
+    // Wait for open message
+    constexpr int maxWaitIterations = 20;
+    constexpr auto waitInterval = 100ms;
+    for (int i = 0; i < maxWaitIterations && !gotOpen; ++i) {
+        handler.dispatch(waitInterval);
     }
     ASSERT_TRUE(gotOpen);
 
@@ -194,12 +216,14 @@ TEST(TestNotificationGroups, MultipleGroupsPerClient) {
     // The event::get() system maintains its own internal registry
 
     // Group 1: Brake-related events with highest priority
+    [[maybe_unused]]
     auto group1 = eventHandler
         .createNotificationGroup()
         .withHighestPriority()
         .addEvent(event::get("Brakes"));
 
     // Group 2: Flap-related events with standard priority
+    [[maybe_unused]]
     auto group2 = eventHandler
         .createNotificationGroup()
         .withStandardPriority()
@@ -207,6 +231,7 @@ TEST(TestNotificationGroups, MultipleGroupsPerClient) {
         .addEvent(event::get("FlapsDown"));
 
     // Group 3: Landing gear events with lowest priority
+    [[maybe_unused]]
     auto group3 = eventHandler
         .createNotificationGroup()
         .withLowestPriority()
@@ -234,8 +259,11 @@ TEST(TestNotificationGroups, RemoveAndClearEvents) {
 
     ASSERT_TRUE(connection.open());
 
-    for (int i = 0; i < 20 && !gotOpen; ++i) {
-        handler.dispatch(100ms);
+    // Wait for open message
+    constexpr int maxWaitIterations = 20;
+    constexpr auto waitInterval = 100ms;
+    for (int i = 0; i < maxWaitIterations && !gotOpen; ++i) {
+        handler.dispatch(waitInterval);
     }
     ASSERT_TRUE(gotOpen);
 
@@ -276,8 +304,11 @@ TEST(TestNotificationGroups, AllPriorityLevels) {
 
     ASSERT_TRUE(connection.open());
 
-    for (int i = 0; i < 20 && !gotOpen; ++i) {
-        handler.dispatch(100ms);
+    // Wait for open message
+    constexpr int maxWaitIterations = 20;
+    constexpr auto waitInterval = 100ms;
+    for (int i = 0; i < maxWaitIterations && !gotOpen; ++i) {
+        handler.dispatch(waitInterval);
     }
     ASSERT_TRUE(gotOpen);
 
@@ -286,31 +317,31 @@ TEST(TestNotificationGroups, AllPriorityLevels) {
         .createNotificationGroup()
         .withHighestPriority()
         .addEvent(event::get("Event1"));
-    EXPECT_EQ(highestGroup.priority(), SIMCONNECT_GROUP_PRIORITY_HIGHEST);
+    EXPECT_EQ(highestGroup.priority(), SIMCONNECT_GROUP_PRIORITY_HIGHEST); // NOLINT(misc-include-cleaner)
 
     auto maskableGroup = eventHandler
         .createNotificationGroup()
         .withMaskablePriority()
         .addEvent(event::get("Event2"));
-    EXPECT_EQ(maskableGroup.priority(), SIMCONNECT_GROUP_PRIORITY_HIGHEST_MASKABLE);
+    EXPECT_EQ(maskableGroup.priority(), SIMCONNECT_GROUP_PRIORITY_HIGHEST_MASKABLE); // NOLINT(misc-include-cleaner)
 
     auto standardGroup = eventHandler
         .createNotificationGroup()
         .withStandardPriority()
         .addEvent(event::get("Event3"));
-    EXPECT_EQ(standardGroup.priority(), SIMCONNECT_GROUP_PRIORITY_STANDARD);
+    EXPECT_EQ(standardGroup.priority(), SIMCONNECT_GROUP_PRIORITY_STANDARD); // NOLINT(misc-include-cleaner)
 
     auto defaultGroup = eventHandler
         .createNotificationGroup()
         .withDefaultPriority()
         .addEvent(event::get("Event4"));
-    EXPECT_EQ(defaultGroup.priority(), SIMCONNECT_GROUP_PRIORITY_DEFAULT);
+    EXPECT_EQ(defaultGroup.priority(), SIMCONNECT_GROUP_PRIORITY_DEFAULT); // NOLINT(misc-include-cleaner)
 
     auto lowestGroup = eventHandler
         .createNotificationGroup()
         .withLowestPriority()
         .addEvent(event::get("Event5"));
-    EXPECT_EQ(lowestGroup.priority(), SIMCONNECT_GROUP_PRIORITY_LOWEST);
+    EXPECT_EQ(lowestGroup.priority(), SIMCONNECT_GROUP_PRIORITY_LOWEST); // NOLINT(misc-include-cleaner)
 
     EXPECT_TRUE(connection.succeeded());
 
@@ -351,23 +382,28 @@ TEST(TestNotificationGroups, IndependentGroupsAcrossClients) {
     ASSERT_TRUE(connection2.open());
 
     // Wait for open messages
-    for (int i = 0; i < 20 && !client1GotOpen; ++i) {
-        handler1.dispatch(100ms);
+    constexpr int maxWaitIterations = 20;
+    constexpr auto waitInterval = 100ms;
+
+    for (int i = 0; i < maxWaitIterations && !client1GotOpen; ++i) {
+        handler1.dispatch(waitInterval);
     }
-    for (int i = 0; i < 20 && !client2GotOpen; ++i) {
-        handler2.dispatch(100ms);
+    for (int i = 0; i < maxWaitIterations && !client2GotOpen; ++i) {
+        handler2.dispatch(waitInterval);
     }
 
     ASSERT_TRUE(client1GotOpen);
     ASSERT_TRUE(client2GotOpen);
 
     // Each client creates its own notification group
+    [[maybe_unused]]
     auto group1 = eventHandler1
         .createNotificationGroup()
         .withHighestPriority()
         .addEvent(event::get("Brakes"));
     EXPECT_TRUE(connection1.succeeded());
 
+    [[maybe_unused]]
     auto group2 = eventHandler2
         .createNotificationGroup()
         .withHighestPriority()  // Same priority, but independent
@@ -382,3 +418,5 @@ TEST(TestNotificationGroups, IndependentGroupsAcrossClients) {
     connection1.close();
     connection2.close();
 }
+
+//NOLINTEND(readability-function-cognitive-complexity)

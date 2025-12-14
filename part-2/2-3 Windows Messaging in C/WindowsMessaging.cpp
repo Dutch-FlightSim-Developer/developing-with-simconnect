@@ -37,7 +37,7 @@ INT_PTR CALLBACK    About(HWND, UINT, WPARAM, LPARAM);
 int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
                      _In_opt_ HINSTANCE hPrevInstance,
                      _In_ LPWSTR    lpCmdLine,
-                     _In_ int       nCmdShow)
+                     [[maybe_unused]] _In_ int       nCmdShow)
 {
     UNREFERENCED_PARAMETER(hPrevInstance);
     UNREFERENCED_PARAMETER(lpCmdLine);
@@ -49,6 +49,7 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
     LoadStringW(hInstance, IDC_WINDOWSMESSAGING, szWindowClass, MAX_LOADSTRING);
     MyRegisterClass(hInstance);
 
+    [[maybe_unused]]
     LRESULT dlgTest = DialogBox(hInstance, MAKEINTRESOURCE(IDD_DIALOG_MAIN), NULL, DlgProc);
 
     HACCEL hAccelTable = LoadAccelerators(hInstance, MAKEINTRESOURCE(IDC_WINDOWSMESSAGING));
@@ -120,7 +121,7 @@ static const char* BuildVersionString(char* buf, unsigned bufSize, int major, in
 // 
 static void SetDialogText(HWND hWnd, int id, const wchar_t* text) {
     HWND control = GetDlgItem(hWnd, id);
-	SetWindowText(control, text);
+	SetWindowText(control, text); //NOLINT(MSVC)
     EnableWindow(control, TRUE);
 }
 

@@ -409,3 +409,7 @@ tester-lib2/
 .idea/
 /part-6/ListAircraftMSFS
 /part-8/8-2 - Send an Event/eventNames
+
+# CMake build folder
+/build/
+/out

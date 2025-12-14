@@ -14,16 +14,17 @@
  * limitations under the License.
  */
 
+#include <simconnect.hpp>
 #include <simconnect/simple_connection.hpp>
 
 #include <iostream>
 
 
-int main([[maybe_unused]] int argc, [[maybe_unused]] char* argv[])
+int main([[maybe_unused]] int argc, [[maybe_unused]] char* argv[]) // NOLINT(bugprone-exception-escape)
 {
-	SimConnect::SimpleConnection simConnect("CleanOpenClose");
-
 	try {
+		SimConnect::SimpleConnection simConnect("CleanOpenClose");
+
 		if (simConnect.open()) {	// Try this with open(5) or some other undefined section number...
 			std::cout << "Connected to Flight Simulator.\n";
 
@@ -33,9 +34,10 @@ int main([[maybe_unused]] int argc, [[maybe_unused]] char* argv[])
 		else {
 			std::cerr << "Failed to connect to Flight Simulator!\n";
 		}
+		return simConnect ? 0 : 1;
 	}
 	catch (const SimConnect::SimConnectException& ex) {
-		std::cerr << ex.what() << "\n";
+		std::cerr << "SimConnect exception: " << ex.what() << "\n";
+		return 1;
 	}
-	return simConnect ? 0 : 1;
 }

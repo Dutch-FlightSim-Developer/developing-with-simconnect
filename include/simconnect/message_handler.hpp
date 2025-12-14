@@ -167,8 +167,8 @@ public:
         size_t regIndex{ 0 };
         (registerFor(regIndex, msgHandler, id), ...);
         cleanup_ = [this, &msgHandler]() {
-            for (const auto& [id, handler] : registrations_) {
-                msgHandler.unRegisterHandler(id, handler);
+            for (const auto& [registrationId, handler] : registrations_) {
+                msgHandler.unRegisterHandler(registrationId, handler);
             }
         };
     }
@@ -197,10 +197,10 @@ public:
      * @param id The message id.
      * @param handler The message handler's id.
      */
-    void unRegisterHandler(correlation_id_type id, handler_id_type handler) noexcept {
+    void unRegisterHandler(correlation_id_type correlationId, handler_id_type handler) noexcept {
         std::lock_guard lock(mutex_);
 
-        auto idHandler = this->getHandler(id);
+        auto idHandler = this->getHandler(correlationId);
 
         if (idHandler.hasHandlers()) {
             idHandler.clear(handler);

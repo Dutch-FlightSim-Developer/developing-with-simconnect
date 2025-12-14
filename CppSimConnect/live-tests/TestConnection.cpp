@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and limitations under the License.
  */
 
-#include "pch.h"
+#include "gtest/gtest.h"
 
 #include <simconnect/windows_event_connection.hpp>
 #include <simconnect/windows_event_handler.hpp>
@@ -26,21 +26,27 @@
 
 using namespace SimConnect;
 
+using namespace std::chrono_literals;
+
+
 TEST(TestConnection, ReceivesOpenMessage) {
     WindowsEventConnection<> connection;
     WindowsEventHandler<> handler(connection);
     std::atomic<bool> gotOpen{false};
 
-    [[maybe_unused]] auto openHandlerId = handler.registerHandler<SIMCONNECT_RECV_OPEN>(SIMCONNECT_RECV_ID_OPEN, [&](const SIMCONNECT_RECV_OPEN&) {
+    [[maybe_unused]] auto openHandlerId = handler.registerHandler<SIMCONNECT_RECV_OPEN>(SIMCONNECT_RECV_ID_OPEN, [&](const SIMCONNECT_RECV_OPEN&) { // NOLINT(misc-include-cleaner)
         gotOpen = true;
     });
-    [[maybe_unused]] auto defaultHandlerId = handler.registerDefaultHandler([](const SIMCONNECT_RECV&){});
+    [[maybe_unused]] auto defaultHandlerId = handler.registerDefaultHandler([](const SIMCONNECT_RECV&){}); // NOLINT(misc-include-cleaner)
 
     ASSERT_TRUE(connection.open());
 
     // Wait up to 2 seconds for the open message
-    for (int i = 0; i < 20 && !gotOpen; ++i) {
-        handler.dispatch(std::chrono::milliseconds(100));
+    constexpr auto waitInterval = 100ms;
+    constexpr int maxAttempts = 20;
+
+    for (int i = 0; i < maxAttempts && !gotOpen; ++i) {
+        handler.dispatch(waitInterval);
     }
     EXPECT_TRUE(gotOpen) << "Did not receive SIMCONNECT_RECV_ID_OPEN from CppSimConnect abstraction";
     connection.close();
@@ -58,7 +64,7 @@ TEST(TestConnection, ExceptionOnUnknownSystemState) {
     WindowsEventHandler<> handler(connection);
     std::atomic<bool> gotException{false};
 
-    [[maybe_unused]] auto exceptionHandlerId = handler.registerHandler<SIMCONNECT_RECV_EXCEPTION>(SIMCONNECT_RECV_ID_EXCEPTION, [&](const SIMCONNECT_RECV_EXCEPTION&) {
+    [[maybe_unused]] auto exceptionHandlerId = handler.registerHandler<SIMCONNECT_RECV_EXCEPTION>(SIMCONNECT_RECV_ID_EXCEPTION, [&](const SIMCONNECT_RECV_EXCEPTION&) { // NOLINT(misc-include-cleaner)
         gotException = true;
     });
     [[maybe_unused]] auto defaultHandlerId = handler.registerDefaultHandler([](const SIMCONNECT_RECV&) {});
@@ -70,11 +76,14 @@ TEST(TestConnection, ExceptionOnUnknownSystemState) {
 
     // Request an unknown system state, should trigger exception
     // Use the string overload explicitly
-    requestHandler.requestSystemState("UnknownState", std::function<void(std::string)>([](std::string){}));
+    requestHandler.requestSystemState("UnknownState", std::function<void(std::string)>([](std::string){})); // NOLINT(performance-unnecessary-value-param)
 
     // Wait up to 2 seconds for the exception message
-    for (int i = 0; i < 20 && !gotException; ++i) {
-        handler.dispatch(std::chrono::milliseconds(100));
+    constexpr auto waitInterval = 100ms;
+    constexpr int maxAttempts = 20;
+
+    for (int i = 0; i < maxAttempts && !gotException; ++i) {
+        handler.dispatch(waitInterval);
     }
     EXPECT_TRUE(gotException) << "Did not receive exception for unknown system state";
     connection.close();

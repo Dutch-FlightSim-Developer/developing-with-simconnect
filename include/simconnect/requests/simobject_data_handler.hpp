@@ -117,6 +117,8 @@ public:
 
     // First, request the data and pass a handler that will receive the raw message data.
 
+#pragma region Raw message data requests
+
     /**
      * Requests data. The caller passes a handler that will be executed once the
      * data is received. The handler will receive a const reference to the (raw) message data.
@@ -226,6 +228,9 @@ public:
         return requestDataTagged(dataDef, handler, DataFrequency::once(), PeriodLimits::none(), objectId, false);
     }
 
+#pragma endregion
+
+#pragma region DataBlockReader requests
 
     // Next, request the data and pass a handler that will receive a DataBlockReader to read the data.
 
@@ -346,6 +351,9 @@ public:
         return requestDataTagged(dataDef, handler, DataFrequency::once(), PeriodLimits::none(), objectId, onlyWhenChanged);
     }
 
+#pragma endregion
+
+#pragma region StructType requests
 
     // Next, request the data and pass a handler that will receive an ephemeral structure with the data unmarshalled into it.
 
@@ -488,6 +496,9 @@ public:
         return requestData(dataDef, handler, DataFrequency::once(), PeriodLimits::none(), objectId, onlyWhenChanged);
     }
 
+#pragma endregion
+
+#pragma region ByType requests
 
 	// Requesting data for all SimObjects of a specific type.
 
@@ -700,6 +711,45 @@ public:
             stopDataRequest(dataDef, requestId);
 		} };
 	}
+
+#pragma endregion
+
+#pragma region Send data methods
+
+    /**
+     * Sends raw data to a SimObject.
+     * 
+     * @param dataDef The data definition Id to use for the send.
+     * @param objectId The object ID to send the data to. Defaults to the current user's Avatar or Aircraft.
+     * @param data The raw data to send.
+     */
+    void sendData(SIMCONNECT_DATA_DEFINITION_ID dataDef,
+        unsigned long objectId,
+        const void* data)
+    {
+        simConnectMessageHandler_.connection().sendData(dataDef, objectId, data);
+    }
+
+
+    /**
+     * Sends data to a SimObject.
+     * 
+     * @param dataDef The data definition to use for the send.
+     * @param objectId The object ID to send the data to. Defaults to the current user's Avatar or Aircraft.
+     * @param data The data to send.
+     * @tparam StructType The type of the structure containing the data to send.
+     */
+    template <typename StructType>
+    void sendData(DataDefinition<StructType>& dataDef,
+        unsigned long objectId,
+        const StructType& data)
+    {
+        dataDef.define(simConnectMessageHandler_.connection());
+
+        simConnectMessageHandler_.connection().sendData(dataDef, objectId, data);
+    }
+
+#pragma endregion
 
 };
 

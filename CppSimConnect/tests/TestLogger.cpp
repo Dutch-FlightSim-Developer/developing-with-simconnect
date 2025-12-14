@@ -14,9 +14,16 @@
  * limitations under the License.
  */
 
-#include "pch.h"
-#include <simconnect/util/logger.hpp>
+#include <cstddef>
+#include <utility>
+#include <string>
 #include <vector>
+#include <ranges>
+
+#include "gtest/gtest.h"
+
+#include <simconnect/util/logger.hpp>
+
 
 using namespace SimConnect;
 
@@ -31,19 +38,20 @@ private:
     std::vector<LogEntry> logs_;
 
 public:
-    StringLogger(std::string name = "TestLogger", LogLevel level = LogLevel::Info) 
-        : Logger<StringLogger>(name, level) {}
-    StringLogger(const std::string&, StringLogger&, LogLevel) {}  // Constructor compatible with logger expectations
+    explicit StringLogger(std::string name = "TestLogger", LogLevel level = LogLevel::Info) 
+        : Logger<StringLogger>(std::move(name), level) {}
+    StringLogger(const std::string& name, StringLogger& parent, LogLevel level) : Logger<StringLogger>(name, parent, level) {}  // Constructor compatible with logger expectations
 
-    void doLog([[maybe_unused]] const std::string&, LogLevel level, const std::string& msg) {
-        logs_.push_back({level, msg});
+    void doLog([[maybe_unused]] const std::string& name, LogLevel level, const std::string& msg) {
+        logs_.push_back({ .level = level, .message = msg });
     }
 
     // This method is called by the base class Logger
     void log(LogLevel level, std::string message) {
-        logs_.push_back({level, message});
+        logs_.push_back({ .level = level, .message = std::move(message) });
     }
 
+    [[nodiscard]]
     const std::vector<LogEntry>& getLogs() const {
         return logs_;
     }
@@ -53,25 +61,30 @@ public:
     }
 
     // Convenience methods for testing
+    [[nodiscard]]
     size_t getLogCount() const {
         return logs_.size();
     }
 
+    [[nodiscard]]
     LogLevel getLastLogLevel() const {
         return logs_.empty() ? LogLevel::Fatal : logs_.back().level;
     }
 
+    [[nodiscard]]
     std::string getLastLogMessage() const {
         return logs_.empty() ? "" : logs_.back().message;
     }
 
+    [[nodiscard]]   
     bool hasLogWithLevel(LogLevel level) const {
-        for (const auto& entry : logs_) {
-            if (entry.level == level) {
-                return true;
-            }
-        }
-        return false;
+        return !(logs_ | std::views::transform([](const LogEntry& entry) { return entry.level; }) | std::views::filter([level](LogLevel lvl) { return lvl == level; })).empty();
+        // for (const auto& entry : logs_) {
+        //     if (entry.level == level) {
+        //         return true;
+        //     }
+        // }
+        // return false;
     }
 };
 
@@ -193,7 +206,8 @@ TEST(LoggerTests, EnabledChecks_FatalLevel) {
 TEST(LoggerTests, FormattedLogging) {
     StringLogger logger("TestLogger", LogLevel::Trace);
     
-    logger.info("User {} logged in with ID {}", "John", 123);
+    constexpr int testUserId = 123;
+    logger.info("User {} logged in with ID {}", "John", testUserId);
     
     EXPECT_EQ(logger.getLogCount(), 1);
     EXPECT_EQ(logger.getLastLogLevel(), LogLevel::Info);
@@ -215,12 +229,14 @@ TEST(LoggerTests, DirectLogMethodFormatted) {
     StringLogger logger("TestLogger", LogLevel::Trace);
     
     // Use the base class templated log method for formatting
-    logger.Logger<StringLogger>::log(LogLevel::Error, "Error code: {}, description: {}", 404, "Not Found");
+    constexpr int notFoundErrorCode = 404;
+    logger.Logger<StringLogger>::log(LogLevel::Error, "Error code: {}, description: {}", notFoundErrorCode, "Not Found");
     
     EXPECT_EQ(logger.getLogCount(), 1);
     EXPECT_EQ(logger.getLastLogLevel(), LogLevel::Error);
     EXPECT_EQ(logger.getLastLogMessage(), "Error code: 404, description: Not Found");
 }
+
 
 // Test level changing
 

@@ -24,6 +24,7 @@
 #include <simconnect/data_frequency.hpp>
 #include <simconnect/util/null_logger.hpp>
 
+#include <span>
 #include <string>
 
 #include <type_traits>
@@ -588,10 +589,7 @@ public:
             itemDataType,
             itemEpsilon,
             itemDatumId));
-#if !defined(NDEBUG)
-		std::cerr << std::format("Added to data definition {}, simVar '{}', sendId = {}\n",
-			dataDef, itemName, fetchSendId());
-#endif
+		logger_.trace("Added to data definition {}, simVar '{}', sendId = {}\n", dataDef, itemName, fetchSendId());
 	}
 
 #pragma endregion
@@ -600,6 +598,7 @@ public:
 
     /**
      * Request data on the given object.
+     * 
      * @param dataDef The data definition.
      * @param requestId The request ID.
      * @param frequency The frequency at which to request the data.
@@ -622,10 +621,8 @@ public:
             limits.origin,
             frequency.interval,
             limits.limit));
-#if !defined(NDEBUG)
-		std::cerr << std::format("Requested untagged data on SimObject {} with request ID {} and data definition {}, sendId = {}\n",
+		logger_.trace("Requested untagged data on SimObject {} with request ID {} and data definition {}, sendId = {}\n",
 			objectId, requestId, dataDef, fetchSendId());
-#endif
 	}
 
 
@@ -653,10 +650,9 @@ public:
             limits.origin,
             frequency.interval,
             limits.limit));
-#if !defined(NDEBUG)
-		std::cerr << std::format("Requested tagged data on SimObject {} with request ID {} and data definition {}, sendId = {}\n",
+
+        logger_.trace("Requested tagged data on SimObject {} with request ID {} and data definition {}, sendId = {}\n",
 			objectId, requestId, dataDef, fetchSendId());
-#endif
     }
 
 
@@ -693,6 +689,77 @@ public:
 
 		hr(SimConnect_RequestDataOnSimObjectType(hSimConnect_, requestId, dataDef, radiusInMeters, objectType));
 	}
+
+
+    /**
+     * Sends data to a SimObject.
+     * 
+     * @param dataDef The data definition ID.
+     * @param objectId The object ID to send the data to.
+     * @param data The data to send.
+     */
+    template <typename T>
+    void sendData(SIMCONNECT_DATA_DEFINITION_ID dataDef, unsigned long objectId, const T& data)
+    {
+        logger_.trace("Setting data on SimObject ID {} with data definition ID {}, size {}", objectId, dataDef, sizeof(T));
+
+        guard_type guard(mutex_);
+
+        hr(SimConnect_SetDataOnSimObject(hSimConnect_, dataDef, objectId, SIMCONNECT_DATA_SET_FLAG_DEFAULT, 1, sizeof(T), const_cast<void*>(&data)));
+    }
+
+
+    /**
+     * Sends raw data to a SimObject.
+     * 
+     * @param dataDef The data definition ID.
+     * @param objectId The object ID to send the data to.
+     * @param data The data to send.
+     * @param count The number of data blocks to send. Defaults to 1.
+     * @param blockSize The size of each data block, defaults to 0. If 0, the size is calculated as data.size() / count.
+     */
+    void sendData(SIMCONNECT_DATA_DEFINITION_ID dataDef, unsigned long objectId, std::span<const uint8_t> data, size_t count = 1, size_t blockSize = 0)
+    {
+        if (blockSize == 0) {
+            blockSize = data.size() / count;
+        }
+        if (data.size() != blockSize * count) {
+            throw SimConnectException("Data size does not match count * blockSize");
+        }
+        logger_.trace("Setting data on SimObject ID {} with data definition ID {}, size {}, count {}, blockSize {}",
+            objectId, dataDef, data.size(), count, blockSize);
+
+        guard_type guard(mutex_);
+
+        hr(SimConnect_SetDataOnSimObject(hSimConnect_, dataDef, objectId, SIMCONNECT_DATA_SET_FLAG_DEFAULT, static_cast<DWORD>(count), static_cast<DWORD>(blockSize), const_cast<uint8_t*>(data.data())));
+    }
+
+
+    /**
+     * Sends raw data to a SimObject.
+     * 
+     * @param dataDef The data definition ID.
+     * @param objectId The object ID to send the data to.
+     * @param data The data to send.
+     * @param count The number of data blocks to send. Defaults to 1.
+     * @param blockSize The size of each data block, defaults to 0. If 0, the size is calculated as data.size() / count.
+     */
+    void sendDataTagged(SIMCONNECT_DATA_DEFINITION_ID dataDef, unsigned long objectId, std::span<const uint8_t> data, size_t count = 1, size_t blockSize = 0)
+    {
+        if (blockSize == 0) {
+            blockSize = data.size() / count;
+        }
+        if (data.size() != blockSize * count) {
+            throw SimConnectException("Data size does not match count * blockSize");
+        }
+        logger_.trace("Setting data on SimObject ID {} with data definition ID {}, size {}, count {}, blockSize {}",
+            objectId, dataDef, data.size(), count, blockSize);
+
+        guard_type guard(mutex_);
+
+        hr(SimConnect_SetDataOnSimObject(hSimConnect_, dataDef, objectId, SIMCONNECT_DATA_SET_FLAG_TAGGED, static_cast<DWORD>(count), static_cast<DWORD>(blockSize), const_cast<uint8_t*>(data.data())));
+    }
+
 
 #pragma endregion
 

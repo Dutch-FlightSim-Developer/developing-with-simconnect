@@ -14,7 +14,6 @@
  * limitations under the License.
  */
 
-
 #pragma warning(push, 3)
 #include <windows.h>
 #include <tchar.h>
@@ -41,7 +40,7 @@ bool connect()
 		printf("Connected to Flight Simulator!\n");
 	}
 	else {
-		printf("Failed to connect to Flight Simulator! (hr = 0x%08x)\n", hr);
+		printf("Failed to connect to Flight Simulator! (hr = 0x%08lx)\n", hr);
 	}
 	return connected;
 }
@@ -65,8 +64,8 @@ void handle_messages()
 			case SIMCONNECT_RECV_ID_OPEN:
 				{
 					SIMCONNECT_RECV_OPEN* pOpen = (SIMCONNECT_RECV_OPEN*)pData;
-					printf("Connected to '%s' version %d.%d (build %d.%d)\n", pOpen->szApplicationName, pOpen->dwApplicationVersionMajor, pOpen->dwApplicationVersionMinor, pOpen->dwApplicationBuildMajor, pOpen->dwApplicationBuildMinor);
-					printf("  using SimConnect version %d.%d (build %d.%d)\n", pOpen->dwSimConnectVersionMajor, pOpen->dwSimConnectVersionMinor, pOpen->dwSimConnectBuildMajor, pOpen->dwSimConnectBuildMinor);
+					printf("Connected to '%s' version %ld.%ld (build %ld.%ld)\n", pOpen->szApplicationName, pOpen->dwApplicationVersionMajor, pOpen->dwApplicationVersionMinor, pOpen->dwApplicationBuildMajor, pOpen->dwApplicationBuildMinor);
+					printf("  using SimConnect version %ld.%ld (build %ld.%ld)\n", pOpen->dwSimConnectVersionMajor, pOpen->dwSimConnectVersionMinor, pOpen->dwSimConnectBuildMajor, pOpen->dwSimConnectBuildMinor);
 				}
 				break;
 
@@ -76,7 +75,7 @@ void handle_messages()
 				break;
 
 			default:
-				printf("Ignoring message of type %d (length %d bytes)\n", pData->dwID, cbData);
+				printf("Ignoring message of type %ld (length %ld bytes)\n", pData->dwID, cbData);
 				break;
 			}
 		}

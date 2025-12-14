@@ -29,7 +29,7 @@ template <bool ThreadSafe = false, class L = NullLogger, class M = MultiHandlerP
 class WindowsEventHandler : public SimConnectMessageHandler<WindowsEventConnection<ThreadSafe, L>, WindowsEventHandler<ThreadSafe, L, M>, M>
 {
 public:
-    using connection_type = typename WindowsEventConnection<ThreadSafe, L>;
+    using connection_type = WindowsEventConnection<ThreadSafe, L>;
     using handler_id_type = typename M::handler_id_type;
 	using handler_proc_type = typename M::handler_proc_type;
 	using logger_type = L;

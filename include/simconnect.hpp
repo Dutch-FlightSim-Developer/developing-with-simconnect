@@ -32,6 +32,7 @@
 
 #pragma warning(pop)
 
+#include <cstring>
 #include <exception>
 #include <format>
 #include <string>
@@ -49,11 +50,14 @@ class SimConnectException : public std::exception
 {
 private:
 	static constexpr const char* error_ = "SimConnect exception";
-	std::string msg_;
+	const char* msg_;
 public:
 	SimConnectException(const char* message) : std::exception(error_), msg_(message) {}
-	SimConnectException(const char* error, std::string message) : std::exception(error), msg_(message) {}
-	const char* what() const noexcept override { return msg_.c_str(); }
+    SimConnectException(std::string message) : std::exception(error_), msg_(_strdup(message.c_str())) {}
+    SimConnectException(const char* error, const char* message) : std::exception(error), msg_(message) {}
+	SimConnectException(const char* error, std::string message) : std::exception(error), msg_(_strdup(message.c_str())) {}
+
+    const char* what() const noexcept override { return msg_; }
 };
 
 
@@ -65,6 +69,7 @@ class BadConfig : public SimConnectException
 private:
 	static constexpr const char* error = "Bad SimConnect.cfg";
 public:
+    BadConfig(const char* message) : SimConnectException(error, std::string(error) + ": " + message) {}
 	BadConfig(std::string message) : SimConnectException(error, std::string(error) + ": " + message) {}
 };
 

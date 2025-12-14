@@ -14,7 +14,8 @@
  * limitations under the License.
  */
 
-#include "pch.h"
+#include "gtest/gtest.h"
+
 #include <simconnect/data_frequency.hpp>
 
 using namespace SimConnect;
@@ -23,48 +24,48 @@ using namespace SimConnect;
 
 
 TEST(TestDataFrequency, DefaultConstructor) {
-	DataFrequency df;
-	EXPECT_EQ(df.period, SIMCONNECT_PERIOD_ONCE);
-	EXPECT_EQ(df.interval, 0u);
+	const DataFrequency freq;
+	EXPECT_EQ(freq.period, SIMCONNECT_PERIOD_ONCE); // NOLINT(misc-include-cleaner)
+	EXPECT_EQ(freq.interval, 0U);
 }
 
 TEST(TestDataFrequency, Once) {
-	DataFrequency df = DataFrequency::once();
-	EXPECT_EQ(df.period, SIMCONNECT_PERIOD_ONCE);
-	EXPECT_EQ(df.interval, 0u);
+	const DataFrequency freq = DataFrequency::once();
+	EXPECT_EQ(freq.period, SIMCONNECT_PERIOD_ONCE); // NOLINT(misc-include-cleaner)
+	EXPECT_EQ(freq.interval, 0U);
 }
 
 TEST(TestDataFrequency, Every) {
-	unsigned long interval = 1000;
-	DataFrequency df = DataFrequency::every(interval);
-	EXPECT_EQ(df.period, SIMCONNECT_PERIOD_SECOND);
-	EXPECT_EQ(df.interval, interval);
+	const unsigned long interval = 1000;
+	const DataFrequency freq = DataFrequency::every(interval);
+	EXPECT_EQ(freq.period, SIMCONNECT_PERIOD_SECOND); // NOLINT(misc-include-cleaner)
+	EXPECT_EQ(freq.interval, interval);
 }
 
 TEST(TestDataFrequency, Seconds) {
-	unsigned long interval = 500;
-	DataFrequency df = DataFrequency::every(interval).seconds();
-	EXPECT_EQ(df.period, SIMCONNECT_PERIOD_SECOND);
-	EXPECT_EQ(df.interval, interval);
+	const unsigned long interval = 500;
+	const DataFrequency freq = DataFrequency::every(interval).seconds();
+	EXPECT_EQ(freq.period, SIMCONNECT_PERIOD_SECOND); // NOLINT(misc-include-cleaner)
+	EXPECT_EQ(freq.interval, interval);
 }
 
 TEST(TestDataFrequency, VisualFrames) {
-	unsigned long interval = 500;
-	DataFrequency df = DataFrequency::every(interval).visualFrames();
-	EXPECT_EQ(df.period, SIMCONNECT_PERIOD_VISUAL_FRAME);
-	EXPECT_EQ(df.interval, interval);
+	const unsigned long interval = 500;
+	const DataFrequency freq = DataFrequency::every(interval).visualFrames();
+	EXPECT_EQ(freq.period, SIMCONNECT_PERIOD_VISUAL_FRAME);  // NOLINT(misc-include-cleaner)
+	EXPECT_EQ(freq.interval, interval);
 }
 
 TEST(TestDataFrequency, SimFrames) {
-	unsigned long interval = 500;
-	DataFrequency df = DataFrequency::every(interval).simFrames();
-	EXPECT_EQ(df.period, int(SIMCONNECT_PERIOD_SIM_FRAME));
-	EXPECT_EQ(df.interval, interval);
+	const unsigned long interval = 500;
+	const DataFrequency freq = DataFrequency::every(interval).simFrames();
+	EXPECT_EQ(freq.period, int(SIMCONNECT_PERIOD_SIM_FRAME));   // NOLINT(misc-include-cleaner)
+	EXPECT_EQ(freq.interval, interval);
 }
 
 TEST(TestDataFrequency, Never) {
-	DataFrequency df = DataFrequency::never();
-	EXPECT_EQ(df.period, SIMCONNECT_PERIOD_NEVER);
-	EXPECT_EQ(df.interval, 0u);
+	const DataFrequency freq = DataFrequency::never();
+	EXPECT_EQ(freq.period, SIMCONNECT_PERIOD_NEVER);    // NOLINT(misc-include-cleaner)
+	EXPECT_EQ(freq.interval, 0U);
 }
 

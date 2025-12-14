@@ -17,6 +17,8 @@
 #include <simconnect/simple_connection.hpp>
 #include <simconnect/polling_handler.hpp>
 
+#include <chrono>
+#include <string>
 #include <format>
 #include <iostream>
 
@@ -31,7 +33,7 @@ using namespace std::chrono_literals;
  * @param minor The minor version number.
  * @returns a string with the formatted version number.
  */
-inline static std::string version(int major, int minor) {
+inline static std::string version(unsigned long major, unsigned long minor) {
 	if (major == 0) {
 		return "Unknown";
 	}
@@ -44,38 +46,38 @@ inline static std::string version(int major, int minor) {
  * 
  * @param msg The message received.
  */
-static void handleOpen(const SIMCONNECT_RECV_OPEN& msg) {
-	std::cout << "Connected to " << msg.szApplicationName
-		<< " version " << version(msg.dwApplicationVersionMajor, msg.dwApplicationVersionMinor) << std::endl
-		<< "  build " << version(msg.dwApplicationBuildMajor, msg.dwApplicationBuildMinor) << std::endl
-		<< "  using SimConnect version " << version(msg.dwSimConnectVersionMajor, msg.dwSimConnectVersionMinor) << std::endl
-		<< "  build " << version(msg.dwSimConnectBuildMajor, msg.dwSimConnectBuildMinor) << std::endl;
+static void handleOpen(const SIMCONNECT_RECV_OPEN& msg) { // NOLINT(misc-include-cleaner)
+	std::cout << "Connected to " << &msg.szApplicationName[0]
+		<< " version " << version(msg.dwApplicationVersionMajor, msg.dwApplicationVersionMinor) << '\n'
+		<< "  build " << version(msg.dwApplicationBuildMajor, msg.dwApplicationBuildMinor) << '\n'
+		<< "  using SimConnect version " << version(msg.dwSimConnectVersionMajor, msg.dwSimConnectVersionMinor) << '\n'
+		<< "  build " << version(msg.dwSimConnectBuildMajor, msg.dwSimConnectBuildMinor) << '\n';
 }
 
 
 /**
- * Tell the use the simulator is shutting down.
+ * Tell the user the simulator is shutting down.
  * 
  * @param msg The message received.
  */
-static void handleClose([[maybe_unused]] const SIMCONNECT_RECV_QUIT& msg) {
+static void handleClose([[maybe_unused]] const SIMCONNECT_RECV_QUIT& msg) { // NOLINT(misc-include-cleaner)
 	std::cout << "Simulator shutting down.\n";
 }
 
 
-auto main() -> int {
+auto main() -> int { // NOLINT(bugprone-exception-escape)
 	SimConnect::SimpleConnection connection;
 	SimConnect::PollingHandler<SimConnect::SimpleConnection<>> handler(connection);
 	handler.autoClosing(true);	// Automatically close the connection if we receive a "Close" message.
 
 	// If we don't know the message, print an error.
-	handler.registerDefaultHandler([](const SIMCONNECT_RECV& msg) {
+	handler.registerDefaultHandler([](const SIMCONNECT_RECV& msg) { // NOLINT(misc-include-cleaner)
 			std::cerr << std::format("Ignoring message of type {} (length {} bytes)\n", msg.dwID, msg.dwSize);
 		});
 
 	// Register our handlers for "Open" en "Close"
-	handler.registerHandler<SIMCONNECT_RECV_OPEN>(SIMCONNECT_RECV_ID_OPEN, handleOpen);
-	handler.registerHandler<SIMCONNECT_RECV_QUIT>(SIMCONNECT_RECV_ID_QUIT, handleClose);
+	handler.registerHandler<SIMCONNECT_RECV_OPEN>(SIMCONNECT_RECV_ID_OPEN, handleOpen); // NOLINT(misc-include-cleaner)
+	handler.registerHandler<SIMCONNECT_RECV_QUIT>(SIMCONNECT_RECV_ID_QUIT, handleClose); // NOLINT(misc-include-cleaner)
 
 	std::cout << "Opening connection to the simulator.\n";
 	if (connection.open()) {
@@ -83,7 +85,8 @@ auto main() -> int {
 
 		while (connection.isOpen()) {
 			std::cout << "Handling messages for 10 seconds using polling.\n";
-			handler.handle(10s);
+            constexpr auto duration = 10s;
+			handler.handle(duration);
 		}
 	}
 	else {

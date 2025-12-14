@@ -18,19 +18,38 @@
 #include <simconnect/windows_event_handler.hpp>
 #include <simconnect/requests/system_state_handler.hpp>
 
+#include <chrono>
+#include <string>
 #include <format>
 #include <iostream>
 
 
 using namespace std::chrono_literals;
 
-inline static std::string version(int major, int minor) {
+
+/**
+ * Return a formatted string of the version. if the major number is 0, it returns "Unknown". The lower number is ignored if 0.
+ * 
+ * @param major The major version number.
+ * @param minor The minor version number.
+ * @returns a string with the formatted version number.
+ */
+inline static std::string version(unsigned long major, unsigned long minor) {
 	if (major == 0) {
 		return "Unknown";
 	}
 	return (minor == 0) ? std::to_string(major) : std::format("{}.{}", major, minor);
 }
 
+
+// Lots of references to constants defined in SimConnect.h
+// NOLINTBEGIN(misc-include-cleaner)
+
+/**
+ * Handle an exception message, printing details to the standard error output.
+ * 
+ * @param msg The exception message received.
+ */
 static void handleException(const SIMCONNECT_RECV_EXCEPTION& msg) {
 	const SIMCONNECT_EXCEPTION exc{ static_cast<SIMCONNECT_EXCEPTION>(msg.dwException) };
 	std::cerr << std::format("Received an exception type {}:\n", (int)exc);
@@ -156,68 +175,68 @@ static void handleException(const SIMCONNECT_RECV_EXCEPTION& msg) {
 	case SIMCONNECT_EXCEPTION_OBJECT_SCHEDULE:
 		std::cerr << "The AI object creation failed. (scheduling issue)\n";
 		break;
-#if defined(SIMCONNECT_EXCEPTION_JETWAY_DATA)
 	case SIMCONNECT_EXCEPTION_JETWAY_DATA:
 		std::cerr << "Requesting JetWay data failed.\n";
 		break;
-#endif
-#if defined(SIMCONNECT_EXCEPTION_ACTION_NOT_FOUND)
 	case SIMCONNECT_EXCEPTION_ACTION_NOT_FOUND:
 		std::cerr << "The action was not found.\n";
 		break;
-#endif
-#if defined(SIMCONNECT_EXCEPTION_NOT_AN_ACTION)
 	case SIMCONNECT_EXCEPTION_NOT_AN_ACTION:
 		std::cerr << "The action was not a valid action.\n";
 		break;
-#endif
-#if defined(SIMCONNECT_EXCEPTION_INCORRECT_ACTION_PARAMS)
 	case SIMCONNECT_EXCEPTION_INCORRECT_ACTION_PARAMS:
 		std::cerr << "The action parameters were incorrect.\n";
 		break;
-#endif
-#if defined(SIMCONNECT_EXCEPTION_GET_INPUT_EVENT_FAILED)
 	case SIMCONNECT_EXCEPTION_GET_INPUT_EVENT_FAILED:
 		std::cerr << "The input event name was not found. (GetInputEvent)\n";
 		break;
-#endif
-#if defined(SIMCONNECT_EXCEPTION_SET_INPUT_EVENT_FAILED)
 	case SIMCONNECT_EXCEPTION_SET_INPUT_EVENT_FAILED:
 		std::cerr << "The input event name was not found. (SetInputEvent)\n";
 		break;
-#endif
-#if defined(SIMCONNECT_EXCEPTION_INTERNAL)
 	case SIMCONNECT_EXCEPTION_INTERNAL:
+        std::cerr << "An internal error has occurred.\n";
 		break;
-#endif
 		// No default; we want an error if we miss one
 	}
 }
 
-static void handleOpen(const SIMCONNECT_RECV_OPEN& msg) {
-	std::cout << "Connected to " << msg.szApplicationName
-		<< " version " << version(msg.dwApplicationVersionMajor, msg.dwApplicationVersionMinor) << std::endl
-		<< "  build " << version(msg.dwApplicationBuildMajor, msg.dwApplicationBuildMinor) << std::endl
-		<< "  using SimConnect version " << version(msg.dwSimConnectVersionMajor, msg.dwSimConnectVersionMinor) << std::endl
-		<< "  build " << version(msg.dwSimConnectBuildMajor, msg.dwSimConnectBuildMinor) << std::endl;
+// NOLINTEND(misc-include-cleaner)
+
+/**
+ * Print the information of the "Open" message, which tells us some details about the simulator.
+ * 
+ * @param msg The message received.
+ */
+static void handleOpen(const SIMCONNECT_RECV_OPEN& msg) { // NOLINT(misc-include-cleaner)
+	std::cout << "Connected to " << &msg.szApplicationName[0]
+		<< " version " << version(msg.dwApplicationVersionMajor, msg.dwApplicationVersionMinor) << '\n'
+		<< "  build " << version(msg.dwApplicationBuildMajor, msg.dwApplicationBuildMinor) << '\n'
+		<< "  using SimConnect version " << version(msg.dwSimConnectVersionMajor, msg.dwSimConnectVersionMinor) << '\n'
+		<< "  build " << version(msg.dwSimConnectBuildMajor, msg.dwSimConnectBuildMinor) << '\n';
 }
 
-static void handleClose([[maybe_unused]] const SIMCONNECT_RECV_QUIT& msg) {
+
+/**
+ * Tell the user the simulator is shutting down.
+ * 
+ * @param msg The message received.
+ */
+static void handleClose([[maybe_unused]] const SIMCONNECT_RECV_QUIT& msg) { // NOLINT(misc-include-cleaner)
 	std::cout << "Simulator shutting down.\n";
 }
 
 
-auto main() -> int {
+auto main() -> int { // NOLINT(bugprone-exception-escape)
 	SimConnect::WindowsEventConnection connection;
 	SimConnect::WindowsEventHandler handler(connection);
 	handler.autoClosing(true);
 
-	handler.registerDefaultHandler([](const SIMCONNECT_RECV& msg) {
+	handler.registerDefaultHandler([](const SIMCONNECT_RECV& msg) { // NOLINT(misc-include-cleaner)
 		std::cerr << std::format("Ignoring message of type {} (length {} bytes)\n", msg.dwID, msg.dwSize);
 		});
-	handler.registerHandler<SIMCONNECT_RECV_EXCEPTION>(SIMCONNECT_RECV_ID_EXCEPTION, handleException);
-	handler.registerHandler<SIMCONNECT_RECV_OPEN>(SIMCONNECT_RECV_ID_OPEN, handleOpen);
-	handler.registerHandler<SIMCONNECT_RECV_QUIT>(SIMCONNECT_RECV_ID_QUIT, handleClose);
+	handler.registerHandler<SIMCONNECT_RECV_OPEN>(SIMCONNECT_RECV_ID_OPEN, handleOpen); // NOLINT(misc-include-cleaner)
+	handler.registerHandler<SIMCONNECT_RECV_QUIT>(SIMCONNECT_RECV_ID_QUIT, handleClose); // NOLINT(misc-include-cleaner)
+	handler.registerHandler<SIMCONNECT_RECV_EXCEPTION>(SIMCONNECT_RECV_ID_EXCEPTION, handleException); // NOLINT(misc-include-cleaner)
 
 	std::cout << "Opening connection\n";
 	if (connection.open()) {
@@ -255,7 +274,8 @@ auto main() -> int {
 			}); // Will cause an exception message
 
 		std::cout << "Handling messages\n";
-		handler.handle(10s);
+        constexpr auto duration = 10s;
+		handler.handle(duration);
 	}
 	else {
 		std::cerr << "Failed to open connection\n";

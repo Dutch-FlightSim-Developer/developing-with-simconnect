@@ -14,33 +14,44 @@
  * limitations under the License.
  */
 
-#include "pch.h"
+#include "gtest/gtest.h"
 
+#include <cstddef>
+#include <chrono>
+#include <format>
 #include <tuple>
-#include <simconnect/simple_handler.hpp>
+#include <vector>
+#include <string>
+#include <functional>
+#include <type_traits>
 
+#include <simconnect/connection.hpp>
+#include <simconnect/simple_handler.hpp>
+#include <simconnect/util/logger.hpp>
 
 using namespace SimConnect;
+using namespace std::chrono_literals;
 
+//NOLINTBEGIN(cppcoreguidelines-avoid-non-const-global-variables,performance-unnecessary-value-param,readability-convert-member-functions-to-static,misc-include-cleaner)
 // Mock logger for testing
 static std::vector<std::string> logs;
 
 class MockLogger : public Logger<MockLogger> {
 public:
     MockLogger() = default;
-    MockLogger(const std::string&, LogLevel) {}  // Constructor compatible with logger expectations
-    MockLogger(const std::string&, MockLogger&, LogLevel) {}  // Constructor compatible with logger expectations
+    MockLogger([[maybe_unused]] std::string name, [[maybe_unused]] LogLevel level) {}  // Constructor compatible with logger expectations
+    MockLogger([[maybe_unused]] std::string name, [[maybe_unused]] MockLogger& parent, [[maybe_unused]] LogLevel level) {}  // Constructor compatible with logger expectations
 
-    void doLog([[maybe_unused]] const std::string&, [[maybe_unused]] LogLevel, const std::string& msg) {
+    void doLog([[maybe_unused]] const std::string& loggerName, [[maybe_unused]] LogLevel level, const std::string& msg) {
         logs.push_back(msg);
     }
 
-    void warn(const std::string& msg) {
+    void warn(const std::string msg) {
         logs.push_back("WARN: " + msg);
     }
 
     template<typename... Args>
-    void warn(const std::string& format, Args&&... args) {
+    void warn(const std::string& format, Args&&... args) { // NOLINT(cppcoreguidelines-missing-std-forward)
         logs.push_back("WARN: " + std::vformat(format, std::make_format_args(args...)));
     }
 };
@@ -53,7 +64,7 @@ public:
 	using logger_type = MockLogger;
 
 private:
-    std::vector<std::tuple<SIMCONNECT_RECV, DWORD>> messages_;
+    std::vector<std::tuple<SIMCONNECT_RECV, DWORD>> messages_; // NOLINT(misc-include-cleaner)
     size_t messageIndex_{0};
     bool isOpen_{true};
 	MockLogger logger_;
@@ -65,9 +76,9 @@ public:
         messages_.emplace_back(msg, size);
     }
     
-    void addMessage(SIMCONNECT_RECV_ID id, DWORD size = sizeof(SIMCONNECT_RECV)) {
+    void addMessage(SIMCONNECT_RECV_ID msgType, DWORD size = sizeof(SIMCONNECT_RECV)) { // NOLINT(misc-include-cleaner)
         SIMCONNECT_RECV msg{};
-        msg.dwID = static_cast<DWORD>(id);
+        msg.dwID = static_cast<DWORD>(msgType);
         msg.dwSize = sizeof(SIMCONNECT_RECV);
         msg.dwVersion = 1;
         addMessage(msg, size);
@@ -84,8 +95,9 @@ public:
 
         return true;
     }
-    
-    bool callDispatch(std::function<void(const SIMCONNECT_RECV*, DWORD)> dispatchFunc) {
+    //NOLINTEND(cppcoreguidelines-avoid-non-const-global-variables,performance-unnecessary-value-param,readability-convert-member-functions-to-static,misc-include-cleaner)
+
+    bool callDispatch(std::function<void(const SIMCONNECT_RECV*, DWORD)> dispatchFunc) { // NOLINT(misc-include-cleaner,performance-unnecessary-value-param)
         SIMCONNECT_RECV* msg = nullptr;
         DWORD size = 0;
         
@@ -101,6 +113,7 @@ public:
         return false;
     }
     
+    [[nodiscard]]
     bool isOpen() const { return isOpen_; }
     void close() { isOpen_ = false; }
     void reset() { 
@@ -109,7 +122,9 @@ public:
         isOpen_ = true;
     }
     
+    [[nodiscard]]
     size_t messageCount() const { return messages_.size(); }
+    [[nodiscard]]
     size_t processedCount() const { return messageIndex_; }
 
 
@@ -127,9 +142,9 @@ TEST(SimpleHandlerTests, Construction) {
     MockConnection connection;
     
     // Should construct successfully
-    EXPECT_NO_THROW(SimpleHandler<MockConnection> handler(connection));
+    EXPECT_NO_THROW(const SimpleHandler<MockConnection> handler(connection));
 
-    SimpleHandler<MockConnection> handler(connection);
+    const SimpleHandler<MockConnection> handler(connection);
 
     // Should be non-copyable and non-movable
     static_assert(!std::is_copy_constructible_v<SimpleHandler<MockConnection>>);
@@ -170,9 +185,9 @@ TEST(SimpleHandlerTests, DispatchWithDefaultHandler) {
     });
     
     // Add test messages
-    connection.addMessage(SIMCONNECT_RECV_ID_OPEN);
-    connection.addMessage(SIMCONNECT_RECV_ID_QUIT);
-    connection.addMessage(SIMCONNECT_RECV_ID_EXCEPTION);
+    connection.addMessage(SIMCONNECT_RECV_ID_OPEN); // NOLINT(misc-include-cleaner)
+    connection.addMessage(SIMCONNECT_RECV_ID_QUIT); // NOLINT(misc-include-cleaner)
+    connection.addMessage(SIMCONNECT_RECV_ID_EXCEPTION); // NOLINT(misc-include-cleaner)
     
     // Dispatch messages
     handler.dispatch();
@@ -236,12 +251,12 @@ TEST(SimpleHandlerTests, DispatchWithTypedHandlers) {
     
     // Register typed handlers - these will receive SIMCONNECT_RECV references
     // but can be cast to specific types in real usage
-    [[maybe_unused]] auto openHandlerId = handler.registerHandler<SIMCONNECT_RECV_OPEN>(SIMCONNECT_RECV_ID_OPEN,
+    [[maybe_unused]] auto openHandlerId = handler.registerHandler<SIMCONNECT_RECV_OPEN>(SIMCONNECT_RECV_ID_OPEN, // NOLINT(misc-include-cleaner)
         [&receivedOpenId](const SIMCONNECT_RECV_OPEN& msg) {
             receivedOpenId = msg.dwID;
         });
 
-    [[maybe_unused]] auto quitHandlerId = handler.registerHandler<SIMCONNECT_RECV_QUIT>(SIMCONNECT_RECV_ID_QUIT,
+    [[maybe_unused]] auto quitHandlerId = handler.registerHandler<SIMCONNECT_RECV_QUIT>(SIMCONNECT_RECV_ID_QUIT, // NOLINT(misc-include-cleaner)
         [&receivedQuitId](const SIMCONNECT_RECV_QUIT& msg) {
             receivedQuitId = msg.dwID;
         });
@@ -399,10 +414,8 @@ TEST(SimpleHandlerTests, MalformedMessageHandling) {
     SimpleHandler<MockConnection> handler(connection);
     
     // Add a message with incorrect size information
-    SIMCONNECT_RECV msg{};
-    msg.dwID = static_cast<DWORD>(SIMCONNECT_RECV_ID_OPEN);
-    msg.dwSize = sizeof(SIMCONNECT_RECV) + 100;  // Claim larger size than actual
-    msg.dwVersion = 1;
+    constexpr unsigned extraSize = 100;  // Claim larger size than actual
+    const SIMCONNECT_RECV msg{ .dwSize = sizeof(SIMCONNECT_RECV) + extraSize, .dwVersion = 1, .dwID = static_cast<DWORD>(SIMCONNECT_RECV_ID_OPEN) }; // NOLINT(misc-include-cleaner)
 
     connection.addMessage(msg, sizeof(msg));
 
@@ -441,6 +454,7 @@ TEST(SimpleHandlerTests, DispatchWithDuration) {
         handlerCalled = true;
     });
     
-    handler.dispatch(std::chrono::milliseconds(50));
+    constexpr auto duration = 50ms;
+    handler.dispatch(duration);
     EXPECT_TRUE(handlerCalled);
 }

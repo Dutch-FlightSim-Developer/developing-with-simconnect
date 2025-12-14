@@ -14,6 +14,9 @@
  * limitations under the License.
  */
 
+// The pure API in SimConnect is not clang-tidy-proof
+// NOLINTBEGIN
+
 #pragma warning(push, 3)
 #include <windows.h>
 #include <SimConnect.h>
@@ -42,7 +45,7 @@ static HANDLE hSimConnect{ nullptr };		// SimConnect handle
  */
 static void requestSystemState(DWORD reqId, const char* name) {
 	if (SUCCEEDED(SimConnect_RequestSystemState(hSimConnect, reqId, name))) {
-		printf("SystemState '%s' requested with RequestID %d.\n", name, reqId);
+		printf("SystemState '%s' requested with RequestID %ld.\n", name, reqId);
 	}
 	else {
 		printf("Request for '%s' AircraftLoaded failed.\n", name);
@@ -71,11 +74,11 @@ static void processMessages() {
 		case SIMCONNECT_RECV_ID_OPEN:				// We have an active connection to the simulator.
 		{
 			SIMCONNECT_RECV_OPEN* msg = (SIMCONNECT_RECV_OPEN*)data;
-			printf("Connected to simulator %s version %d.%d. (build %d.%d)\n",
+			printf("Connected to simulator %s version %ld.%ld. (build %ld.%ld)\n",
 				msg->szApplicationName,
 				msg->dwApplicationVersionMajor, msg->dwApplicationVersionMinor,
 				msg->dwApplicationBuildMajor, msg->dwApplicationBuildMinor);
-			printf("  using SimConnect version %d.%d. (build %d.%d)\n",
+			printf("  using SimConnect version %ld.%ld. (build %ld.%ld)\n",
 				msg->dwSimConnectVersionMajor, msg->dwSimConnectVersionMinor,
 				msg->dwSimConnectBuildMajor, msg->dwSimConnectBuildMinor);
 		}
@@ -105,11 +108,11 @@ static void processMessages() {
                 break;
 
             case REQ_DIALOG_MODE:
-                printf("DialogMode: %d\n", msg->dwInteger);
+                printf("DialogMode: %ld\n", msg->dwInteger);
                 break;
 
             case REQ_SIM_STATE:
-                printf("Sim State: %d\n", msg->dwInteger);
+                printf("Sim State: %ld\n", msg->dwInteger);
                 break;
 
             case REQ_SIM_LOADED:
@@ -117,7 +120,7 @@ static void processMessages() {
                 break;
 
             default:
-                printf("SystemState for request %d received. (%d, %f, '%s')\n",
+                printf("SystemState for request %ld received. (%d, %f, '%s')\n",
                     msg->dwRequestID, (int)msg->dwInteger, msg->fFloat, msg->szString);
                 break;
             }
@@ -126,7 +129,7 @@ static void processMessages() {
 			break;
 
 		default:
-			printf("Received an unknown message with type %d. (size %d bytes)\n", data->dwID, len);
+			printf("Received an unknown message with type %ld. (size %ld bytes)\n", data->dwID, len);
 			break;
 		}
 	}
@@ -170,3 +173,5 @@ int main([[maybe_unused]] int argc, [[maybe_unused]] const char* argv[])
 	}
 	return 0;
 }
+
+// NOLINTEND

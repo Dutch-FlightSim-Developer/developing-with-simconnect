@@ -63,7 +63,7 @@ class EventHandler : public MessageHandler<DWORD, EventHandler<M>, M,
 
 
 public:
-    using simconnect_message_handler_type = typename M;
+    using simconnect_message_handler_type = M;
     using connection_type = typename M::connection_type;
     using logger_type = typename M::logger_type;
 

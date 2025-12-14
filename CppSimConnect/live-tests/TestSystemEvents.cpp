@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-#include "pch.h"
+#include "gtest/gtest.h"
 
 #include <simconnect/windows_event_connection.hpp>
 #include <simconnect/windows_event_handler.hpp>
@@ -26,7 +26,7 @@
 #include <chrono>
 
 using namespace SimConnect;
-
+using namespace std::chrono_literals;
 
 // Test that we can receive a timed event using the WindowsEventHandler and EventHandler
 TEST(TestSystemEvents, ReceiveTimedEvent) {
@@ -41,12 +41,13 @@ TEST(TestSystemEvents, ReceiveTimedEvent) {
 
     auto oneSecondEvent = Events::oneSec();
 
-    systemEvents.subscribeToSystemEvent(oneSecondEvent, [&]([[maybe_unused]] const SIMCONNECT_RECV_EVENT& msg) {
+    systemEvents.subscribeToSystemEvent(oneSecondEvent, [&]([[maybe_unused]] const SIMCONNECT_RECV_EVENT& msg) { // NOLINT(misc-include-cleaner)
         receivedEvent = true;
     });
 
     // Wait for event
-    handler.dispatch(std::chrono::seconds(5));
+    constexpr auto maxWait = 5s;
+    handler.dispatch(maxWait);
 
     EXPECT_TRUE(receivedEvent) << "Did not receive event";
 
@@ -54,7 +55,7 @@ TEST(TestSystemEvents, ReceiveTimedEvent) {
 	receivedEvent = false;
 
 	// Wait for event again
-	handler.dispatch(std::chrono::seconds(5));
+	handler.dispatch(maxWait);
 
 	EXPECT_FALSE(receivedEvent) << "Received event after unsubscribing";
 

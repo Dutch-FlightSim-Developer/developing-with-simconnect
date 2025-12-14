@@ -40,6 +40,17 @@ public:
 
 
     /**
+     * Add an integer value of type `SIMCONNECT_DATATYPE_INT8` to the block.
+     * 
+     * @param value The integer value to add.
+     * @return A reference to the current object.
+     */
+    DataBlockBuilder& addInt8(int8_t value) {
+        return add<DataBlockBuilder>(std::span<const uint8_t>(reinterpret_cast<const uint8_t*>(&value), sizeof(value)));
+    }
+
+
+    /**
      * Add an integer value of type `SIMCONNECT_DATATYPE_INT32` to the block.
      * 
      * @param value The integer value to add.

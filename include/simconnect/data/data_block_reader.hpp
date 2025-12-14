@@ -61,6 +61,16 @@ public:
 
 
     /**
+     * Read a value of type `SIMCONNECT_DATATYPE_INT8` from the block.
+     * 
+     * @return The read integer value.
+     */
+    int8_t readInt8() {
+        return read<int8_t>();
+    }
+
+
+    /**
      * Read a value of type `SIMCONNECT_DATATYPE_INT32` from the block.
      * 
      * @return The read integer value.

@@ -29,7 +29,7 @@ namespace SimConnect {
 template <bool ThreadSafe = false, class L = NullLogger>
 class WindowsEventConnection : public Connection<ThreadSafe, L> {
 public:
-	using logger_type = typename L;
+	using logger_type = L;
 
 private:
 	/**

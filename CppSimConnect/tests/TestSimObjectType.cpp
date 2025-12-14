@@ -14,42 +14,46 @@
  * limitations under the License.
  */
 
-#include "pch.h"
-#include <simconnect/requests/simobject_data_handler.hpp>
+#include "gtest/gtest.h"
+
+
+#include <simconnect/simobject_type.hpp>
 
 using namespace SimConnect;
 
 // Unit tests for SimConnect::SimObjectType
 
 TEST(TestSimObjectType, DefaultConstructor) {
-    SimObjectType t;
-    EXPECT_EQ(t, SimObjectType::user());
+    const SimObjectType type;
+    EXPECT_EQ(type, SimObjectType::user());
 }
 
 TEST(TestSimObjectType, IntConstructor) {
-    SimObjectType t(5);
-    EXPECT_EQ(t.typeId, 5);
+    const SimObjectType type(5);
+    EXPECT_EQ(type.typeId, 5);
 }
 
 TEST(TestSimObjectType, StaticUser) {
-    auto t = SimObjectType::user();
-    EXPECT_EQ(t.typeId, static_cast<int>(SIMCONNECT_SIMOBJECT_TYPE_USER));
+    const SimObjectType type = SimObjectType::user();
+    EXPECT_EQ(type.typeId, static_cast<int>(SIMCONNECT_SIMOBJECT_TYPE_USER));   // NOLINT
 }
 
 TEST(TestSimObjectType, StaticAircraft) {
-    auto t = SimObjectType::aircraft();
-    EXPECT_EQ(t.typeId, static_cast<int>(SIMCONNECT_SIMOBJECT_TYPE_AIRCRAFT));
+    const SimObjectType type = SimObjectType::aircraft();
+    EXPECT_EQ(type.typeId, static_cast<int>(SIMCONNECT_SIMOBJECT_TYPE_AIRCRAFT));   // NOLINT
 }
 
 TEST(TestSimObjectType, ConversionOperator) {
-    SimObjectType t = SimObjectType::helicopter();
-    SIMCONNECT_SIMOBJECT_TYPE raw = t;
-    EXPECT_EQ(raw, SIMCONNECT_SIMOBJECT_TYPE_HELICOPTER);
+    const SimObjectType type = SimObjectType::helicopter();
+    const SIMCONNECT_SIMOBJECT_TYPE raw = type; // NOLINT
+
+    EXPECT_EQ(raw, SIMCONNECT_SIMOBJECT_TYPE_HELICOPTER);   // NOLINT
 }
 
 TEST(TestSimObjectType, OrMethods) {
-    constexpr SimObjectTypes t = SimObjectType::boat().orUser().orAircraft();
-    unsigned long types = t;
+    constexpr SimObjectTypes type = SimObjectType::boat().orUser().orAircraft();
+    const unsigned long types = type;
+
     EXPECT_TRUE(static_cast<unsigned long>(types) & static_cast<unsigned long>(SimObjectTypeAsBitField::user));
     EXPECT_TRUE(static_cast<unsigned long>(types) & static_cast<unsigned long>(SimObjectTypeAsBitField::aircraft));
     EXPECT_TRUE(static_cast<unsigned long>(types) & static_cast<unsigned long>(SimObjectTypeAsBitField::boat));

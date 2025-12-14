@@ -12,33 +12,48 @@
  * See the License for the specific language governing permissions and limitations under the License.
  */
 
-#include "pch.h"
+#include <cstdint>
+
+#include <stdexcept>
+#include <string>
+
+
+#include "gtest/gtest.h"
+
+
 #include <simconnect/data/data_block_builder.hpp>
 #include <simconnect/data/data_block_reader.hpp>
 
+static constexpr int32_t testInt32 = 42;
+static constexpr int64_t testInt64 = 0x123456789abcdef0;
+static constexpr float testFloat32 = 3.14F;
+static constexpr double testFloat64 = 1.718281828459;
+
 TEST(DataBlockReader, ReadPrimitives) {
     SimConnect::Data::DataBlockBuilder builder;
-    builder.addInt32(42).addInt64(0x123456789abcdef0).addFloat32(3.14f).addFloat64(2.718281828459);
+    builder.addInt32(testInt32).addInt64(testInt64).addFloat32(testFloat32).addFloat64(testFloat64);
     auto data = builder.dataBlock();
     SimConnect::Data::DataBlockReader reader(data);
-    int32_t i32 = reader.readInt32();
-    int64_t i64 = reader.readInt64();
-    float f32 = reader.readFloat32();
-    double f64 = reader.readFloat64();
-    ASSERT_EQ(i32, 42);
-    ASSERT_EQ(i64, 0x123456789abcdef0);
-    ASSERT_FLOAT_EQ(f32, 3.14f);
-    ASSERT_DOUBLE_EQ(f64, 2.718281828459);
+
+    const int32_t i32 = reader.readInt32();
+    const int64_t i64 = reader.readInt64();
+    const float f32 = reader.readFloat32();
+    const double f64 = reader.readFloat64();
+
+    ASSERT_EQ(i32, testInt32);
+    ASSERT_EQ(i64, testInt64);
+    ASSERT_FLOAT_EQ(f32, testFloat32);
+    ASSERT_DOUBLE_EQ(f64, testFloat64);
 }
 
 TEST(DataBlockReader, ReadString) {
-    std::string s = "Hello, world!";
+    const std::string testStr = "Hello, world!";
     SimConnect::Data::DataBlockBuilder builder;
-    builder.addString(s, s.size());
+    builder.addString(testStr, testStr.size());
     auto data = builder.dataBlock();
     SimConnect::Data::DataBlockReader reader(data);
-    std::string out = reader.readString(s.size());
-    ASSERT_EQ(out, s);
+    const std::string out = reader.readString(testStr.size());
+    ASSERT_EQ(out, testStr);
 }
 
 TEST(DataBlockReader, OutOfRangeThrows) {

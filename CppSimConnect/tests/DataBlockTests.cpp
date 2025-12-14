@@ -13,39 +13,50 @@
  * See the License for the specific language governing permissions and limitations under the License.
  */
 
-#include "pch.h"
-#include <simconnect/data/data_block.hpp>
+#include <cstdint>
+#include <cstddef>
 #include <vector>
-#include <cstring>
+#include <span>
+
+#include "gtest/gtest.h"
+
+
+#include <simconnect/data/data_block.hpp>
 
 TEST(DataBlock, DefaultCtorAndSize) {
-    SimConnect::Data::DataBlock block;
-    ASSERT_EQ(block.size(), 0u);
+    const SimConnect::Data::DataBlock block;
+    ASSERT_EQ(block.size(), 0U);
 }
 
 TEST(DataBlock, ReserveAndResize) {
     SimConnect::Data::DataBlock block;
-    block.reserve(100);
-    block.resize(50);
-    ASSERT_EQ(block.size(), 50u);
-    block.resize(10);
-    ASSERT_EQ(block.size(), 10u);
+
+    constexpr size_t initialSize = 100;
+    constexpr size_t resizedSize = 50;
+    constexpr size_t smallerSize = 10;
+
+    block.reserve(initialSize);
+    block.resize(resizedSize);
+    ASSERT_EQ(block.size(), resizedSize);
+    block.resize(smallerSize);
+    ASSERT_EQ(block.size(), smallerSize);
 }
 
 TEST(DataBlock, SetDataAndGetSpan) {
     SimConnect::Data::DataBlock block;
-    std::vector<uint8_t> v = {1,2,3,4,5};
-    block.setData(std::span<const uint8_t>(v.data(), v.size()));
-    ASSERT_EQ(block.size(), 5u);
-	auto span = block.dataBlock();
-    ASSERT_EQ(span.size(), 5u);
+    std::vector<uint8_t> testData = {1,2,3,4};
+    block.setData(std::span<const uint8_t>(testData.data(), testData.size()));
+
+    auto span = block.dataBlock();
+    ASSERT_EQ(span.size(), testData.size());
     ASSERT_EQ(span[0], 1);
     ASSERT_EQ(span[2], 3);
 }
 
 TEST(DataBlock, Clear) {
-    SimConnect::Data::DataBlock block(10);
-    ASSERT_EQ(block.size(), 10u);
+    constexpr size_t smallerSize = 10;
+    SimConnect::Data::DataBlock block(smallerSize);
+    ASSERT_EQ(block.size(), smallerSize);
     block.clear();
-    ASSERT_EQ(block.size(), 0u);
+    ASSERT_EQ(block.size(), 0U);
 }

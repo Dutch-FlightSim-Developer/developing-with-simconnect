@@ -47,6 +47,19 @@ constexpr size_t stringSize(SIMCONNECT_DATATYPE dataType) {
 }
 
 
+// Primary template - false case
+template<typename T>
+struct is_char_array : std::false_type {};
+
+// Specialization for std::array<char, N>
+template<std::size_t N>
+struct is_char_array<std::array<char, N>> : std::true_type {};
+
+// Helper variable template (C++17+)
+template<typename T>
+inline constexpr bool is_char_array_v = is_char_array<T>::value;
+
+
 /**
  * A data definition block.
  */
@@ -197,6 +210,61 @@ public:
         // As long as all fields exactly match the SimConnect data types, we can use a direct mapping.
 
         // Numerical values are pretty straightforward.
+
+        case SIMCONNECT_DATATYPE_INT8:
+        {
+            if constexpr (!std::is_same_v<FieldType, int8_t>) {
+                useMapping_ = false; // We cannot map this field directly, so we will not use the mapping.
+            }
+            if constexpr (std::is_same_v<FieldType, int> || std::is_same_v<FieldType, long> || std::is_same_v<FieldType, long long> ||
+                          std::is_same_v<FieldType, int32_t> || std::is_same_v<FieldType, int64_t> ||
+                          std::is_same_v<FieldType, float> ||
+                          std::is_same_v<FieldType, float> || std::is_same_v<FieldType, double>)
+            { // Both setter and getter need a cast
+                setter = [field](StructType& data, Data::DataBlockReader& reader) {
+                    data.*field = static_cast<FieldType>(reader.readInt8());
+                };
+                getter = [field](Data::DataBlockBuilder& builder, const StructType& data) {
+                    builder.addInt8(static_cast<int8_t>(data.*field));
+                };
+                size_ += sizeof(int8_t); // Update the size of the data definition
+            }
+            else if constexpr (std::is_same_v<FieldType, char>)
+            { // The setter can use automatic conversion, the getter needs a cast
+                setter = [field](StructType& data, Data::DataBlockReader& reader) {
+                    data.*field = reader.readInt8();
+                };
+                getter = [field](Data::DataBlockBuilder& builder, const StructType& data) {
+                    builder.addInt8(static_cast<int8_t>(data.*field));
+                };
+                size_ += sizeof(int8_t); // Update the size of the data definition
+            }
+            else if constexpr (std::is_same_v<FieldType, bool>)
+            { // We support bool fields
+                setter = [field](StructType& data, Data::DataBlockReader& reader) {
+                    data.*field = reader.readInt8() != 0;
+                };
+                getter = [field](Data::DataBlockBuilder& builder, const StructType& data) {
+                    builder.addInt8(data.*field ? 1 : 0);
+                };
+                size_ += sizeof(int8_t); // Update the size of the data definition
+            }
+            else if constexpr (std::is_same_v<FieldType, std::string>)
+            { // We support string fields, but we use just the standard conversion to/from string
+                setter = [field](StructType& data, Data::DataBlockReader& reader) {
+                    data.*field = std::format("{}", reader.readInt8());
+                };
+                getter = [field](Data::DataBlockBuilder& builder, const StructType& data) {
+                    builder.addInt8(static_cast<int8_t>(std::stoi((data.*field).c_str())));
+                };
+                size_ += sizeof(int8_t); // Update the size of the data definition
+            }
+            else { // Sorry, the rest is a no-go
+                useMapping_ = false; // Make sure we'll not use direct mapping.
+                throw SimConnectException("Invalid field type for SIMCONNECT_DATATYPE_INT8.");
+            }
+        }
+            break;
 
         case SIMCONNECT_DATATYPE_INT32:
         {
@@ -445,10 +513,29 @@ public:
                 };
                 size_ += stringSize(dataType); // Update the size of the data definition
             }
+            else if constexpr (is_char_array_v<FieldType>)
+            {
+                if (std::tuple_size_v<FieldType> < stringSize(dataType)) {
+                    throw SimConnectException("Invalid field type for SIMCONNECT_DATATYPE_STRING.",
+                        std::format("Field type (char[{}]) is too small for SIMCONNECT_DATATYPE_STRING{}.", std::tuple_size_v<FieldType>, stringSize(dataType)));
+                }
+                if (std::tuple_size_v<FieldType> != stringSize(dataType)) {
+                    useMapping_ = false; // We cannot map this field directly, so we will not use the mapping.
+                }
+                // Perfect match for direct mapping
+                setter = [field, dataType](StructType& data, Data::DataBlockReader& reader) {
+                    std::memset((data.*field).data(), 0, (data.*field).size());
+                    std::memcpy((data.*field).data(), reader.readPointer<char>((data.*field).size()), stringSize(dataType));
+                };
+                getter = [field, dataType](Data::DataBlockBuilder& builder, const StructType& data) {
+                    builder.addString(std::string_view((data.*field).data()), stringSize(dataType));
+                };
+                size_ += stringSize(dataType); // Update the size of the data definition
+            }
             else { // Sorry, the rest is a no-go
                 useMapping_ = false; // Make sure we'll not use direct mapping.
                 throw SimConnectException("Incompatible field type for DataDefinition",
-                    std::format("Invalid field type for SIMCONNECT_DATATYPE_STRING{}.", stringSize));
+                    std::format("Invalid field type for SIMCONNECT_DATATYPE_STRING{}.", stringSize(dataType)));
             }
         }
             break;
@@ -558,6 +645,10 @@ public:
             }
         }
             break;
+    
+        case SIMCONNECT_DATATYPE_INVALID:
+        case SIMCONNECT_DATATYPE_MAX:
+            throw SimConnectException("DataDefinition error", std::format("Invalid data type specified for field '{}'.", simVar));
         }
         fields_.emplace_back(simVar, units, dataType, 0.0f, SIMCONNECT_UNUSED, setter, getter);
         return *this;

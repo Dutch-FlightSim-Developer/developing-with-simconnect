@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and limitations under the License.
  */
 
-#include "pch.h"
+#include "gtest/gtest.h"
 
 #include <simconnect/windows_event_connection.hpp>
 #include <simconnect/windows_event_handler.hpp>
@@ -26,6 +26,9 @@
 
 using namespace SimConnect;
 using namespace std::chrono_literals;
+
+
+//NOLINTBEGIN(readability-function-cognitive-complexity)
 
 TEST(TestMultiClient, MultipleIndependentConnections) {
     // Create two separate connections with different names
@@ -45,9 +48,7 @@ TEST(TestMultiClient, MultipleIndependentConnections) {
     std::unique_ptr<std::string> client2AppName;
 
     // Register handlers for each client
-    [[maybe_unused]] auto open1HandlerId = handler1.registerHandler<SIMCONNECT_RECV_OPEN>(
-        SIMCONNECT_RECV_ID_OPEN, 
-        [&](const SIMCONNECT_RECV_OPEN& msg) {
+    [[maybe_unused]] auto open1HandlerId = handler1.registerHandler<SIMCONNECT_RECV_OPEN>(SIMCONNECT_RECV_ID_OPEN, [&](const SIMCONNECT_RECV_OPEN& msg) { // NOLINT(misc-include-cleaner)
             client1GotOpen = true;
             client1AppName = std::make_unique<std::string>(msg.szApplicationName);
         }
@@ -62,8 +63,8 @@ TEST(TestMultiClient, MultipleIndependentConnections) {
     );
 
     // Register default handlers
-    [[maybe_unused]] auto default1HandlerId = handler1.registerDefaultHandler([](const SIMCONNECT_RECV&){});
-    [[maybe_unused]] auto default2HandlerId = handler2.registerDefaultHandler([](const SIMCONNECT_RECV&){});
+    [[maybe_unused]] auto default1HandlerId = handler1.registerDefaultHandler([](const SIMCONNECT_RECV&){}); // NOLINT(misc-include-cleaner)
+    [[maybe_unused]] auto default2HandlerId = handler2.registerDefaultHandler([](const SIMCONNECT_RECV&){}); // NOLINT(misc-include-cleaner)
 
     // Open both connections
     ASSERT_TRUE(connection1.open()) << "Client 1 should connect successfully";
@@ -104,9 +105,11 @@ TEST(TestMultiClient, MultipleIndependentConnections) {
     EXPECT_TRUE(connection2.isOpen()) << "Client 2 should still be open after closing Client 1";
 
     // Verify Client 2 can still dispatch messages
+    constexpr int maxDispatchAttempts = 5;
+    constexpr auto dispatchTimeout = 50ms;
     bool client2StillResponsive = false;
-    for (int i = 0; i < 5; ++i) {
-        handler2.dispatch(50ms);
+    for (int i = 0; i < maxDispatchAttempts; ++i) {
+        handler2.dispatch(dispatchTimeout);
         if (connection2.isOpen()) {
             client2StillResponsive = true;
             break;
@@ -160,19 +163,20 @@ TEST(TestMultiClient, IndependentSystemStateRequests) {
     stateHandler2.enable(handler2);
 
     // Request system states from each client
-    stateHandler1.requestSystemState("AircraftLoaded", [&](std::string) {
+    stateHandler1.requestSystemState("AircraftLoaded", [&](std::string) { // NOLINT(performance-unnecessary-value-param)
         client1GotAircraftLoaded = true;
     });
 
-    stateHandler2.requestSystemState("AircraftLoaded", [&](std::string) {
+    stateHandler2.requestSystemState("AircraftLoaded", [&](std::string) { // NOLINT(performance-unnecessary-value-param)
         client2GotAircraftLoaded = true;
     });
 
     // Process messages
     constexpr int maxIterations = 30;
+    constexpr auto waitInterval = 100ms;
     for (int i = 0; i < maxIterations && (!client1GotAircraftLoaded || !client2GotAircraftLoaded); ++i) {
-        handler1.dispatch(100ms);
-        handler2.dispatch(100ms);
+        handler1.dispatch(waitInterval);
+        handler2.dispatch(waitInterval);
     }
 
     // Both clients should receive their responses
@@ -199,33 +203,31 @@ TEST(TestMultiClient, SimultaneousReconnection) {
     std::atomic<int> client1OpenCount{0};
     std::atomic<int> client2OpenCount{0};
 
-    [[maybe_unused]] auto open1HandlerId = handler1.registerHandler<SIMCONNECT_RECV_OPEN>(
-        SIMCONNECT_RECV_ID_OPEN,
-        [&](const SIMCONNECT_RECV_OPEN&) {
+    [[maybe_unused]] auto open1HandlerId = handler1.registerHandler<SIMCONNECT_RECV_OPEN>(SIMCONNECT_RECV_ID_OPEN, [&](const SIMCONNECT_RECV_OPEN&) { // NOLINT(misc-include-cleaner)
             client1OpenCount++;
         }
     );
 
-    [[maybe_unused]] auto open2HandlerId = handler2.registerHandler<SIMCONNECT_RECV_OPEN>(
-        SIMCONNECT_RECV_ID_OPEN,
-        [&](const SIMCONNECT_RECV_OPEN&) {
+    [[maybe_unused]] auto open2HandlerId = handler2.registerHandler<SIMCONNECT_RECV_OPEN>(SIMCONNECT_RECV_ID_OPEN, [&](const SIMCONNECT_RECV_OPEN&) { // NOLINT(misc-include-cleaner)
             client2OpenCount++;
         }
     );
 
-    [[maybe_unused]] auto default1HandlerId = handler1.registerDefaultHandler([](const SIMCONNECT_RECV&){});
-    [[maybe_unused]] auto default2HandlerId = handler2.registerDefaultHandler([](const SIMCONNECT_RECV&){});
+    [[maybe_unused]] auto default1HandlerId = handler1.registerDefaultHandler([](const SIMCONNECT_RECV&){}); // NOLINT(misc-include-cleaner)
+    [[maybe_unused]] auto default2HandlerId = handler2.registerDefaultHandler([](const SIMCONNECT_RECV&){}); // NOLINT(misc-include-cleaner)
 
     // Initial connection for both
     ASSERT_TRUE(connection1.open());
     ASSERT_TRUE(connection2.open());
 
     // Wait for initial open messages
-    for (int i = 0; i < 20 && client1OpenCount == 0; ++i) {
-        handler1.dispatch(100ms);
+    constexpr int maxWaitIterations = 20;
+    constexpr auto waitInterval = 100ms;
+    for (int i = 0; i < maxWaitIterations && client1OpenCount == 0; ++i) {
+        handler1.dispatch(waitInterval);
     }
-    for (int i = 0; i < 20 && client2OpenCount == 0; ++i) {
-        handler2.dispatch(100ms);
+    for (int i = 0; i < maxWaitIterations && client2OpenCount == 0; ++i) {
+        handler2.dispatch(waitInterval);
     }
 
     EXPECT_EQ(client1OpenCount.load(), 1) << "Client 1 should receive first OPEN";
@@ -240,8 +242,8 @@ TEST(TestMultiClient, SimultaneousReconnection) {
     ASSERT_TRUE(connection1.open());
 
     // Wait for second open message on client 1
-    for (int i = 0; i < 20 && client1OpenCount < 2; ++i) {
-        handler1.dispatch(100ms);
+    for (int i = 0; i < maxWaitIterations && client1OpenCount < 2; ++i) {
+        handler1.dispatch(waitInterval);
     }
 
     // Client 1 should have received 2 open messages (initial + reconnect)
@@ -255,3 +257,5 @@ TEST(TestMultiClient, SimultaneousReconnection) {
     connection1.close();
     connection2.close();
 }
+
+//NOLINTEND(readability-function-cognitive-complexity)

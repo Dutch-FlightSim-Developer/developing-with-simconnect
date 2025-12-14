@@ -117,8 +117,8 @@ using VoidResult = Result<std::monostate>;
 template <class C = WindowsEventConnection<true, NullLogger>, class H = WindowsEventHandler<true, NullLogger, MultiHandlerPolicy<SIMCONNECT_RECV>>>
 class BackgroundSimConnectManager {
 public:
-    using connection_type = typename C;
-    using handler_type = typename H;
+    using connection_type = C;
+    using handler_type = H;
 	using logger_type = typename H::logger_type;
 
 
@@ -138,6 +138,7 @@ private:
 
     std::atomic<State> state_{ State::Stopped };
     std::atomic<bool> shouldRun_{ false };
+    std::atomic<bool> shouldConnect_{ false };
     std::atomic<bool> explicitDisconnect_{ false };
     std::atomic<int> reconnectAttempts_{ 0 };
     std::atomic<ErrorCode> lastError_{ ErrorCode::None };
@@ -185,10 +186,10 @@ public:
         : connection_(std::move(clientName))
         , handler_(connection_)
         , logger_("SimConnect::BackgroundSimConnectManager", connection_.logger())
+        , configIndex_(configIndex)
         , systemStateHandler_(handler_)
 		, eventHandler_(handler_)
         , systemEvents_(eventHandler_)
-        , configIndex_(configIndex)
     {
     }
 
@@ -298,6 +299,8 @@ public:
         shouldRun_ = true;
 		transitionState(State::StartingUp);
 		explicitDisconnect_ = false;
+
+        logger_.trace("Starting worker thread...");
         workerThread_ = std::jthread(&BackgroundSimConnectManager::workerLoop, this);
     }
 
@@ -332,9 +335,30 @@ public:
      * Request connection (useful when autoConnect is false or after explicit disconnect).
      */
     void connect() noexcept {
-        std::lock_guard lock(mutex_);
-        explicitDisconnect_ = false;
-        reconnectAttempts_ = 0;
+        logger_.trace("Requesting connection...");
+
+        {
+            std::lock_guard lock(mutex_);
+
+            if (!shouldRun_) {
+                logger_.trace("Not connecting because manager should shut down.");
+                return;
+            }
+            if (state_.load() == State::Connected || state_.load() == State::Connecting || state_.load() == State::WaitingForOpen) {
+                logger_.trace("Already connected or connecting; no action taken.");
+                return; // Already connected or connecting
+            }
+
+            explicitDisconnect_ = false;
+            reconnectAttempts_ = 0;
+
+            if (state_.load() == State::StartingUp) {
+                logger_.trace("Still starting up; connect will proceed once startup completes.");
+                shouldConnect_ = true;
+                return;
+            }
+        }
+        transitionState(State::Connecting);
         cv_.notify_all();
     }
 
@@ -421,6 +445,8 @@ public:
 
 private:
     void workerLoop() noexcept {
+        logger_.info("Worker thread started.");
+
         while (shouldRun_ && (state_.load() != State::Stopped)) {
             State currentState = state_.load();
 
@@ -445,6 +471,10 @@ private:
                     break;
                 case State::Error:
                     handleError();
+                    break;
+                case State::Stopped:
+                    // Should not happen, but just in case
+                    shouldRun_ = false;
                     break;
             }
         }
@@ -480,13 +510,17 @@ private:
      * @note This state transitions to Connecting or Disconnected.
      */
     void handleStartingUp() noexcept {
+        logger_.trace("Handling StartingUp state");
+
         if (!shouldAttemptConnection() || !shouldRun_) {
+            logger_.trace("Transitioning to Disconnected: shouldAttemptConnection()={}, shouldRun_={}", (shouldAttemptConnection() ? "true" : "false"), (shouldRun_ ? "true" : "false"));
             transitionState(State::Disconnected);
             return;
         }
 
+        logger_.trace("Registering OPEN handler");
         // Register essential handlers for connection state management
-        handler_.registerHandler<SIMCONNECT_RECV_OPEN>(SIMCONNECT_RECV_ID_OPEN, [this](const SIMCONNECT_RECV_OPEN& msg) {
+        handler_.template registerHandler<SIMCONNECT_RECV_OPEN>(SIMCONNECT_RECV_ID_OPEN, [this](const SIMCONNECT_RECV_OPEN& msg) {
             simName_ = msg.szApplicationName;
             simVersion_ = version(msg.dwApplicationVersionMajor, msg.dwApplicationVersionMinor);
             simBuild_ = version(msg.dwApplicationBuildMajor, msg.dwApplicationBuildMinor);
@@ -502,7 +536,8 @@ private:
             transitionState(State::Connected);
         });
         
-        handler_.registerHandler<SIMCONNECT_RECV_QUIT>(SIMCONNECT_RECV_ID_QUIT, [this]([[maybe_unused]]const SIMCONNECT_RECV_QUIT& msg) {
+        logger_.trace("Registering QUIT handler");
+        handler_.template registerHandler<SIMCONNECT_RECV_QUIT>(SIMCONNECT_RECV_ID_QUIT, [this]([[maybe_unused]]const SIMCONNECT_RECV_QUIT& msg) {
             logger_.warn("Received QUIT message from simulator");
             setError(ErrorCode::ConnectionFailed, "Simulator quit");
             transitionState(State::Disconnecting);
@@ -516,7 +551,11 @@ private:
             cv_.wait_for(lock, initialConnectDelay_, [&] { return shouldStop(); });
         }
         
-        if (shouldContinueRunning()) {
+        if (shouldConnect_) {
+            logger_.trace("Proceeding to connect after startup delay.");
+            shouldConnect_ = false;
+            transitionState(State::Connecting);
+        } else if (shouldContinueRunning()) {
             transitionState(State::Connecting);
         } else {
             transitionState(State::Disconnected);
@@ -532,7 +571,9 @@ private:
      * @note This state transitions to WaitingForOpen, Disconnected, or Error.
      */
     void handleConnecting() noexcept {
+        logger_.trace("Handling Connecting state");
         if (!shouldAttemptConnection() || !shouldRun_) {
+            logger_.trace("Transitioning to Disconnected: shouldAttemptConnection()={}, shouldRun_={}", (shouldAttemptConnection() ? "true" : "false"), (shouldRun_ ? "true" : "false"));
             transitionState(State::Disconnected);
             return;
         }
@@ -544,11 +585,15 @@ private:
             return;
         }
 
+        logger_.info("Attempting to connect (attempt {})...", reconnectAttempts_ + 1);
         auto result = attemptConnection();
         if (result.hasValue()) {
+            logger_.trace("Connected, will wait for OPEN handshake");
             reconnectAttempts_ = 0;
             transitionState(State::WaitingForOpen);
         } else {
+            logger_.trace("Connection attempt failed: {}", result.errorMessage);
+
             reconnectAttempts_++;
             setError(result.error, std::format("Connection attempt {} failed: {}", reconnectAttempts_.load(), result.errorMessage));
 
@@ -558,6 +603,7 @@ private:
                 cv_.wait_for(lock, reconnectDelay_, [&] { return shouldStop(); });
             }
             if (!shouldContinueRunning()) {
+                logger_.trace("Giving up trying to connect, because we were asked to stop.");
                 transitionState(State::Disconnected);
             }
             // Note: if shouldContinueRunning() returns true, we stay in Connecting state to retry
@@ -661,6 +707,10 @@ private:
      * @note This state transitions to Connecting when appropriate.
      */
     void handleDisconnected() noexcept {
+        if (!shouldRun_) {
+            transitionState(State::Stopped);
+            return;
+        }
         if (shouldAttemptConnection() && shouldRun_) {
             transitionState(State::Connecting);
         } else {

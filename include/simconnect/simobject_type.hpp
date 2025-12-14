@@ -31,6 +31,7 @@ enum class SimObjectTypeAsBitField : unsigned long {
     animal          = 0b001000000,
     userAvatar      = 0b010000000,
     userCurrent     = 0b100000000,
+    all             = 0b111111111
 };
 
 
@@ -72,6 +73,9 @@ struct SimObjectTypes {
             break;
         case SIMCONNECT_SIMOBJECT_TYPE_USER_CURRENT:
             types_ = static_cast<unsigned long>(SimObjectTypeAsBitField::userCurrent);
+            break;
+        case SIMCONNECT_SIMOBJECT_TYPE_ALL:
+            types_ = static_cast<unsigned long>(SimObjectTypeAsBitField::all);
             break;
         }
     }

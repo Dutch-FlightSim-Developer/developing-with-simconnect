@@ -13,19 +13,23 @@
  * See the License for the specific language governing permissions and limitations under the License.
  */
 
-#include "pch.h"
+#include "gtest/gtest.h"
 
 #include <simconnect/windows_event_connection.hpp>
 #include <simconnect/windows_event_handler.hpp>
 #include <simconnect/events/event_handler.hpp>
+#include <simconnect/events/events.hpp>
 
 #include <atomic>
 #include <chrono>
-#include <thread>
+#include <iostream>
+
 
 using namespace SimConnect;
 using namespace std::chrono_literals;
 
+
+//NOLINTBEGIN(readability-function-cognitive-complexity)
 TEST(TestEvents, MapEventTwice) {
     WindowsEventConnection<> connection("MapEventTwiceTest");
     WindowsEventHandler<> handler(connection);
@@ -34,27 +38,22 @@ TEST(TestEvents, MapEventTwice) {
     std::atomic<bool> gotOpen{false};
     std::atomic<bool> gotException{false};
 
-    handler.registerHandler<SIMCONNECT_RECV_OPEN>(
-        SIMCONNECT_RECV_ID_OPEN,
-        [&](const SIMCONNECT_RECV_OPEN&) {
-            gotOpen = true;
-        }
-    );
+    handler.registerHandler<SIMCONNECT_RECV_OPEN>(SIMCONNECT_RECV_ID_OPEN, [&](const SIMCONNECT_RECV_OPEN&) { gotOpen = true; } ); // NOLINT(misc-include-cleaner)
 
-    handler.registerHandler<SIMCONNECT_RECV_EXCEPTION>(
-        SIMCONNECT_RECV_ID_EXCEPTION,
-        [&](const SIMCONNECT_RECV_EXCEPTION& ex) {
+    handler.registerHandler<SIMCONNECT_RECV_EXCEPTION>(SIMCONNECT_RECV_ID_EXCEPTION, [&](const SIMCONNECT_RECV_EXCEPTION& ex) { // NOLINT(misc-include-cleaner)
             gotException = true;
             // Log the exception for debugging
-            std::cerr << "SimConnect Exception: " << ex.dwException << std::endl;
+            std::cerr << "SimConnect Exception: " << ex.dwException << '\n';
         }
     );
 
     ASSERT_TRUE(connection.open());
 
     // Wait for open message
-    for (int i = 0; i < 20 && !gotOpen; ++i) {
-        handler.dispatch(100ms);
+    constexpr int maxWaitIterations = 20;
+    constexpr auto waitInterval = 100ms;
+    for (int i = 0; i < maxWaitIterations && !gotOpen; ++i) {
+        handler.dispatch(waitInterval);
     }
     ASSERT_TRUE(gotOpen);
 
@@ -73,8 +72,8 @@ TEST(TestEvents, MapEventTwice) {
     EXPECT_TRUE(brakeEvt.isMapped());
 
     // Process any potential messages
-    for (int i = 0; i < 5; ++i) {
-        handler.dispatch(100ms);
+    for (int i = 0; i < maxWaitIterations; ++i) {
+        handler.dispatch(waitInterval);
     }
 
     // Map the same event again - should be silently skipped
@@ -86,8 +85,8 @@ TEST(TestEvents, MapEventTwice) {
     EXPECT_TRUE(brakeEvt.isMapped());
 
     // Wait a bit longer to ensure no delayed exceptions
-    for (int i = 0; i < 10; ++i) {
-        handler.dispatch(100ms);
+    for (int i = 0; i < maxWaitIterations; ++i) {
+        handler.dispatch(waitInterval);
         if (gotException) {
             break;
         }
@@ -121,15 +120,17 @@ TEST(TestEvents, MapMultipleEventsTwice) {
             gotException = true;
             exceptionCount++;
             std::cerr << "SimConnect Exception #" << exceptionCount.load() 
-                      << ": " << ex.dwException << std::endl;
+                      << ": " << ex.dwException << '\n';
         }
     );
 
     ASSERT_TRUE(connection.open());
 
     // Wait for open message
-    for (int i = 0; i < 20 && !gotOpen; ++i) {
-        handler.dispatch(100ms);
+    constexpr int maxWaitIterations = 20;
+    constexpr auto waitInterval = 100ms;
+    for (int i = 0; i < maxWaitIterations && !gotOpen; ++i) {
+        handler.dispatch(waitInterval);
     }
     ASSERT_TRUE(gotOpen);
 
@@ -160,8 +161,8 @@ TEST(TestEvents, MapMultipleEventsTwice) {
     EXPECT_TRUE(flapsDownEvt.isMapped());
 
     // Process messages
-    for (int i = 0; i < 5; ++i) {
-        handler.dispatch(100ms);
+    for (int i = 0; i < maxWaitIterations; ++i) {
+        handler.dispatch(waitInterval);
     }
 
     EXPECT_FALSE(gotException) << "We shouldn't have received an exception after one mapping";
@@ -176,8 +177,8 @@ TEST(TestEvents, MapMultipleEventsTwice) {
     EXPECT_TRUE(connection.succeeded());
 
     // Wait for potential exceptions
-    for (int i = 0; i < 10; ++i) {
-        handler.dispatch(100ms);
+    for (int i = 0; i < maxWaitIterations; ++i) {
+        handler.dispatch(waitInterval);
         if (gotException) {
             break;
         }
@@ -206,8 +207,11 @@ TEST(TestEvents, MappedStatusAfterClose) {
 
     ASSERT_TRUE(connection.open());
 
-    for (int i = 0; i < 20 && !gotOpen; ++i) {
-        handler.dispatch(100ms);
+    // Wait for open message
+    constexpr int maxWaitIterations = 20;
+    constexpr auto waitInterval = 100ms;
+    for (int i = 0; i < maxWaitIterations && !gotOpen; ++i) {
+        handler.dispatch(waitInterval);
     }
     ASSERT_TRUE(gotOpen);
 
@@ -224,3 +228,4 @@ TEST(TestEvents, MappedStatusAfterClose) {
     // Verify the event is no longer marked as mapped
     EXPECT_FALSE(testEvt.isMapped()) << "Mapped flags should be cleared when connection is closed";
 }
+//NOLINTEND(readability-function-cognitive-complexity)

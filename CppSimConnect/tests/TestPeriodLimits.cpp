@@ -14,63 +14,63 @@
  * limitations under the License.
  */
 
-#include "pch.h"
+#include "gtest/gtest.h"
+
 #include <simconnect/data_frequency.hpp>
 
 using namespace SimConnect;
 
 
 TEST(TestPeriodLimits, DefaultConstructor) {
-	PeriodLimits limits;
-	EXPECT_EQ(limits.getOrigin(), 0u);
-	EXPECT_EQ(limits.getLimit(), 0u);
+	const PeriodLimits limits;
+	EXPECT_EQ(limits.getOrigin(), 0U);
+	EXPECT_EQ(limits.getLimit(), 0U);
 }
 
 TEST(TestPeriodLimits, ConstructorWithValues) {
-	unsigned long origin = 5;
-	unsigned long limit = 15;
+	const unsigned long origin = 5;
+	const unsigned long limit = 15;
 
-	PeriodLimits limits(origin, limit);
+	const PeriodLimits limits(origin, limit);
 	EXPECT_EQ(limits.getOrigin(), origin);
 	EXPECT_EQ(limits.getLimit(), limit);
 }
 
 TEST(TestPeriodLimits, None) {
-	PeriodLimits limits = PeriodLimits::none();
-	EXPECT_EQ(limits.getOrigin(), 0u);
-	EXPECT_EQ(limits.getLimit(), 0u);
+	const PeriodLimits limits = PeriodLimits::none();
+	EXPECT_EQ(limits.getOrigin(), 0U);
+	EXPECT_EQ(limits.getLimit(), 0U);
 }
 
 TEST(TestPeriodLimits, StartAfter) {
-	unsigned long origin = 5;
+	const unsigned long origin = 5;
 
-	PeriodLimits limits = PeriodLimits::startAfter(origin);
+	const PeriodLimits limits = PeriodLimits::startAfter(origin);
 	EXPECT_EQ(limits.getOrigin(), origin);
-	EXPECT_EQ(limits.getLimit(), 0u);
+	EXPECT_EQ(limits.getLimit(), 0U);
 }
 
 TEST(TestPeriodLimits, StopAfter) {
-	unsigned long limit = 15;
-
-	PeriodLimits limits = PeriodLimits::stopAfter(limit);
-	EXPECT_EQ(limits.getOrigin(), 0u);
+	const unsigned long limit = 15;
+	const PeriodLimits limits = PeriodLimits::stopAfter(limit);
+	EXPECT_EQ(limits.getOrigin(), 0U);
 	EXPECT_EQ(limits.getLimit(), limit);
 }
 
 TEST(TestPeriodLimits, AndStartAfter) {
-	unsigned long origin = 5;
-	unsigned long limit = 15;
+	const unsigned long origin = 5;
+	const unsigned long limit = 15;
 
-	PeriodLimits limits = PeriodLimits::stopAfter(limit).andStartAfter(origin);
+	const PeriodLimits limits = PeriodLimits::stopAfter(limit).andStartAfter(origin);
 	EXPECT_EQ(limits.getOrigin(), origin);
 	EXPECT_EQ(limits.getLimit(), limit);
 }
 
 TEST(TestPeriodLimits, AndStopAfter) {
-	unsigned long origin = 5;
-	unsigned long limit = 25;
+	const unsigned long origin = 5;
+	const unsigned long limit = 25;
 
-	PeriodLimits limits = PeriodLimits::startAfter(origin).andStopAfter(limit);
+	const PeriodLimits limits = PeriodLimits::startAfter(origin).andStopAfter(limit);
 	EXPECT_EQ(limits.getOrigin(), origin);
 	EXPECT_EQ(limits.getLimit(), limit);
 }

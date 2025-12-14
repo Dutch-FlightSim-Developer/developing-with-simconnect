@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-#include "pch.h"
+#include "gtest/gtest.h"
 
 #include <simconnect/windows_event_connection.hpp>
 #include <simconnect/windows_event_handler.hpp>
@@ -26,6 +26,9 @@
 #include <chrono>
 
 using namespace SimConnect;
+
+
+static constexpr auto fiveSeconds = std::chrono::seconds(5);
 
 
 // Test that we can receive a timed event using the WindowsEventHandler and EventHandler
@@ -40,13 +43,13 @@ TEST(TestEventHandler, ReceiveTimedEvent) {
 
     auto oneSecondEvent = Events::oneSec();
 
-    eventHandler.registerEventHandler<SIMCONNECT_RECV_EVENT>(oneSecondEvent, [&]([[maybe_unused]] const SIMCONNECT_RECV_EVENT& msg) {
+    eventHandler.registerEventHandler<SIMCONNECT_RECV_EVENT>(oneSecondEvent, [&]([[maybe_unused]] const SIMCONNECT_RECV_EVENT& msg) { // NOLINT(misc-include-cleaner)
         receivedEvent = true;
     });
 	connection.subscribeToSystemEvent(oneSecondEvent);
 
     // Wait for event
-    handler.dispatch(std::chrono::seconds(5));
+    handler.dispatch(fiveSeconds);
 
     EXPECT_TRUE(receivedEvent) << "Did not receive event";
 
@@ -54,7 +57,7 @@ TEST(TestEventHandler, ReceiveTimedEvent) {
 	receivedEvent = false;
 
 	// Wait for event again
-	handler.dispatch(std::chrono::seconds(5));
+	handler.dispatch(fiveSeconds);
 
 	EXPECT_FALSE(receivedEvent) << "Received event after unsubscribing";
 
@@ -73,15 +76,15 @@ TEST(TestEventHandler, MultipleHandlersReceiveEvent) {
     std::atomic<bool> receivedEvent2{false};
     ASSERT_TRUE(connection.open());
     auto oneSecondEvent = Events::oneSec();
-    eventHandler1.registerEventHandler<SIMCONNECT_RECV_EVENT>(oneSecondEvent, [&]([[maybe_unused]] const SIMCONNECT_RECV_EVENT& msg) {
+    eventHandler1.registerEventHandler<SIMCONNECT_RECV_EVENT>(oneSecondEvent, [&]([[maybe_unused]] const SIMCONNECT_RECV_EVENT& msg) { // NOLINT(misc-include-cleaner)
         receivedEvent1 = true;
     });
-    eventHandler2.registerEventHandler<SIMCONNECT_RECV_EVENT>(oneSecondEvent, [&]([[maybe_unused]] const SIMCONNECT_RECV_EVENT& msg) {
+    eventHandler2.registerEventHandler<SIMCONNECT_RECV_EVENT>(oneSecondEvent, [&]([[maybe_unused]] const SIMCONNECT_RECV_EVENT& msg) { // NOLINT(misc-include-cleaner)
         receivedEvent2 = true;
     });
     connection.subscribeToSystemEvent(oneSecondEvent);
     // Wait for event
-    handler.dispatch(std::chrono::seconds(5));
+    handler.dispatch(fiveSeconds);
     EXPECT_TRUE(receivedEvent1) << "First handler did not receive event";
     EXPECT_TRUE(receivedEvent2) << "Second handler did not receive event";
     connection.unsubscribeFromSystemEvent(oneSecondEvent);

@@ -23,18 +23,21 @@
 
 namespace SimConnect {
 
+
+using NotificationGroupId = unsigned long;
+
+
 /**
  * A notification group is a group of events that can be enabled or disabled together.
  */
 template <class M>
 class NotificationGroup {
     EventHandler<M>& handler_;
-    SIMCONNECT_NOTIFICATION_GROUP_ID id_;
+    NotificationGroupId id_;
     std::optional<unsigned long> priority_;
 
 
-    inline static std::atomic<SIMCONNECT_NOTIFICATION_GROUP_ID> nextId_{ 0 };
-
+    inline static std::atomic<NotificationGroupId> nextId_{ 0 };
 
 public:
     NotificationGroup(EventHandler<M>& handler) : handler_(handler), id_(++nextId_), priority_(std::nullopt)
@@ -48,10 +51,10 @@ public:
 
 
     [[nodiscard]]
-    SIMCONNECT_NOTIFICATION_GROUP_ID id() const noexcept { return id_; }
+    NotificationGroupId id() const noexcept { return id_; }
 
     [[nodiscard]]
-    operator SIMCONNECT_NOTIFICATION_GROUP_ID() const noexcept { return id_; }
+    operator NotificationGroupId() const noexcept { return id_; }
 
     [[nodiscard]]
     unsigned long priority() const noexcept { 

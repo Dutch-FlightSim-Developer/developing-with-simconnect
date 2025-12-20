@@ -17,6 +17,8 @@
 
 #include <simconnect.hpp>
 
+#include<functional>
+
 namespace SimConnect {
 
 

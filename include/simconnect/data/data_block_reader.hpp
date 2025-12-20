@@ -15,6 +15,9 @@
  * limitations under the License.
  */
 
+#include <cstddef>
+#include <cstdint>
+
 #include <simconnect/data/data_block.hpp>
 
 
@@ -203,7 +206,7 @@ public:
      * @return A pointer to the data.
      */
     template <typename T>
-    const T* readPointer(unsigned int size) {
+    const T* readPointer(size_t size) {
         if (next_ + size > this->size()) {
             throw std::out_of_range("Attempt to read beyond the end of the data block.");
         }

@@ -15,6 +15,7 @@
  * limitations under the License.
  */
 
+#include <simconnect/simconnect_exception.hpp>
 #include <simconnect/connection.hpp>
 
 namespace SimConnect {
@@ -24,7 +25,7 @@ namespace SimConnect {
  * A SimConnect connection with support for Windows Messaging.
  */
 template <bool ThreadSafe = false>
-class WindowsMessagingConnection : public Connection<ThreadSafe> {
+class WindowsMessagingConnection : public Connection<WindowsMessagingConnection<ThreadSafe>, ThreadSafe>{
 	/**
 	 * The Windows handle to the Window whose message queue will receive notifications for incoming messages. 
 	 */
@@ -112,9 +113,9 @@ public:
 	 * @throws BadConfig if the configuration does not contain the specified index.
 	 */
 	[[nodiscard]]
-	bool open(HWND hWnd, DWORD userMessageId, int configIndex = 0) {
+	WindowsMessagingConnection<ThreadSafe>& open(HWND hWnd, DWORD userMessageId, int configIndex = 0) {
 		if (this->isOpen()) {
-			return true;
+			return *this;
 		}
 		hWnd_ = hWnd;
 		userMessageId_ = userMessageId;
@@ -127,12 +128,12 @@ public:
 	 * Opens the connection, optionally for a specific configuration.
      * 
 	 * @param configIndex The index of the configuration section to use, defaults to 0 meaning use the default configuration.
-	 * @returns True if the connection is open.
+	 * @returns A Result containing a reference to the Derived connection if successful, or an Error if failed.
 	 * @throws SimConnectException if no Window handle or valid message id is set.
 	 * @throws BadConfig if the configuration does not contain the specified index.
 	 */
     [[nodiscard]]
-    bool open(int configIndex = 0) {
+    WindowsMessagingConnection<ThreadSafe>&  open(int configIndex = 0) {
         if (hWnd_ == nullptr) {
             throw SimConnectException("hWnd is null.");
         }

@@ -15,16 +15,21 @@
  */
 
 #pragma warning(push, 3)
-#include <windows.h>
-#include <tchar.h>
-#include <stdio.h>
+
+// The other headers need this one, but don't include it themselves...
+#include <windows.h> // NOLINT(misc-include-cleaner)
+
+#include <minwindef.h>
+#include <winnt.h>
+#include <synchapi.h>
+#include <winerror.h>
 
 #include "SimConnect.h"
+
 #pragma warning(pop)
 
-
-static HANDLE hSimConnect{ nullptr };
-static bool connected{ false };
+#include <format>
+#include <iostream>
 
 
 /**
@@ -32,17 +37,16 @@ static bool connected{ false };
  *
  * @return true on success.
  */
-bool connect()
+bool connect(HANDLE& hSimConnect)
 {
-	HRESULT hr;
-	connected = SUCCEEDED(hr = SimConnect_Open(&hSimConnect, "MessagePolling", nullptr, 0, nullptr, 0));
-	if (connected) {
-		printf("Connected to Flight Simulator!\n");
+	HRESULT result = SimConnect_Open(&hSimConnect, "MessagePolling", nullptr, 0, nullptr, 0);
+	if (SUCCEEDED(result)) {
+		std::cout << "Connected to Flight Simulator!\n";
 	}
 	else {
-		printf("Failed to connect to Flight Simulator! (hr = 0x%08lx)\n", hr);
+		std::cerr << std::format("Failed to connect to Flight Simulator! (result = 0x{:08x})\n", result);
 	}
-	return connected;
+	return SUCCEEDED(result);
 }
 
 
@@ -52,35 +56,40 @@ bool connect()
  *
  * When a message is received, we only handle the "Open" and "Quit" ones.
  */
-void handle_messages()
+void handle_messages(HANDLE hSimConnect)
 {
+    bool connected{ true };
 	while (connected) {
 		SIMCONNECT_RECV* pData{ nullptr };
 		DWORD cbData{ 0 };
-		HRESULT hr{ S_OK };
+		HRESULT result{ S_OK };
 
-		while (SUCCEEDED(hr = SimConnect_GetNextDispatch(hSimConnect, &pData, &cbData))) {
+		while (SUCCEEDED(result = SimConnect_GetNextDispatch(hSimConnect, &pData, &cbData))) {
 			switch (pData->dwID) {
 			case SIMCONNECT_RECV_ID_OPEN:
 				{
-					SIMCONNECT_RECV_OPEN* pOpen = (SIMCONNECT_RECV_OPEN*)pData;
-					printf("Connected to '%s' version %ld.%ld (build %ld.%ld)\n", pOpen->szApplicationName, pOpen->dwApplicationVersionMajor, pOpen->dwApplicationVersionMinor, pOpen->dwApplicationBuildMajor, pOpen->dwApplicationBuildMinor);
-					printf("  using SimConnect version %ld.%ld (build %ld.%ld)\n", pOpen->dwSimConnectVersionMajor, pOpen->dwSimConnectVersionMinor, pOpen->dwSimConnectBuildMajor, pOpen->dwSimConnectBuildMinor);
+					const auto* pOpen = static_cast<const SIMCONNECT_RECV_OPEN*>(pData); // NOLINT(cppcoreguidelines-pro-type-static-cast-downcast)
+					std::cout << std::format("Connected to '{}' version {}.{} (build {}.{})\n",
+                        pOpen->szApplicationName,
+                        pOpen->dwApplicationVersionMajor, pOpen->dwApplicationVersionMinor,
+                        pOpen->dwApplicationBuildMajor, pOpen->dwApplicationBuildMinor);
+					std::cout << std::format("  using SimConnect version {}.{} (build {}.{})\n", pOpen->dwSimConnectVersionMajor, pOpen->dwSimConnectVersionMinor, pOpen->dwSimConnectBuildMajor, pOpen->dwSimConnectBuildMinor);
 				}
 				break;
 
 			case SIMCONNECT_RECV_ID_QUIT:
-				printf("Simulator shutting down.\n");
+				std::cout << "Simulator shutting down.\n";
 				connected = false;
 				break;
 
 			default:
-				printf("Ignoring message of type %ld (length %ld bytes)\n", pData->dwID, cbData);
+				std::cout << std::format("Ignoring message of type {} (length {} bytes)\n", pData->dwID, cbData);
 				break;
 			}
 		}
 		if (connected) {
-			Sleep(100);		// Try to convince our protection we're not malware
+            const DWORD waitMilliseconds{ 100 };
+			Sleep(waitMilliseconds);		// Try to convince our protection we're not malware
 		}
 	}
 }
@@ -89,10 +98,10 @@ void handle_messages()
 /**
  * Close the connection.
  */
-void close()
+void close(HANDLE hSimConnect)
 {
 	if (FAILED(SimConnect_Close(hSimConnect))) {
-		printf("SimConnect_Close failed.\n");
+		std::cerr << "SimConnect_Close failed.\n";
 	}
 }
 
@@ -100,11 +109,12 @@ void close()
 /**
  * Run our test.
  */
-int main()
+auto main([[maybe_unused]] int argc, [[maybe_unused]] char* argv[]) -> int // NOLINT(bugprone-exception-escape)
 {
-	if (connect()) {
-		handle_messages();
-		close();
+    HANDLE hSimConnect{ nullptr };
+	if (connect(hSimConnect)) {
+		handle_messages(hSimConnect);
+		close(hSimConnect);
 	}
 
 	return 0;

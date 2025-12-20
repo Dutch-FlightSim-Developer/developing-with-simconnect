@@ -17,5 +17,4 @@ target_link_libraries(2-1-Polling-for-Messages-in-C
 # Set output directory
 set_target_properties(2-1-Polling-for-Messages-in-C PROPERTIES
     RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}"
-    CXX_CLANG_TIDY ""
 )

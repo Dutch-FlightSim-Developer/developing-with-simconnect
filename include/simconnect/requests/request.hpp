@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-#include <simconnect.hpp>
+#include <simconnect/requests/requests.hpp>
 #include <functional>
 
 
@@ -30,7 +30,7 @@ namespace SimConnect {
  * Requests cannot be copied, but can be moved, to ensure unique ownership.
  */
 class Request {
-    long id_{ -1l };                ///< The request ID.
+    RequestId id_{ 0 };                ///< The request ID.
     std::function<void()> cleanup_; ///< Cleanup function to be called when the request is finished.
 
 
@@ -39,7 +39,7 @@ class Request {
      * @returns True if the request is valid, false otherwise.
      */
     [[nodiscard]]
-    bool valid() const noexcept { return id_ != -1l; }
+    bool valid() const noexcept { return id_ != 0; }
 
 
     // No copies allowed
@@ -49,8 +49,8 @@ class Request {
 
 public:
     Request() = default;
-    Request(long id) : id_(id) {}
-    Request(long id, std::function<void()> cleanup) : id_(id), cleanup_(std::move(cleanup)) {}
+    Request(RequestId id) : id_(id) {}
+    Request(RequestId id, std::function<void()> cleanup) : id_(id), cleanup_(std::move(cleanup)) {}
 
     Request(Request&&) = default;
     Request& operator=(Request&&) = default;
@@ -65,14 +65,14 @@ public:
      * @returns The request ID.
      */
     [[nodiscard]]
-    long id() const noexcept { return id_; }
+    RequestId id() const noexcept { return id_; }
 
 
     /**
      * Implicit conversion to the id.
      * @returns The request ID.
      */
-    operator long() const noexcept { return id(); }
+    operator RequestId() const noexcept { return id(); }
 
 
     /**

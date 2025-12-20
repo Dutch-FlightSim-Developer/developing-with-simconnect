@@ -386,13 +386,13 @@ public:
         const auto requestId = simConnectMessageHandler_.connection().requests().nextRequestID();
 
         if (dataDef.useMapping()) {
-            this->registerHandler(requestId, [requestId, &dataDef, handler](const SIMCONNECT_RECV& msg) {
+            this->registerHandler(requestId, [handler](const SIMCONNECT_RECV& msg) {
                 const StructType* data = reinterpret_cast<const StructType*>(&(reinterpret_cast<const SIMCONNECT_RECV_SIMOBJECT_DATA&>(msg).dwData));
                 handler(*data);
                 }, frequency.isOnce());
         }
         else {
-            this->registerHandler(requestId, [requestId, &dataDef, handler](const SIMCONNECT_RECV& msg) {
+            this->registerHandler(requestId, [&dataDef, handler](const SIMCONNECT_RECV& msg) {
                 StructType data;
 
                 dataDef.unmarshall(reinterpret_cast<const SIMCONNECT_RECV_SIMOBJECT_DATA&>(msg), data);
@@ -554,7 +554,7 @@ public:
 
         if (dataDef.useMapping()) {
 			logger.debug("Using mapping for requestDataByType with request ID {}.", requestId);
-            this->registerHandler(requestId, [&logger = simConnectMessageHandler_.connection().logger(), requestId, &dataDef, handler, onDone](const SIMCONNECT_RECV& msg) {
+            this->registerHandler(requestId, [&logger = simConnectMessageHandler_.connection().logger(), requestId, handler, onDone](const SIMCONNECT_RECV& msg) {
 				const SIMCONNECT_RECV_SIMOBJECT_DATA_BYTYPE& dataMsg = reinterpret_cast<const SIMCONNECT_RECV_SIMOBJECT_DATA_BYTYPE&>(msg);
                 const StructType* data = reinterpret_cast<const StructType*>(&(dataMsg.dwData));
 
@@ -635,7 +635,7 @@ public:
         if (dataDef.useMapping()) {
             logger.debug("Using mapping for requestDataByType with request ID {}.", requestId);
             this->registerHandler(requestId,
-                            [&logger, requestId, &dataDef, handler, result](const SIMCONNECT_RECV& msg) mutable
+                            [&logger, requestId, handler, result](const SIMCONNECT_RECV& msg) mutable
                 {
                     const SIMCONNECT_RECV_SIMOBJECT_DATA_BYTYPE& dataMsg = reinterpret_cast<const SIMCONNECT_RECV_SIMOBJECT_DATA_BYTYPE&>(msg);
                     const StructType& data = reinterpret_cast<const StructType&>(dataMsg.dwData);

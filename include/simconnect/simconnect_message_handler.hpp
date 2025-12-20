@@ -20,7 +20,6 @@
 #include <functional>
 
 
-#include <simconnect/connection.hpp>
 #include <simconnect/messaging/handler_policy.hpp>
 #include <simconnect/messaging/message_dispatcher.hpp>
 

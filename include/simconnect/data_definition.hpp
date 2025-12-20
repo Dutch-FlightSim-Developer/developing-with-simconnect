@@ -26,6 +26,7 @@
 #include <variant>
 #include <functional>
 
+#include <simconnect/simconnect_exception.hpp>
 #include <simconnect/connection.hpp>
 #include <simconnect/data/data_block_builder.hpp>
 #include <simconnect/data/data_block_reader.hpp>

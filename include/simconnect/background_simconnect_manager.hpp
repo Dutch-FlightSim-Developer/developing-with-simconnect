@@ -89,22 +89,11 @@ constexpr const char* errorCodeToString(ErrorCode error) noexcept {
 using StateCallback = std::function<void(State newState, State oldState)>;
 using ErrorCallback = std::function<void(ErrorCode errorCode, const std::string& errorMessage)>;
 
-template<typename T>
-struct Result {
-    std::optional<T> value;
+struct VoidResult {
+    bool hasValue() const noexcept { return error == ErrorCode::None; }
     ErrorCode error = ErrorCode::None;
     std::string errorMessage;
-
-    bool hasValue() const noexcept { return value.has_value(); }
-    bool hasError() const noexcept { return error != ErrorCode::None; }
-    
-    T& operator*() noexcept { return *value; }
-    const T& operator*() const noexcept { return *value; }
-    T* operator->() noexcept { return &(*value); }
-    const T* operator->() const noexcept { return &(*value); }
 };
-
-using VoidResult = Result<std::monostate>;
 
 
 /**
@@ -640,7 +629,7 @@ private:
 
         // Process messages to receive the OPEN message
         auto result = processMessages();
-        if (result.hasError()) {
+        if (!result.hasValue()) {
             setError(result.error, result.errorMessage);
             transitionState(State::Disconnecting);
             return;
@@ -676,7 +665,7 @@ private:
 		logger_.trace("Processing messages...");
         // Process messages continuously with short timeout
         auto result = processMessages();
-        if (result.hasError()) {
+        if (!result.hasValue()) {
             setError(result.error, result.errorMessage);
             transitionState(State::Disconnecting);
             return;
@@ -758,26 +747,26 @@ private:
                 // Record when we started waiting for OPEN
                 openWaitStartTime_ = std::chrono::steady_clock::now();
                 
-                return {std::monostate{}, ErrorCode::None, {}};
+                return {ErrorCode::None, {}};
             } else {
-                return {std::nullopt, ErrorCode::ConnectionFailed, "Failed to open SimConnect connection"};
+                return {ErrorCode::ConnectionFailed, "Failed to open SimConnect connection"};
             }
 
         } catch (const std::exception& e) {
-            return {std::nullopt, ErrorCode::ResourceInitializationFailed, std::string("Connection exception: ") + e.what()};
+            return {ErrorCode::ResourceInitializationFailed, std::string("Connection exception: ") + e.what()};
         } catch (...) {
-            return {std::nullopt, ErrorCode::ResourceInitializationFailed, "Unknown connection error"};
+            return {ErrorCode::ResourceInitializationFailed, "Unknown connection error"};
         }
     }
 
     VoidResult processMessages() noexcept {
         try {
             handler_.handle(/*messageCheckInterval_*/);
-            return {std::monostate{}, ErrorCode::None, {}};
+            return {ErrorCode::None, {}};
         } catch (const std::exception& e) {
-            return {std::nullopt, ErrorCode::MessageProcessingFailed, std::string("Message processing error: ") + e.what()};
+            return {ErrorCode::MessageProcessingFailed, std::string("Message processing error: ") + e.what()};
         } catch (...) {
-            return {std::nullopt, ErrorCode::MessageProcessingFailed, "Unknown message processing error"};
+            return {ErrorCode::MessageProcessingFailed, "Unknown message processing error"};
         }
     }
 

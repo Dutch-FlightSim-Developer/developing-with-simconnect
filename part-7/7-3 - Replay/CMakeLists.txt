@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.21)
 
-project(1-1-OpenClose-C LANGUAGES CXX)
+project(7-3-Replay LANGUAGES CXX)
 
 # Check for MSFS 2024 SDK environment variable
 if(NOT DEFINED ENV{MSFS2024_SDK})
@@ -8,17 +8,16 @@ if(NOT DEFINED ENV{MSFS2024_SDK})
 endif()
 
 # Create executable from SDK sample
-add_executable(1-1-OpenClose-C "main.cpp")
+add_executable(7-3-Replay main.cpp)
 
 # Link to project options (includes SimConnect SDK paths and libraries)
-# Don't link warnings target for external SDK code
-target_link_libraries(1-1-OpenClose-C
+target_link_libraries(7-3-Replay
     PRIVATE
         cmake_cpp_simconnect::cmake_cpp_simconnect_options
-        cmake_cpp_simconnect::cmake_cpp_simconnect_warnings
 )
 
 # Set output directory and disable clang-tidy for SDK sample code
-set_target_properties(1-1-OpenClose-C PROPERTIES
+set_target_properties(7-3-Replay PROPERTIES
     RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}"
+    CXX_CLANG_TIDY ""
 )

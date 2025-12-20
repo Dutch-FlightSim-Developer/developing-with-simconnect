@@ -15,27 +15,28 @@
  */
 
 
+#include<exception>
 #include <iostream>
 #include <string>
-#include <algorithm>
+#include <format>
+#include <chrono>
 
 #include <simconnect/windows_event_connection.hpp>
 #include <simconnect/windows_event_handler.hpp>
 
 #include <simconnect/data_definition.hpp>
-#include <simconnect/data/data_block_builder.hpp>
 #include <simconnect/requests/simobject_data_handler.hpp>
 
 
 using namespace std::chrono_literals;
 
 struct AircraftInfo {
-    std::string title;
-    std::string tailNumber;
-    std::string atcId;
-    int altitude;
-    double latitude;
-    double longitude;
+	std::string title;
+	std::string tailNumber;
+	std::string atcId;
+	int altitude{0};
+	double latitude{0.0};
+	double longitude{0.0};
 };
 
 
@@ -46,7 +47,7 @@ struct AircraftInfo {
  * @param minor minor version number. If 0, return just the major version number.
  * @return version string.
  */
-static std::string version(int major, int minor) {
+static std::string version(unsigned long major, unsigned long minor) {
 	if (major == 0) {
 		return "Unknown";
 	}
@@ -57,23 +58,25 @@ static std::string version(int major, int minor) {
 /**
  * Handle the SIMCONNECT_RECV_OPEN message.
  */
-static void handleOpen(const SIMCONNECT_RECV_OPEN& msg) {
-	std::cout << "Connected to " << msg.szApplicationName
-		<< " version " << version(msg.dwApplicationVersionMajor, msg.dwApplicationVersionMinor) << std::endl
-		<< "  build " << version(msg.dwApplicationBuildMajor, msg.dwApplicationBuildMinor) << std::endl
-		<< "  using SimConnect version " << version(msg.dwSimConnectVersionMajor, msg.dwSimConnectVersionMinor) << std::endl
-		<< "  build " << version(msg.dwSimConnectBuildMajor, msg.dwSimConnectBuildMinor) << std::endl;
+static void handleOpen(const SIMCONNECT_RECV_OPEN& msg) { // NOLINT(misc-include-cleaner)
+	std::cout << "Connected to " << &(msg.szApplicationName[0])
+		<< " version " << version(msg.dwApplicationVersionMajor, msg.dwApplicationVersionMinor) << '\n'
+		<< "  build " << version(msg.dwApplicationBuildMajor, msg.dwApplicationBuildMinor) << '\n'
+		<< "  using SimConnect version " << version(msg.dwSimConnectVersionMajor, msg.dwSimConnectVersionMinor) << '\n'
+		<< "  build " << version(msg.dwSimConnectBuildMajor, msg.dwSimConnectBuildMinor) << '\n';
 }
 
 
 /**
  * Handle the SIMCONNECT_RECV_QUIT message.
  */
-static void handleClose([[maybe_unused]] const SIMCONNECT_RECV_QUIT& msg) {
+static void handleClose([[maybe_unused]] const SIMCONNECT_RECV_QUIT& msg) { // NOLINT(misc-include-cleaner)
 	std::cout << "Simulator shutting down.\n";
 }
 
 
+
+// NOLINTBEGIN(misc-include-cleaner)
 /**
  * Handle the SIMCONNECT_RECV_EXCEPTION message.
  */
@@ -202,43 +205,30 @@ static void handleException(const SIMCONNECT_RECV_EXCEPTION& msg) {
 	case SIMCONNECT_EXCEPTION_OBJECT_SCHEDULE:
 		std::cerr << "The AI object creation failed. (scheduling issue)\n";
 		break;
-#if defined(SIMCONNECT_EXCEPTION_JETWAY_DATA)
 	case SIMCONNECT_EXCEPTION_JETWAY_DATA:
 		std::cerr << "Requesting JetWay data failed.\n";
 		break;
-#endif
-#if defined(SIMCONNECT_EXCEPTION_ACTION_NOT_FOUND)
 	case SIMCONNECT_EXCEPTION_ACTION_NOT_FOUND:
 		std::cerr << "The action was not found.\n";
 		break;
-#endif
-#if defined(SIMCONNECT_EXCEPTION_NOT_AN_ACTION)
 	case SIMCONNECT_EXCEPTION_NOT_AN_ACTION:
 		std::cerr << "The action was not a valid action.\n";
 		break;
-#endif
-#if defined(SIMCONNECT_EXCEPTION_INCORRECT_ACTION_PARAMS)
 	case SIMCONNECT_EXCEPTION_INCORRECT_ACTION_PARAMS:
 		std::cerr << "The action parameters were incorrect.\n";
 		break;
-#endif
-#if defined(SIMCONNECT_EXCEPTION_GET_INPUT_EVENT_FAILED)
 	case SIMCONNECT_EXCEPTION_GET_INPUT_EVENT_FAILED:
 		std::cerr << "The input event name was not found. (GetInputEvent)\n";
 		break;
-#endif
-#if defined(SIMCONNECT_EXCEPTION_SET_INPUT_EVENT_FAILED)
 	case SIMCONNECT_EXCEPTION_SET_INPUT_EVENT_FAILED:
 		std::cerr << "The input event name was not found. (SetInputEvent)\n";
 		break;
-#endif
-#if defined(SIMCONNECT_EXCEPTION_INTERNAL)
 	case SIMCONNECT_EXCEPTION_INTERNAL:
 		break;
-#endif
 		// No default; we want an error if we miss one
 	}
 }
+// NOLINTEND(misc-include-cleaner)
 
 
 void setupAircraftInfoDefinition(SimConnect::DataDefinition<AircraftInfo>& def) {
@@ -256,15 +246,14 @@ void testGetData() {
 	SimConnect::WindowsEventHandler<> handler(connection);
 	handler.autoClosing(true);
 
-	handler.registerDefaultHandler([](const SIMCONNECT_RECV& msg) {
+	handler.registerDefaultHandler([](const SIMCONNECT_RECV& msg) { // NOLINT(misc-include-cleaner)
 		std::cerr << std::format("Ignoring message of type {} (length {} bytes)\n", msg.dwID, msg.dwSize);
 	});
-	handler.registerHandler<SIMCONNECT_RECV_OPEN>(SIMCONNECT_RECV_ID_OPEN, handleOpen);
-	handler.registerHandler<SIMCONNECT_RECV_QUIT>(SIMCONNECT_RECV_ID_QUIT, handleClose);
-    handler.registerHandler<SIMCONNECT_RECV_EXCEPTION>(SIMCONNECT_RECV_ID_EXCEPTION, handleException);
+	handler.registerHandler<SIMCONNECT_RECV_OPEN>(SIMCONNECT_RECV_ID_OPEN, handleOpen); // NOLINT(misc-include-cleaner)
+	handler.registerHandler<SIMCONNECT_RECV_QUIT>(SIMCONNECT_RECV_ID_QUIT, handleClose); // NOLINT(misc-include-cleaner)
+    handler.registerHandler<SIMCONNECT_RECV_EXCEPTION>(SIMCONNECT_RECV_ID_EXCEPTION, handleException); // NOLINT(misc-include-cleaner)
 
     SimConnect::DataDefinition<AircraftInfo> aircraftDef;
-    struct AircraftInfo info;
 
 	if (connection.open()) {
         setupAircraftInfoDefinition(aircraftDef);
@@ -278,9 +267,11 @@ void testGetData() {
                       << "  Altitude: " << info.altitude << " feet\n"
                       << "  Latitude: " << info.latitude << " degrees\n"
                       << "  Longitude: " << info.longitude << " degrees\n";
-        }, SIMCONNECT_OBJECT_ID_USER);
+        }, SIMCONNECT_OBJECT_ID_USER); // NOLINT(misc-include-cleaner)
+
 		std::cout << "\n\nHandling messages for 10 seconds.\n";
-		handler.handle(10s);
+        constexpr auto duration = 10s;
+		handler.handle(duration);
 	}
 	else {
 		std::cerr << "Failed to connect to simulator.\n";
@@ -288,7 +279,7 @@ void testGetData() {
 }
 
 
-auto main() -> int {
+auto main([[maybe_unused]] int argc, [[maybe_unused]] char* argv[]) -> int { // NOLINT(bugprone-exception-escape)
     try {
         testGetData();
     } catch (const std::exception& e) {

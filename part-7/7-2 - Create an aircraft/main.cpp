@@ -58,23 +58,23 @@ constexpr static const SIMCONNECT_DATA_DEFINITION_ID DEFID_ONGROUND{ 1 };
 static void handleException(const SIMCONNECT_RECV_EXCEPTION& msg)
 {
 
-    printf("Received an exception type %u:\n", msg.dwException);
+    printf("Received an exception type %lu:\n", msg.dwException);
     if (msg.dwSendID != SIMCONNECT_RECV_EXCEPTION::UNKNOWN_SENDID)
     {
-        printf("- Related to a message with SendID %u.\n", msg.dwSendID);
+        printf("- Related to a message with SendID %lu.\n", msg.dwSendID);
 
         // Look up the SendID in our tracker
         auto it = sendIdTracker.find(msg.dwSendID);
         if (it != sendIdTracker.end()) {
-            printf("- SendID %u corresponds to: %s\n", msg.dwSendID, it->second.c_str());
+            printf("- SendID %lu corresponds to: %s\n", msg.dwSendID, it->second.c_str());
         }
         else {
-            printf("- SendID %u not found in tracker.\n", msg.dwSendID);
+            printf("- SendID %lu not found in tracker.\n", msg.dwSendID);
         }
     }
     if (msg.dwIndex != SIMCONNECT_RECV_EXCEPTION::UNKNOWN_INDEX)
     {
-        printf("- Regarding parameter %u.\n", msg.dwIndex);
+        printf("- Regarding parameter %lu.\n", msg.dwIndex);
     }
 
     const SIMCONNECT_EXCEPTION exc{ static_cast<SIMCONNECT_EXCEPTION>(msg.dwException) };
@@ -194,40 +194,26 @@ static void handleException(const SIMCONNECT_RECV_EXCEPTION& msg)
     case SIMCONNECT_EXCEPTION_OBJECT_SCHEDULE:
         std::cerr << "The AI object creation failed. (scheduling issue)\n";
         break;
-#if defined(SIMCONNECT_EXCEPTION_JETWAY_DATA)
     case SIMCONNECT_EXCEPTION_JETWAY_DATA:
         std::cerr << "Requesting JetWay data failed.\n";
         break;
-#endif
-#if defined(SIMCONNECT_EXCEPTION_ACTION_NOT_FOUND)
     case SIMCONNECT_EXCEPTION_ACTION_NOT_FOUND:
         std::cerr << "The action was not found.\n";
         break;
-#endif
-#if defined(SIMCONNECT_EXCEPTION_NOT_AN_ACTION)
     case SIMCONNECT_EXCEPTION_NOT_AN_ACTION:
         std::cerr << "The action was not a valid action.\n";
         break;
-#endif
-#if defined(SIMCONNECT_EXCEPTION_INCORRECT_ACTION_PARAMS)
     case SIMCONNECT_EXCEPTION_INCORRECT_ACTION_PARAMS:
         std::cerr << "The action parameters were incorrect.\n";
         break;
-#endif
-#if defined(SIMCONNECT_EXCEPTION_GET_INPUT_EVENT_FAILED)
     case SIMCONNECT_EXCEPTION_GET_INPUT_EVENT_FAILED:
         std::cerr << "The input event name was not found. (GetInputEvent)\n";
         break;
-#endif
-#if defined(SIMCONNECT_EXCEPTION_SET_INPUT_EVENT_FAILED)
     case SIMCONNECT_EXCEPTION_SET_INPUT_EVENT_FAILED:
         std::cerr << "The input event name was not found. (SetInputEvent)\n";
         break;
-#endif
-#if defined(SIMCONNECT_EXCEPTION_INTERNAL)
     case SIMCONNECT_EXCEPTION_INTERNAL:
         break;
-#endif
         // No default; we want an error if we miss one
     }
 }

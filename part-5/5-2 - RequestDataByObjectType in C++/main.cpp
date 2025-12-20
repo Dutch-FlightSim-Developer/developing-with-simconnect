@@ -15,16 +15,21 @@
  */
 
 
+#include <exception>
+#include <chrono>
 #include <set>
+#include <map>
+#include <unordered_map>
 #include <iostream>
+#include <vector>
 #include <string>
-#include <algorithm>
+#include <format>
+#include <string_view>
 
 #include <simconnect/windows_event_connection.hpp>
 #include <simconnect/windows_event_handler.hpp>
 
 #include <simconnect/data_definition.hpp>
-#include <simconnect/data/data_block_builder.hpp>
 #include <simconnect/requests/simobject_data_handler.hpp>
 
 #include <simconnect/util/console_logger.hpp>
@@ -46,7 +51,7 @@ struct SimObjectInfo : SimConnect::SimObjectIdHolder {
  * @param minor minor version number. If 0, return just the major version number.
  * @return version string.
  */
-static std::string version(int major, int minor) {
+static std::string version(unsigned long major, unsigned long minor) {
 	if (major == 0) {
 		return "Unknown";
 	}
@@ -57,23 +62,24 @@ static std::string version(int major, int minor) {
 /**
  * Handle the SIMCONNECT_RECV_OPEN message.
  */
-static void handleOpen(const SIMCONNECT_RECV_OPEN& msg) {
-	std::cout << "Connected to " << msg.szApplicationName
-		<< " version " << version(msg.dwApplicationVersionMajor, msg.dwApplicationVersionMinor) << std::endl
-		<< "  build " << version(msg.dwApplicationBuildMajor, msg.dwApplicationBuildMinor) << std::endl
-		<< "  using SimConnect version " << version(msg.dwSimConnectVersionMajor, msg.dwSimConnectVersionMinor) << std::endl
-		<< "  build " << version(msg.dwSimConnectBuildMajor, msg.dwSimConnectBuildMinor) << std::endl;
+static void handleOpen(const SIMCONNECT_RECV_OPEN& msg) { // NOLINT(misc-include-cleaner)
+	std::cout << "Connected to " << std::string_view{&(msg.szApplicationName [0])}
+		<< " version " << version(msg.dwApplicationVersionMajor, msg.dwApplicationVersionMinor) << '\n'
+		<< "  build " << version(msg.dwApplicationBuildMajor, msg.dwApplicationBuildMinor) << '\n'
+		<< "  using SimConnect version " << version(msg.dwSimConnectVersionMajor, msg.dwSimConnectVersionMinor) << '\n'
+		<< "  build " << version(msg.dwSimConnectBuildMajor, msg.dwSimConnectBuildMinor) << '\n';
 }
 
 
 /**
  * Handle the SIMCONNECT_RECV_QUIT message.
  */
-static void handleClose([[maybe_unused]] const SIMCONNECT_RECV_QUIT& msg) {
+static void handleClose([[maybe_unused]] const SIMCONNECT_RECV_QUIT& msg) { // NOLINT(misc-include-cleaner)
 	std::cout << "Simulator shutting down.\n";
 }
 
 
+// NOLINTBEGIN(misc-include-cleaner)
 /**
  * Handle the SIMCONNECT_RECV_EXCEPTION message.
  */
@@ -202,43 +208,30 @@ static void handleException(const SIMCONNECT_RECV_EXCEPTION& msg) {
 	case SIMCONNECT_EXCEPTION_OBJECT_SCHEDULE:
 		std::cerr << "The AI object creation failed. (scheduling issue)\n";
 		break;
-#if defined(SIMCONNECT_EXCEPTION_JETWAY_DATA)
 	case SIMCONNECT_EXCEPTION_JETWAY_DATA:
 		std::cerr << "Requesting JetWay data failed.\n";
 		break;
-#endif
-#if defined(SIMCONNECT_EXCEPTION_ACTION_NOT_FOUND)
 	case SIMCONNECT_EXCEPTION_ACTION_NOT_FOUND:
 		std::cerr << "The action was not found.\n";
 		break;
-#endif
-#if defined(SIMCONNECT_EXCEPTION_NOT_AN_ACTION)
 	case SIMCONNECT_EXCEPTION_NOT_AN_ACTION:
 		std::cerr << "The action was not a valid action.\n";
 		break;
-#endif
-#if defined(SIMCONNECT_EXCEPTION_INCORRECT_ACTION_PARAMS)
 	case SIMCONNECT_EXCEPTION_INCORRECT_ACTION_PARAMS:
 		std::cerr << "The action parameters were incorrect.\n";
 		break;
-#endif
-#if defined(SIMCONNECT_EXCEPTION_GET_INPUT_EVENT_FAILED)
 	case SIMCONNECT_EXCEPTION_GET_INPUT_EVENT_FAILED:
 		std::cerr << "The input event name was not found. (GetInputEvent)\n";
 		break;
-#endif
-#if defined(SIMCONNECT_EXCEPTION_SET_INPUT_EVENT_FAILED)
 	case SIMCONNECT_EXCEPTION_SET_INPUT_EVENT_FAILED:
 		std::cerr << "The input event name was not found. (SetInputEvent)\n";
 		break;
-#endif
-#if defined(SIMCONNECT_EXCEPTION_INTERNAL)
 	case SIMCONNECT_EXCEPTION_INTERNAL:
 		break;
-#endif
 		// No default; we want an error if we miss one
 	}
 }
+// NOLINTEND(misc-include-cleaner)
 
 
 void setupSimObjectInfoDefinition(SimConnect::DataDefinition<SimObjectInfo>& def) {
@@ -249,36 +242,36 @@ void setupSimObjectInfoDefinition(SimConnect::DataDefinition<SimObjectInfo>& def
 
 void handleSimObjectDataMap(std::unordered_map<unsigned long, SimObjectInfo>& result) {
 	std::cout << "Received data for " << result.size() << " SimObjects\n";
-	std::vector<int> objectCount(SIMCONNECT_SIMOBJECT_TYPE_USER_CURRENT + 1, 0);
+	std::vector<int> objectCount(SIMCONNECT_SIMOBJECT_TYPE_USER_CURRENT + 1, 0); // NOLINT(misc-include-cleaner)
 	std::set<std::string> unknownCategories;
 	std::map<std::string, std::set<std::string>> titlesPerCategory;
 
-	for (const auto& [id, obj] : result) {
-		if (obj.category == "Airplane") {
-			std::cout << std::format("Adding airplane '{}'.\n", obj.title);
-			++objectCount[SIMCONNECT_SIMOBJECT_TYPE_AIRCRAFT];
+	for (const auto& [simObjectId, simObject] : result) {
+		if (simObject.category == "Airplane") {
+			std::cout << std::format("Adding airplane '{}'.\n", simObject.title);
+			++objectCount[SIMCONNECT_SIMOBJECT_TYPE_AIRCRAFT]; // NOLINT(misc-include-cleaner)
 		}
-		else if (obj.category == "Helicopter") {
-			std::cout << std::format("Adding helicopter '{}'.\n", obj.title);
-			++objectCount[SIMCONNECT_SIMOBJECT_TYPE_HELICOPTER];
+		else if (simObject.category == "Helicopter") {
+			std::cout << std::format("Adding helicopter '{}'.\n", simObject.title);
+			++objectCount[SIMCONNECT_SIMOBJECT_TYPE_HELICOPTER]; // NOLINT(misc-include-cleaner)
 		}
-		else if (obj.category == "Boat") {
-			std::cout << std::format("Adding boat '{}'.\n", obj.title);
-			++objectCount[SIMCONNECT_SIMOBJECT_TYPE_BOAT];
+		else if (simObject.category == "Boat") {
+			std::cout << std::format("Adding boat '{}'.\n", simObject.title);
+			++objectCount[SIMCONNECT_SIMOBJECT_TYPE_BOAT]; // NOLINT(misc-include-cleaner)
 		}
-		else if (obj.category == "GroundVehicle") {
-			std::cout << std::format("Adding ground vehicle '{}'.\n", obj.title);
-			++objectCount[SIMCONNECT_SIMOBJECT_TYPE_GROUND];
+		else if (simObject.category == "GroundVehicle") {
+			std::cout << std::format("Adding ground vehicle '{}'.\n", simObject.title);
+			++objectCount[SIMCONNECT_SIMOBJECT_TYPE_GROUND]; // NOLINT(misc-include-cleaner)
 		}
-		else if (obj.category == "Animal") {
-			std::cout << std::format("Adding animal '{}'.\n", obj.title);
-			++objectCount[SIMCONNECT_SIMOBJECT_TYPE_ANIMAL];
+		else if (simObject.category == "Animal") {
+			std::cout << std::format("Adding animal '{}'.\n", simObject.title);
+			++objectCount[SIMCONNECT_SIMOBJECT_TYPE_ANIMAL]; // NOLINT(misc-include-cleaner)
 		}
 		else {
-			std::cout << std::format("Adding unknown category '{}' for '{}'.\n", obj.category, obj.title);
-			unknownCategories.insert(obj.category);
+			std::cout << std::format("Adding unknown category '{}' for '{}'.\n", simObject.category, simObject.title);
+			unknownCategories.insert(simObject.category);
 		}
-		titlesPerCategory[obj.category].insert(obj.title);
+		titlesPerCategory[simObject.category].insert(simObject.title);
 	}
 	for (const auto& [category, titles] : titlesPerCategory) {
 		std::cout << "Category: " << category << "\n";
@@ -315,20 +308,20 @@ void testGetData() {
 	handler.autoClosing(true);
 	//connection.logger().level(SimConnect::LogLevel::Trace);
 
-	handler.registerDefaultHandler([](const SIMCONNECT_RECV& msg) {
+	handler.registerDefaultHandler([](const SIMCONNECT_RECV& msg) { // NOLINT(misc-include-cleaner)
 		std::cerr << std::format("Ignoring message of type {} (length {} bytes)\n", msg.dwID, msg.dwSize);
-		});
-	handler.registerHandler<SIMCONNECT_RECV_OPEN>(SIMCONNECT_RECV_ID_OPEN, handleOpen);
-	handler.registerHandler<SIMCONNECT_RECV_QUIT>(SIMCONNECT_RECV_ID_QUIT, handleClose);
-	handler.registerHandler<SIMCONNECT_RECV_EXCEPTION>(SIMCONNECT_RECV_ID_EXCEPTION, handleException);
+    });
+	handler.registerHandler<SIMCONNECT_RECV_OPEN>(SIMCONNECT_RECV_ID_OPEN, handleOpen); // NOLINT(misc-include-cleaner)
+	handler.registerHandler<SIMCONNECT_RECV_QUIT>(SIMCONNECT_RECV_ID_QUIT, handleClose); // NOLINT(misc-include-cleaner)
+	handler.registerHandler<SIMCONNECT_RECV_EXCEPTION>(SIMCONNECT_RECV_ID_EXCEPTION, handleException); // NOLINT(misc-include-cleaner)
 
 	SimConnect::DataDefinition<SimObjectInfo> aircraftDef;
-	struct SimObjectInfo info;
 
 	if (connection.open()) {
 		setupSimObjectInfoDefinition(aircraftDef);
 		SimConnect::SimObjectDataHandler<SimConnect::WindowsEventHandler<false, SimConnect::ConsoleLogger>> dataHandler(handler);
 
+        constexpr unsigned long radiusInMeters{ 10000 }; // 10 km
 		auto aircraftRequest = dataHandler.requestDataByType<SimObjectInfo>(aircraftDef, [](const SimObjectInfo& info) {
 			std::cout
 				<< "Aircraft Info unmarshalled:\n"
@@ -337,11 +330,13 @@ void testGetData() {
 				<< "  Category: " << info.category << "\n";
 			}, [] {
 				std::cout << "All data received.\n";
-			}, 10000, SIMCONNECT_SIMOBJECT_TYPE_AIRCRAFT);
+			}, radiusInMeters, SIMCONNECT_SIMOBJECT_TYPE_AIRCRAFT); // NOLINT(misc-include-cleaner)
 
-		auto allRequest = dataHandler.requestDataByType<SimObjectInfo>(aircraftDef, &handleSimObjectDataMap, 0, SIMCONNECT_SIMOBJECT_TYPE_ALL);
-		std::cout << "\n\nHandling messages for 10 seconds.\n";
-		handler.handle(10s);
+		auto allRequest = dataHandler.requestDataByType<SimObjectInfo>(aircraftDef, &handleSimObjectDataMap, 0, SIMCONNECT_SIMOBJECT_TYPE_ALL); // NOLINT(misc-include-cleaner)
+
+        std::cout << "\n\nHandling messages for 10 seconds.\n";
+        constexpr auto duration = 10s;
+		handler.handle(duration);
 	}
 	else {
 		std::cerr << "Failed to connect to simulator.\n";
@@ -349,7 +344,7 @@ void testGetData() {
 }
 
 
-auto main() -> int {
+auto main([[maybe_unused]] int argc, [[maybe_unused]] char* argv[]) -> int { // NOLINT(bugprone-exception-escape)
 	try {
 		testGetData();
 	}

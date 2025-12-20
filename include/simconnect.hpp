@@ -15,90 +15,100 @@
  * limitations under the License.
  */
 
+
 #pragma warning(push, 3)
 #include <Windows.h>
 #include <SimConnect.h>
 
 // Handle some 2020 vs 2024 differences in the SimConnect.h header.
-#if !defined(SIMCONNECT_OBJECT_ID_USER_AICRAFT)
-#define SIMCONNECT_OBJECT_ID_USER_AICRAFT SIMCONNECT_OBJECT_ID_USER
-#endif
-#if !defined(SIMCONNECT_OBJECT_ID_USER_AVATAR)
-#define SIMCONNECT_OBJECT_ID_USER_AVATAR SIMCONNECT_OBJECT_ID_USER
-#endif
-#if !defined(SIMCONNECT_OBJECT_ID_USER_CURRENT)
-#define SIMCONNECT_OBJECT_ID_USER_CURRENT SIMCONNECT_OBJECT_ID_USER
+#if !defined(SIMCONNECT_TYPEDEF)
+
+static constexpr DWORD SIMCONNECT_OBJECT_ID_MAX = DWORD_MAX - 128;                       // proxy value for User vehicle ObjectID
+static constexpr DWORD SIMCONNECT_OBJECT_ID_USER_AIRCRAFT = 0;                           // proxy value for User aircraft ObjectID
+static constexpr DWORD SIMCONNECT_OBJECT_ID_USER_AVATAR = SIMCONNECT_OBJECT_ID_MAX + 1;  // proxy value for User avatar ObjectID
+static constexpr DWORD SIMCONNECT_OBJECT_ID_USER_CURRENT = SIMCONNECT_OBJECT_ID_MAX + 2; // proxy value for User aircraft/avatar ObjectID
+
 #endif
 
 #pragma warning(pop)
 
-#include <cstring>
-#include <exception>
-#include <format>
 #include <string>
-#include <functional>
 
 
 namespace SimConnect
 {
 
-
-/**
- * An exception thrown by the SimConnect library.
- */
-class SimConnectException : public std::exception
-{
-private:
-	static constexpr const char* error_ = "SimConnect exception";
-	const char* msg_;
-public:
-	SimConnectException(const char* message) : std::exception(error_), msg_(message) {}
-    SimConnectException(std::string message) : std::exception(error_), msg_(_strdup(message.c_str())) {}
-    SimConnectException(const char* error, const char* message) : std::exception(error), msg_(message) {}
-	SimConnectException(const char* error, std::string message) : std::exception(error), msg_(_strdup(message.c_str())) {}
-
-    const char* what() const noexcept override { return msg_; }
+enum class SimulatorVersion {
+    Unknown,
+    FSX,            // !defined(SIMCONNECT_REFSTRUCT) && SIMCONNECT_DATATYPE_MAX == 17
+    P3D,            // defined(QWORD) (quickest test for the 64-bit versions), also !defined(SIMCONNECT_REFSTRUCT), and (SIMCONNECT_DATATYPE_MAX == 28)
+    MSFS2020,       // SIMCONNECT_DATATYPE_MAX == 17
+    MSFS2024        // SIMCONNECT_DATATYPE_MAX == 18
 };
 
 
-/**
- * An exception thrown when the SimConnect.cfg file does not contain the expected data.
- */
-class BadConfig : public SimConnectException
-{
-private:
-	static constexpr const char* error = "Bad SimConnect.cfg";
-public:
-    BadConfig(const char* message) : SimConnectException(error, std::string(error) + ": " + message) {}
-	BadConfig(std::string message) : SimConnectException(error, std::string(error) + ": " + message) {}
-};
-
 
 /**
- * An exception thrown when an event id is unknown. Calling `SimConnect::event::get` with an unknown name will simply create a new event.
- */
-class UnknownEvent : public SimConnectException
-{
-private:
-	static constexpr const char* error = "Unknown event id";
-	int id_;
-public:
-	UnknownEvent(int id) : SimConnectException(error, std::format("Unknown event id {}.", id).c_str()), id_(id) {}
-
-	int id() const noexcept { return id_; }
-};
-
-
-/**
- * This wraps a lambda to solve ambiguity issues, when you have both void(bool) and void(int) or some such overloads.
+ * Detects which simulator SDK is being compiled against at compile-time.
  * 
- * @tparam T The parameter type. This should be the only one you must explicitly name.
- * @tparam F The actual Lambda or function pointer type.
- * @return An explicitly cast std::function<void(T)> value.
+ * Detection logic:
+ * - MSFS 2024: SIMCONNECT_TYPEDEF is defined (2024-specific macro)
+ * - MSFS 2020: SIMCONNECT_DATATYPE_MAX == 17 and modern SDK structure
+ * - P3D: QWORD is defined (Prepar3D extension)
+ * - FSX: Legacy SDK (SIMCONNECT_DATATYPE_MAX == 17, no modern features)
+ * 
+ * @returns The SimulatorVersion enum value.
  */
-template<typename T, typename F>
-std::function<void(T)> wrap(F&& f) {
-	return std::function<void(T)>(std::forward<F>(f));
+consteval SimulatorVersion getSimulatorVersion() {
+#if defined(QWORD)
+    // Prepar3D defines QWORD type
+    return SimulatorVersion::P3D;
+#elif !defined(SIMCONNECT_REFSTRUCT)
+    // FSX didn't have SIMCONNECT_REFSTRUCT defined
+    return SimulatorVersion::FSX;
+#else
+    if constexpr (SIMCONNECT_DATATYPE::SIMCONNECT_DATATYPE_MAX == 18) {
+        // MSFS 2024 added SIMCONNECT_DATATYPE_INT8
+        return SimulatorVersion::MSFS2024;
+    }
+    else if constexpr (SIMCONNECT_DATATYPE::SIMCONNECT_DATATYPE_MAX == 17) {
+        // Up to MSFS 2024 there were only 17 data types, excluding P3D which added several large sized numerical types
+        return SimulatorVersion::MSFS2020;
+    }
+    return SimulatorVersion::Unknown;
+#endif
 }
+
+
+/**
+ * Get the simulator version as a string at compile-time.
+ * 
+ * @returns A string_view representing the simulator version.
+ */
+consteval std::string_view getSimulatorVersionString() {
+    switch (getSimulatorVersion()) {
+        case SimulatorVersion::FSX:
+            return "FSX/ESP";
+        case SimulatorVersion::P3D:
+            return "Prepar3D";
+        case SimulatorVersion::MSFS2020:
+            return "MSFS 2020";
+        case SimulatorVersion::MSFS2024:
+            return "MSFS 2024";
+        default:
+            return "Unknown";
+    }
+}
+
+
+/**
+ * Compile-time constant for the current simulator version.
+ */
+inline constexpr SimulatorVersion simulatorVersion = getSimulatorVersion();
+
+/**
+ * Compile-time constant for the current simulator version string.
+ */
+inline constexpr std::string_view simulatorVersionString = getSimulatorVersionString();
 
 }

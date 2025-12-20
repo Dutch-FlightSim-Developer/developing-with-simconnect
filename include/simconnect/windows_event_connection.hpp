@@ -27,7 +27,7 @@ namespace SimConnect {
  * A SimConnect connection with support for notifications through a Windows Event.
  */
 template <bool ThreadSafe = false, class L = NullLogger>
-class WindowsEventConnection : public Connection<ThreadSafe, L> {
+class WindowsEventConnection : public Connection<WindowsEventConnection<ThreadSafe, L>, ThreadSafe, L> {
 public:
 	using logger_type = L;
 
@@ -49,14 +49,14 @@ public:
 	 * Constructor.
 	 * @param name The name of the connection.
 	 */
-    WindowsEventConnection(std::string name) : Connection<ThreadSafe, L>(name) {}
+    WindowsEventConnection(std::string name) : Connection<WindowsEventConnection<ThreadSafe, L>, ThreadSafe, L>(name) {}
 
 
 	/**
 	 * Constructor, using the default client name.
 	 * @param eventHandle The event handle to use for signalling that SIMCONNECT messages are available.
 	 */
-    WindowsEventConnection(HANDLE eventHandle) : Connection<ThreadSafe, L>(), eventHandle_(eventHandle) {}
+    WindowsEventConnection(HANDLE eventHandle) : Connection<WindowsEventConnection<ThreadSafe, L>, ThreadSafe, L>(), eventHandle_(eventHandle) {}
 
 
 	/**
@@ -64,7 +64,7 @@ public:
 	 * @param name The name of the connection.
 	 * @param eventHandle The event handle to use for signalling that SIMCONNECT messages are available.
 	 */
-    WindowsEventConnection(std::string name, HANDLE eventHandle) : Connection<ThreadSafe, L>(name), eventHandle_(eventHandle) {}
+    WindowsEventConnection(std::string name, HANDLE eventHandle) : Connection<WindowsEventConnection<ThreadSafe, L>, ThreadSafe, L>(name), eventHandle_(eventHandle) {}
 
     ~WindowsEventConnection() {
         if (eventHandle_ != nullptr) {
@@ -86,7 +86,7 @@ public:
 	 * @throws BadConfig if the configuration does not contain the specified index.
 	 */
 	[[nodiscard]]
-	bool open(HANDLE windowsEventHandle, int configIndex = 0) {
+	WindowsEventConnection& open(HANDLE windowsEventHandle, int configIndex = 0) {
 		return this->callOpen(nullptr, 0, windowsEventHandle, configIndex);
 	}
 
@@ -97,7 +97,7 @@ public:
 	 * @throws BadConfig if the configuration does not contain the specified index.
 	 */
     [[nodiscard]]
-    bool open(int configIndex = 0) {
+    WindowsEventConnection& open(int configIndex = 0) {
         if (eventHandle_ == nullptr) {
             eventHandle_ = ::CreateEvent(nullptr, false, false, nullptr);
         }

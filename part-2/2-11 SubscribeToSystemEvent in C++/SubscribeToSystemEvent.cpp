@@ -277,10 +277,10 @@ auto main() -> int { // NOLINT(bugprone-exception-escape)
 		});
 		systemEvents.subscribeToSystemEvent(SimConnect::Events::simStop(), []([[maybe_unused]] const SIMCONNECT_RECV_EVENT& msg) {
 			std::cout << std::format("Received a 'SimStop' event.\n");
-			});
+        });
 		systemEvents.subscribeToSystemEvent(SimConnect::Events::pause(), [](const SIMCONNECT_RECV_EVENT& msg) {
 			std::cout << std::format("Received a 'Pause' event with value {}.\n", msg.dwData);
-			});
+        });
 
 		std::cout << "\n\nHandling messages for 30 seconds.\n";
         constexpr auto duration = 30s;

@@ -23,7 +23,6 @@
 
 
 #include <simconnect/messaging/message_dispatcher.hpp>
-#include <simconnect/data_definition.hpp>
 #include <simconnect/simconnect_message_handler.hpp>
 #include <simconnect/requests/request.hpp>
 

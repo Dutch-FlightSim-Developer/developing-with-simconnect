@@ -24,8 +24,11 @@
 namespace SimConnect {
 
 
+using RequestId = unsigned long;
+
+
 class Requests {
-	std::atomic_ulong requestID_{ 0 };	///< The request ID for the next request.
+	std::atomic<RequestId> requestID_{ 0 };	///< The request ID for the next request.
 
     public:
     Requests() = default;
@@ -42,7 +45,7 @@ class Requests {
      * @returns The request ID for the next request.
      */
     [[nodiscard]]
-    int nextRequestID() noexcept { return ++requestID_; }
+    RequestId nextRequestID() noexcept { return ++requestID_; }
 };
 
 } // namespace SimConnect

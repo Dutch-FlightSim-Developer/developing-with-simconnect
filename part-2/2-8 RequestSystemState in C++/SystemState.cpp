@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-#include <simconnect.hpp>
+#include <simconnect/simconnect_exception.hpp>
 #include <simconnect/windows_event_connection.hpp>
 #include <simconnect/windows_event_handler.hpp>
 #include <simconnect/requests/system_state_handler.hpp>

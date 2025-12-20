@@ -16,6 +16,7 @@
  */
 
 #include <simconnect/connection.hpp>
+#include <simconnect/simconnect_error.hpp>
 
 
 namespace SimConnect {
@@ -25,20 +26,20 @@ namespace SimConnect {
  * A SimConnect connection with no support for Windows Messaging or Events.
  */
 template <bool ThreadSafe = false>
-class SimpleConnection : public Connection<ThreadSafe>
+class SimpleConnection : public Connection<SimpleConnection<ThreadSafe>, ThreadSafe>
 {
 public:
 	/**
 	 * Constructor, using the default client name.
 	 */
-	SimpleConnection() : Connection<ThreadSafe>() {}
+	SimpleConnection() : Connection<SimpleConnection<ThreadSafe>, ThreadSafe>() {}
 
 
 	/**
 	 * Constructor.
 	 * @param name The name of the connection.
 	 */
-    SimpleConnection(std::string name) : Connection<ThreadSafe>(name) {}
+    SimpleConnection(std::string name) : Connection<SimpleConnection<ThreadSafe>, ThreadSafe>(name) {}
 
 
     ~SimpleConnection() {}
@@ -58,7 +59,7 @@ public:
 	 * @throws BadConfig if the configuration does not contain the specified index.
 	 */
 	[[nodiscard]]
-	bool open(int configIndex = 0) {
+	SimpleConnection& open(int configIndex = 0) {
 		return this->callOpen(nullptr, 0, nullptr, configIndex);
 	}
 };

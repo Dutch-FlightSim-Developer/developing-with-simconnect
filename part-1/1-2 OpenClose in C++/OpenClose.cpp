@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-#include <simconnect.hpp>
+#include <simconnect/simconnect_exception.hpp>
 #include <simconnect/simple_connection.hpp>
 
 #include <iostream>

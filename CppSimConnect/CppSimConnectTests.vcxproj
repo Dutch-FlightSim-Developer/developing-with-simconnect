@@ -102,9 +102,6 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClInclude Include=".\tests\pch.h" />
-  </ItemGroup>
-  <ItemGroup>
     <ClCompile Include=".\tests\DataBlockBuilderTests.cpp" />
     <ClCompile Include=".\tests\DataBlockReaderTests.cpp" />
     <ClCompile Include=".\tests\DataBlockTests.cpp" />
@@ -113,12 +110,6 @@
     <ClCompile Include=".\tests\TestPeriodLimits.cpp" />
     <ClCompile Include=".\tests\TestSimObjectType.cpp" />
     <ClCompile Include=".\tests\TestDataDefinition.cpp" />
-    <ClCompile Include=".\tests\pch.cpp">
-      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Create</PrecompiledHeader>
-      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Create</PrecompiledHeader>
-      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Create</PrecompiledHeader>
-      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Create</PrecompiledHeader>
-    </ClCompile>
     <ClCompile Include=".\tests\TestDataDefinition_Float32.cpp" />
     <ClCompile Include=".\tests\TestDataDefinition_Float64.cpp" />
     <ClCompile Include=".\tests\TestDataDefinition_Int32.cpp" />

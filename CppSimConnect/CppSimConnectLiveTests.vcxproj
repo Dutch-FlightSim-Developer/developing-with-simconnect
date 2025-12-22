@@ -102,19 +102,11 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClInclude Include=".\live-tests\pch.h" />
-  </ItemGroup>
-  <ItemGroup>
     <ClCompile Include="live-tests\TestBackgroundHandler.cpp" />
     <ClCompile Include="live-tests\TestConnection.cpp" />
-    <ClCompile Include=".\live-tests\pch.cpp">
-      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Create</PrecompiledHeader>
-      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Create</PrecompiledHeader>
-      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Create</PrecompiledHeader>
-      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Create</PrecompiledHeader>
-    </ClCompile>
     <ClCompile Include="live-tests\TestEventHandler.cpp" />
     <ClCompile Include="live-tests\TestEvents.cpp" />
+    <ClCompile Include="live-tests\TestInputGroups.cpp" />
     <ClCompile Include="live-tests\TestMultiClient.cpp" />
     <ClCompile Include="live-tests\TestNotificationGroups.cpp" />
     <ClCompile Include="live-tests\TestSystemEvents.cpp" />

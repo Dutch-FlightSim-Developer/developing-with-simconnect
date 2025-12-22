@@ -29,9 +29,9 @@ class NullLogger : public Logger<NullLogger> {
 public:
 
 
-    NullLogger() = default;
-	NullLogger(std::string name = "DefaultLogger", LogLevel level = LogLevel::Info) : Logger<NullLogger>(name, level) {}
-	NullLogger(std::string name, NullLogger& rootLogger, LogLevel level = LogLevel::Info) : Logger<NullLogger>(name, rootLogger, level) {}
+    NullLogger() : Logger<NullLogger>("NullLogger", LogLevel::Disabled) {}
+	NullLogger(std::string name, LogLevel level = LogLevel::Disabled) : Logger<NullLogger>(name, level) {}
+	NullLogger(std::string name, NullLogger& rootLogger, LogLevel level = LogLevel::Disabled) : Logger<NullLogger>(name, rootLogger, level) {}
 	NullLogger(const NullLogger&) = default;
 	NullLogger(NullLogger&&) = default;
 	NullLogger& operator=(const NullLogger&) = default;

@@ -16,6 +16,7 @@
  */
 
 
+#include <simconnect/simconnect.hpp>
 #include <simconnect/simconnect_message_handler.hpp>
 
 #include <thread>
@@ -31,7 +32,7 @@ namespace SimConnect {
  * @tparam C The SimConnect connection type.
  * @tparam M The handler policy type.
  */
-template <class C, class M = MultiHandlerPolicy<SIMCONNECT_RECV>>
+template <class C, class M = MultiHandlerPolicy<Messages::MsgBase>>
 class PollingHandler : public SimConnectMessageHandler<C, PollingHandler<C, M>, M>
 {
 public:

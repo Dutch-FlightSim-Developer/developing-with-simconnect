@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-
+#include <simconnect/simconnect.hpp>
 #include <simconnect/simconnect_message_handler.hpp>
 
 namespace SimConnect {
@@ -26,7 +26,7 @@ namespace SimConnect {
  * @tparam C The SimConnect connection type.
  * @tparam H The handler processor type.
  */
-template <class C, class H = MultiHandlerPolicy<SIMCONNECT_RECV>>
+template <class C, class H = MultiHandlerPolicy<Messages::MsgBase>>
 class SimpleHandler : public SimConnectMessageHandler<C, SimpleHandler<C, H>, H>
 {
 public:

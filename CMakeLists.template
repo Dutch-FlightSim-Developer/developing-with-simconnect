@@ -1,0 +1,20 @@
+cmake_minimum_required(VERSION 3.21)
+
+project(__PROJECT__ LANGUAGES CXX)
+
+# Create executable from local source
+add_executable(__PROJECT__
+    __FILES__
+)
+
+# Link to project options (includes SimConnect SDK paths and libraries)
+target_link_libraries(__PROJECT__
+    PRIVATE
+        cmake_cpp_simconnect::cmake_cpp_simconnect_options
+        cmake_cpp_simconnect::cmake_cpp_simconnect_warnings
+)
+
+# Set output directory
+set_target_properties(__PROJECT__ PROPERTIES
+    RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}"
+)

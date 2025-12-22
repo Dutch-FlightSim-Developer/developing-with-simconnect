@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-#include <simconnect.hpp>
+#include <simconnect/simconnect.hpp>
 
 
 namespace SimConnect::Data {
@@ -76,8 +76,8 @@ struct InitPosition {
     [[nodiscard]] constexpr bool operator==(const InitPosition& o) const noexcept = default;
 
     // Conversion to SimConnect native type
-    [[nodiscard]] constexpr operator SIMCONNECT_DATA_INITPOSITION() const noexcept {
-        return SIMCONNECT_DATA_INITPOSITION{
+    [[nodiscard]] constexpr operator DataTypes::InitPosition() const noexcept {
+        return DataTypes::InitPosition{
             .Latitude = latitude,
             .Longitude = longitude,
             .Altitude = altitude,
@@ -90,7 +90,7 @@ struct InitPosition {
     }
 
     // Static factory from SimConnect native type
-    [[nodiscard]] static constexpr InitPosition from(const SIMCONNECT_DATA_INITPOSITION& simPos) noexcept {
+    [[nodiscard]] static constexpr InitPosition from(const DataTypes::InitPosition& simPos) noexcept {
         return InitPosition(
             simPos.Latitude,
             simPos.Longitude, 

@@ -26,20 +26,23 @@
 
 
 namespace SimConnect {
-    
+
+
+using EventId = unsigned long;
+
 
 /**
  * An event is a named event that can be sent to the simulator.
  */
 class event {
 private:
-    unsigned long id_;
+    EventId id_;
 
-    inline static std::atomic<unsigned long> nextId_{ 0 };                  ///< The next ID to assign to an event.
+    inline static std::atomic<EventId> nextId_{ 0 };                  ///< The next ID to assign to an event.
 
-    inline static std::map<std::string, unsigned long> eventsByName_{};    ///< A static map of the events by name.
-    inline static std::map<unsigned long, std::string> eventsById_{};      ///< A static map of the events by ID.
-    inline static std::set<unsigned long> mappedEvents_{};                 ///< Set of event IDs that have been mapped to SimConnect.
+    inline static std::map<std::string, EventId> eventsByName_{};    ///< A static map of the events by name.
+    inline static std::map<EventId, std::string> eventsById_{};      ///< A static map of the events by ID.
+    inline static std::set<EventId> mappedEvents_{};                 ///< Set of event IDs that have been mapped to SimConnect.
     
     inline static std::mutex registryMutex_;                                ///< Mutex for thread-safe access to static collections.
 
@@ -48,7 +51,7 @@ private:
      * Construct an event with the given ID. This is the only constructor that is allowed, and it is private to ensure that
      * the only way to get an event is through the static get() methods.
      */
-    event(unsigned long id) : id_(id) {}
+    event(EventId id) : id_(id) {}
 
     /**
      * The default constructor is deleted because an event MUST always have an Id.
@@ -103,7 +106,7 @@ public:
      * @returns The event.
      * @throws UnknownEvent if the event does not exist.
      */
-    static event get(unsigned long id) {
+    static event get(EventId id) {
         std::lock_guard<std::mutex> lock(registryMutex_);
         
         auto it = eventsById_.find(id);
@@ -121,16 +124,16 @@ public:
      * @returns The ID of the event.
      */
     [[nodiscard]]
-    constexpr unsigned long id() const noexcept { return id_; }
+    constexpr EventId id() const noexcept { return id_; }
 
 
     /**
-     * Convert an event to an unsigned long. This is useful for passing the event to SimConnect functions.
+     * Convert an event to an EventId. This is useful for passing the event to SimConnect functions.
      * 
-     * @returns The ID of the event as an unsigned long.
+     * @returns The ID of the event as an EventId.
      */
     [[nodiscard]]
-    constexpr operator unsigned long() const noexcept { return id_; }
+    constexpr operator EventId() const noexcept { return id_; }
 
 
     /**

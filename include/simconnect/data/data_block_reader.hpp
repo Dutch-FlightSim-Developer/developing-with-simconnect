@@ -18,6 +18,7 @@
 #include <cstddef>
 #include <cstdint>
 
+#include <simconnect/simconnect.hpp>
 #include <simconnect/data/data_block.hpp>
 
 
@@ -47,13 +48,16 @@ class DataBlockReader : public DataBlock
     }
 
 
+    inline static constexpr size_t headerSize{ 10 * sizeof(unsigned long) }; // Size of the Messages::SimObjectData header.
+
+
 public:
     DataBlockReader() = default;
     DataBlockReader(std::span<const uint8_t> data)
         : DataBlock(data)
     {}
-    DataBlockReader(const SIMCONNECT_RECV_SIMOBJECT_DATA& msg)
-        : DataBlock(std::span<const uint8_t>(reinterpret_cast<const uint8_t*>(&(msg.dwData)), msg.dwSize - (10*sizeof(DWORD))))
+    DataBlockReader(const Messages::SimObjectData& msg)
+        : DataBlock(std::span<const uint8_t>(reinterpret_cast<const uint8_t*>(&(msg.dwData)), msg.dwSize - headerSize))
     {}
     ~DataBlockReader() = default;
 
@@ -64,7 +68,7 @@ public:
 
 
     /**
-     * Read a value of type `SIMCONNECT_DATATYPE_INT8` from the block.
+     * Read a value of type `DataTypes::Int8` from the block.
      * 
      * @return The read integer value.
      */
@@ -74,7 +78,7 @@ public:
 
 
     /**
-     * Read a value of type `SIMCONNECT_DATATYPE_INT32` from the block.
+     * Read a value of type `DataTypes::Int32` from the block.
      * 
      * @return The read integer value.
      */
@@ -84,7 +88,7 @@ public:
 
 
     /**
-     * Read a value of type `SIMCONNECT_DATATYPE_INT64` from the block.
+     * Read a value of type `DataTypes::Int64` from the block.
      * 
      * @return The read integer value.
      */
@@ -94,7 +98,7 @@ public:
 
 
     /**
-     * Read a value of type `SIMCONNECT_DATATYPE_FLOAT32` from the block.
+     * Read a value of type `DataTypes::Float32` from the block.
      * 
      * @return The read floating-point value.
      */
@@ -104,7 +108,7 @@ public:
 
 
     /**
-     * Read a value of type `SIMCONNECT_DATATYPE_FLOAT64` from the block.
+     * Read a value of type `DataTypes::Float64` from the block.
      * 
      * @return The read floating-point value.
      */
@@ -128,7 +132,7 @@ public:
 
 
     /**
-     * Read a string value of type `SIMCONNECT_DATATYPE_STRING8` from the block.
+     * Read a string value of type `DataTypes::String8` from the block.
      * 
      * @return The read string value.
      */
@@ -138,7 +142,7 @@ public:
 
 
     /**
-     * Read a string value of type `SIMCONNECT_DATATYPE_STRING32` from the block.
+     * Read a string value of type `DataTypes::String32` from the block.
      * 
      * @return The read string value.
      */
@@ -148,7 +152,7 @@ public:
 
 
     /**
-     * Read a string value of type `SIMCONNECT_DATATYPE_STRING64` from the block.
+     * Read a string value of type `DataTypes::String64` from the block.
      * 
      * @return The read string value.
      */
@@ -158,7 +162,7 @@ public:
 
 
     /**
-     * Read a string value of type `SIMCONNECT_DATATYPE_STRING128` from the block.
+     * Read a string value of type `DataTypes::String128` from the block.
      * 
      * @return The read string value.
      */
@@ -168,7 +172,7 @@ public:
     
 
     /**
-     * Read a string value of type `SIMCONNECT_DATATYPE_STRING256` from the block.
+     * Read a string value of type `DataTypes::String256` from the block.
      * 
      * @return The read string value.
      */
@@ -178,7 +182,7 @@ public:
 
 
     /**
-     * Read a string value of type `SIMCONNECT_DATATYPE_STRING260` from the block.
+     * Read a string value of type `DataTypes::String260` from the block.
      * 
      * @return The read string value.
      */
@@ -188,7 +192,7 @@ public:
 
 
     /**
-     * Read a string value of type `SIMCONNECT_DATATYPE_STRINGV` from the block.
+     * Read a string value of type `DataTypes::StringV` from the block.
      */
     std::string readStringV() {
         auto value = getSpan(next_, size() - next_);
@@ -217,52 +221,52 @@ public:
 
 
     /**
-     * Read a value of type `SIMCONNECT_DATATYPE_INITPOSITION` from the block.
+     * Read a value of type `DataTypes::InitPosition` from the block.
      * 
-     * @return The read `SIMCONNECT_DATA_INITPOSITION` value.
+     * @return The read `DataTypes::InitPosition` value.
      */
-    SIMCONNECT_DATA_INITPOSITION readInitPosition() {
-        return read<SIMCONNECT_DATA_INITPOSITION>();
+    DataTypes::InitPosition readInitPosition() {
+        return read<DataTypes::InitPosition>();
     }
 
 
     /**
-     * Read a value of type `SIMCONNECT_DATATYPE_MARKERSTATE` from the block.
+     * Read a value of type `DataTypes::MarkerState` from the block.
      * 
-     * @return The read `SIMCONNECT_DATA_MARKERSTATE` value.
+     * @return The read `DataTypes::MarkerState` value.
      */
-    SIMCONNECT_DATA_MARKERSTATE readMarkerState() {
-        return read<SIMCONNECT_DATA_MARKERSTATE>();
+    DataTypes::MarkerState readMarkerState() {
+        return read<DataTypes::MarkerState>();
     }
 
 
     /**
-     * Read a value of type `SIMCONNECT_DATATYPE_WAYPOINT` from the block.
+     * Read a value of type `DataTypes::Waypoint` from the block.
      * 
-     * @return The read `SIMCONNECT_DATA_WAYPOINT` value.
+     * @return The read `DataTypes::Waypoint` value.
      */
-    SIMCONNECT_DATA_WAYPOINT readWaypoint() {
-        return read<SIMCONNECT_DATA_WAYPOINT>();
+    DataTypes::Waypoint readWaypoint() {
+        return read<DataTypes::Waypoint>();
     }
 
 
     /**
-     * Read a value of type `SIMCONNECT_DATATYPE_LATLONALT` from the block.
+     * Read a value of type `DataTypes::LatLonAlt` from the block.
      * 
-     * @return The read `SIMCONNECT_DATA_LATLONALT` value.
+     * @return The read `DataTypes::LatLonAlt` value.
      */
-    SIMCONNECT_DATA_LATLONALT readLatLonAlt() {
-        return read<SIMCONNECT_DATA_LATLONALT>();
+    DataTypes::LatLonAlt readLatLonAlt() {
+        return read<DataTypes::LatLonAlt>();
     }
 
 
     /**
-     * Read a value of type `SIMCONNECT_DATATYPE_XYZ` from the block.
+     * Read a value of type `DataTypes::XYZ` from the block.
      * 
-     * @return The read `SIMCONNECT_DATA_XYZ` value.
+     * @return The read `DataTypes::XYZ` value.
      */
-    SIMCONNECT_DATA_XYZ readXYZ() {
-        return read<SIMCONNECT_DATA_XYZ>();
+    DataTypes::XYZ readXYZ() {
+        return read<DataTypes::XYZ>();
     }
 };
 

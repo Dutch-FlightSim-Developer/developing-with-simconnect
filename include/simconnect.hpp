@@ -17,18 +17,9 @@
 
 
 #pragma warning(push, 3)
+
 #include <Windows.h>
 #include <SimConnect.h>
-
-// Handle some 2020 vs 2024 differences in the SimConnect.h header.
-#if !defined(SIMCONNECT_TYPEDEF)
-
-static constexpr DWORD SIMCONNECT_OBJECT_ID_MAX = DWORD_MAX - 128;                       // proxy value for User vehicle ObjectID
-static constexpr DWORD SIMCONNECT_OBJECT_ID_USER_AIRCRAFT = 0;                           // proxy value for User aircraft ObjectID
-static constexpr DWORD SIMCONNECT_OBJECT_ID_USER_AVATAR = SIMCONNECT_OBJECT_ID_MAX + 1;  // proxy value for User avatar ObjectID
-static constexpr DWORD SIMCONNECT_OBJECT_ID_USER_CURRENT = SIMCONNECT_OBJECT_ID_MAX + 2; // proxy value for User aircraft/avatar ObjectID
-
-#endif
 
 #pragma warning(pop)
 
@@ -111,4 +102,14 @@ inline constexpr SimulatorVersion simulatorVersion = getSimulatorVersion();
  */
 inline constexpr std::string_view simulatorVersionString = getSimulatorVersionString();
 
-}
+// Handle some 2020 vs 2024 differences in the SimConnect.h header.
+#if !defined(SIMCONNECT_TYPEDEF)
+
+inline constexpr DWORD SIMCONNECT_OBJECT_ID_MAX = DWORD_MAX - 128;                       // proxy value for User vehicle ObjectID
+inline constexpr DWORD SIMCONNECT_OBJECT_ID_USER_AIRCRAFT = 0;                           // proxy value for User aircraft ObjectID
+inline constexpr DWORD SIMCONNECT_OBJECT_ID_USER_AVATAR = SIMCONNECT_OBJECT_ID_MAX + 1;  // proxy value for User avatar ObjectID
+inline constexpr DWORD SIMCONNECT_OBJECT_ID_USER_CURRENT = SIMCONNECT_OBJECT_ID_MAX + 2; // proxy value for User aircraft/avatar ObjectID
+
+#endif
+
+} // namespace SimConnect

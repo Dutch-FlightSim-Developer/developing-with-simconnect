@@ -32,7 +32,8 @@ enum class LogLevel : size_t {
     Info,
     Warn,
     Error,
-    Fatal
+    Fatal,
+    Disabled
 };
 
 constexpr const char* CFG_LEVEL_INIT{ "INIT" };
@@ -42,9 +43,10 @@ constexpr const char* CFG_LEVEL_INFO{ "INFO" };
 constexpr const char* CFG_LEVEL_WARN{ "WARN" };
 constexpr const char* CFG_LEVEL_ERROR{ "ERROR" };
 constexpr const char* CFG_LEVEL_FATAL{ "FATAL" };
+constexpr const char* CFG_LEVEL_DISABLED{ "DISABLED" };
 
 constexpr const char* LogLevelNames[] = {
-    CFG_LEVEL_INIT, CFG_LEVEL_TRACE, CFG_LEVEL_DEBUG, CFG_LEVEL_INFO, CFG_LEVEL_WARN, CFG_LEVEL_ERROR, CFG_LEVEL_FATAL
+    CFG_LEVEL_INIT, CFG_LEVEL_TRACE, CFG_LEVEL_DEBUG, CFG_LEVEL_INFO, CFG_LEVEL_WARN, CFG_LEVEL_ERROR, CFG_LEVEL_FATAL, CFG_LEVEL_DISABLED
 };
 
 

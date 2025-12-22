@@ -18,6 +18,7 @@
 #include <ranges>
 
 
+#include <simconnect/simconnect.hpp>
 #include <simconnect/data/data_block.hpp>
 
 
@@ -40,7 +41,7 @@ public:
 
 
     /**
-     * Add an integer value of type `SIMCONNECT_DATATYPE_INT8` to the block.
+     * Add an integer value of type `DataTypes::Int8` to the block.
      * 
      * @param value The integer value to add.
      * @return A reference to the current object.
@@ -51,7 +52,7 @@ public:
 
 
     /**
-     * Add an integer value of type `SIMCONNECT_DATATYPE_INT32` to the block.
+     * Add an integer value of type `DataTypes::Int32` to the block.
      * 
      * @param value The integer value to add.
      * @return A reference to the current object.
@@ -62,7 +63,7 @@ public:
 
 
     /**
-     * Add an integer value of type `SIMCONNECT_DATATYPE_INT64` to the block.
+     * Add an integer value of type `DataTypes::Int64` to the block.
      * 
      * @param value The integer value to add.
      * @return A reference to the current object.
@@ -73,7 +74,7 @@ public:
 
 
     /**
-     * Add a floating-point value of type `SIMCONNECT_DATATYPE_FLOAT32` to the block.
+     * Add a floating-point value of type `DataTypes::Float32` to the block.
      * 
      * @param value The floating-point value to add.
      * @return A reference to the current object.
@@ -84,7 +85,7 @@ public:
 
 
     /**
-     * Add a floating-point value of type `SIMCONNECT_DATATYPE_FLOAT64` to the block.
+     * Add a floating-point value of type `DataTypes::Float64` to the block.
      * 
      * @param value The floating-point value to add.
      * @return A reference to the current object.
@@ -114,7 +115,7 @@ public:
 
 
     /**
-     * Add a string value of type `SIMCONNECT_DATATYPE_STRING8` to the block.
+     * Add a string value of type `DataTypes::String8` to the block.
      * **NOTE** The string is truncated to 8 characters if too long. Null termination is in that case not added.
      * 
      * @param value The string value to add.
@@ -126,7 +127,7 @@ public:
 
 
     /**
-     * Add a string value of type `SIMCONNECT_DATATYPE_STRING32` to the block.
+     * Add a string value of type `DataTypes::String32` to the block.
      * **NOTE** The string is truncated to 32 characters if too long. Null termination is in that case not added.
      * 
      * @param value The string value to add.
@@ -138,7 +139,7 @@ public:
 
 
     /**
-     * Add a string value of type `SIMCONNECT_DATATYPE_STRING64` to the block.
+     * Add a string value of type `DataTypes::String64` to the block.
      * **NOTE** The string is truncated to 64 characters if too long. Null termination is in that case not added.
      * 
      * @param value The string value to add.
@@ -150,7 +151,7 @@ public:
 
 
     /**
-     * Add a string value of type `SIMCONNECT_DATATYPE_STRING128` to the block.
+     * Add a string value of type `DataTypes::String128` to the block.
      * **NOTE** The string is truncated to 128 characters if too long. Null termination is in that case not added.
      * 
      * @param value The string value to add.
@@ -162,7 +163,7 @@ public:
 
 
     /**
-     * Add a string value of type `SIMCONNECT_DATATYPE_STRING256` to the block.
+     * Add a string value of type `DataTypes::String256` to the block.
      * **NOTE** The string is truncated to 256 characters if too long. Null termination is in that case not added.
      * 
      * @param value The string value to add.
@@ -174,7 +175,7 @@ public:
 
 
     /**
-     * Add a string value of type `SIMCONNECT_DATATYPE_STRING260` to the block.
+     * Add a string value of type `DataTypes::String260` to the block.
      * **NOTE** The string is truncated to 260 characters if too long. Null termination is in that case not added.
      * 
      * @param value The string value to add.
@@ -186,7 +187,7 @@ public:
 
 
     /**
-     * Add a string value of type `SIMCONNECT_DATATYPE_STRINGV` to the block.
+     * Add a string value of type `DataTypes::StringV` to the block.
      * **NOTE** The string is always zero terminated. The length of the string is not limited.
      * 
      * @param value The string value to add.
@@ -198,27 +199,27 @@ public:
 
 
     /**
-     * Add a value of type `SIMCONNECT_DATATYPE_INITPOSITION` to the block.
+     * Add a value of type `DataTypes::InitPosition` to the block.
      * 
-     * @param value The `SIMCONNECT_DATA_INITPOSITION` value to add.
+     * @param value The `DataTypes::InitPosition` value to add.
      * @return A reference to the current object.
      */
-    DataBlockBuilder& addInitPosition(const SIMCONNECT_DATA_INITPOSITION& value) {
+    DataBlockBuilder& addInitPosition(const DataTypes::InitPosition& value) {
         return add<DataBlockBuilder>(std::span<const uint8_t>(reinterpret_cast<const uint8_t*>(&value), sizeof(value)));
     }
 
 
     /**
-     * Add a value of type `SIMCONNECT_DATA_INITPOSITION` to the block, provided in its components.
+     * Add a value of type `DataTypes::InitPosition` to the block, provided in its components.
      * 
-     * @param pos A `SIMCONNECT_DATA_LATLONALT` value to add.
-     * @param pitchBankHeading A `SIMCONNECT_DATA_PBH` value for pitch, bank, and heading.
+     * @param pos A `DataTypes::LatLonAlt` value to add.
+     * @param pitchBankHeading A `DataTypes::PitchBankHeading` value for pitch, bank, and heading.
      * @param onGround Indicates if the position is on the ground (default is true).
      * @param airspeed The airspeed value (default is 0).
      * @return A reference to the current object.
      */
-    DataBlockBuilder& addInitPosition(const SIMCONNECT_DATA_LATLONALT& pos,
-                                      const SIMCONNECT_DATA_PBH& pitchBankHeading,
+    DataBlockBuilder& addInitPosition(const DataTypes::LatLonAlt& pos,
+                                      const DataTypes::PitchBankHeading& pitchBankHeading,
                                       bool onGround = true, int32_t airspeed = 0)
     {
         return addLatLonAlt(pos)
@@ -229,40 +230,40 @@ public:
 
 
     /**
-     * Add a value of type `SIMCONNECT_DATA_MARKERSTATE` to the block.
+     * Add a value of type `DataTypes::MarkerState` to the block.
      * 
-     * @param value The `SIMCONNECT_DATA_MARKERSTATE` value to add.
+     * @param value The `DataTypes::MarkerState` value to add.
      * @return A reference to the current object.
      */
-    DataBlockBuilder& addMarkerState(const SIMCONNECT_DATA_MARKERSTATE& value) {
+    DataBlockBuilder& addMarkerState(const DataTypes::MarkerState& value) {
         return add<DataBlockBuilder>(std::span<const uint8_t>(reinterpret_cast<const uint8_t*>(&value), sizeof(value)));
     }
 
 
     /**
-     * Add a value of type `SIMCONNECT_DATA_WAYPOINT` to the block.
+     * Add a value of type `DataTypes::Waypoint` to the block.
      * 
-     * @param value The `SIMCONNECT_DATA_WAYPOINT` value to add.
+     * @param value The `DataTypes::Waypoint` value to add.
      * @return A reference to the current object.
      */
-    DataBlockBuilder& addWaypoint(const SIMCONNECT_DATA_WAYPOINT& value) {
+    DataBlockBuilder& addWaypoint(const DataTypes::Waypoint& value) {
         return add<DataBlockBuilder>(std::span<const uint8_t>(reinterpret_cast<const uint8_t*>(&value), sizeof(value)));
     }
 
 
     /**
-     * Add a value of type `SIMCONNECT_DATA_LATLONALT` to the block.
+     * Add a value of type `DataTypes::LatLonAlt` to the block.
      * 
-     * @param value The `SIMCONNECT_DATA_LATLONALT` value to add.
+     * @param value The `DataTypes::LatLonAlt` value to add.
      * @return A reference to the current object.
      */
-    DataBlockBuilder& addLatLonAlt(const SIMCONNECT_DATA_LATLONALT& value) {
+    DataBlockBuilder& addLatLonAlt(const DataTypes::LatLonAlt& value) {
         return add<DataBlockBuilder>(std::span<const uint8_t>(reinterpret_cast<const uint8_t*>(&value), sizeof(value)));
     }
 
 
     /**
-     * Add a value of type `SIMCONNECT_DATA_LATLONALT` to the block, provided in its components.
+     * Add a value of type `DataTypes::LatLonAlt` to the block, provided in its components.
      * 
      * @param lat The latitude value.
      * @param lon The longitude value.
@@ -275,18 +276,18 @@ public:
 
 
     /**
-     * Add a value of type `SIMCONNECT_DATA_XYZ` to the block.
+     * Add a value of type `DataTypes::XYZ` to the block.
      * 
-     * @param value The `SIMCONNECT_DATA_XYZ` value to add.
+     * @param value The `DataTypes::XYZ` value to add.
      * @return A reference to the current object.
      */
-    DataBlockBuilder& addXYZ(const SIMCONNECT_DATA_XYZ& value) {
+    DataBlockBuilder& addXYZ(const DataTypes::XYZ& value) {
         return add<DataBlockBuilder>(std::span<const uint8_t>(reinterpret_cast<const uint8_t*>(&value), sizeof(value)));
     }
 
 
     /**
-     * Add a value of type `SIMCONNECT_DATA_XYZ` to the block, provided in its components.
+     * Add a value of type `DataTypes::XYZ` to the block, provided in its components.
      * 
      * @param x The x-coordinate value.
      * @param y The y-coordinate value.

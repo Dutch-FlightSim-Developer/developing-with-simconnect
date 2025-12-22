@@ -25,7 +25,9 @@
 #include <vector>
 #include <variant>
 #include <functional>
+#include <optional>
 
+#include <simconnect/simconnect.hpp>
 #include <simconnect/simconnect_exception.hpp>
 #include <simconnect/connection.hpp>
 #include <simconnect/data/data_block_builder.hpp>
@@ -35,15 +37,15 @@
 namespace SimConnect {
 
 
-constexpr size_t stringSize(SIMCONNECT_DATATYPE dataType) {
+constexpr size_t stringSize(DataType dataType) {
     switch (dataType) {
-        case SIMCONNECT_DATATYPE_STRING8:   return 8;
-        case SIMCONNECT_DATATYPE_STRING32:  return 32;
-        case SIMCONNECT_DATATYPE_STRING64:  return 64;
-        case SIMCONNECT_DATATYPE_STRING128: return 128;
-        case SIMCONNECT_DATATYPE_STRING256: return 256;
-        case SIMCONNECT_DATATYPE_STRING260: return 260;
-        default: return 0; // Invalid or unsupported string type
+    case DataTypes::string8:   return 8;
+    case DataTypes::string32:  return 32;
+    case DataTypes::string64:  return 64;
+    case DataTypes::string128: return 128;
+    case DataTypes::string256: return 256;
+    case DataTypes::string260: return 260;
+    default: return 0; // Invalid or unsupported string type
     }
 }
 
@@ -104,46 +106,46 @@ class DataDefinition
     struct FieldInfo {
         std::string simVar{ "" };
         std::string units{ "" };
-        SIMCONNECT_DATATYPE dataType{ SIMCONNECT_DATATYPE_INVALID };
+        DataType dataType{ DataTypes::invalid };
         float epsilon{ 0.0f };
-        unsigned long datumId{ SIMCONNECT_UNUSED };
+        unsigned long datumId{ unused };
         SetterFunc setter;
         StatelessSetterFunc statelessSetter;
         GetterFunc getter;
         StatelessGetterFunc statelessGetter;
 
-        FieldInfo(std::string simVar, std::string units, SIMCONNECT_DATATYPE dataType, float epsilon, unsigned long datumId,
+        FieldInfo(std::string simVar, std::string units, DataType dataType, float epsilon, unsigned long datumId,
             SetterFunc setter, GetterFunc getter)
         : simVar(simVar), units(units), dataType(dataType), epsilon(epsilon), datumId(datumId), setter(setter), getter(getter) {}
 
-        FieldInfo(std::string simVar, std::string units, SIMCONNECT_DATATYPE dataType, float epsilon, unsigned long datumId,
+        FieldInfo(std::string simVar, std::string units, DataType dataType, float epsilon, unsigned long datumId,
             StatelessSetterFunc setter, StatelessGetterFunc getter)
         : simVar(simVar), units(units), dataType(dataType), epsilon(epsilon), datumId(datumId), statelessSetter(setter), statelessGetter(getter) {}
     };
 
-    int id_{ -1 };                  ///< The ID of the data definition.
-    bool useMapping_{ true };       ///< Whether to map the struct on top of the incoming data for this data definition.
-    std::vector<FieldInfo> fields_; ///< The fields in the data definition, containing the information about the field and the getter/setter functions.
-    size_t size_{ 0 };              ///< The size of the data definition, used for mapping.
+    std::optional<DataDefinitionId> id_{ std::nullopt };    ///< The ID of the data definition.
+    bool useMapping_{ true };                               ///< Whether to map the struct on top of the incoming data for this data definition.
+    std::vector<FieldInfo> fields_;                         ///< The fields in the data definition, containing the information about the field and the getter/setter functions.
+    size_t size_{ 0 };                                      ///< The size of the data definition, used for mapping.
 
 public:
     /**
      * Check if the data definition has been sent to SimConnect.
      */
-    bool isDefined() const noexcept { return id_ != -1; }
+    bool isDefined() const noexcept { return id_.has_value(); }
 
 
     /**
      * Return the Data Definition Id.
      */
     [[nodiscard]]
-    int id() const noexcept { return id_; }
+    DataDefinitionId id() const noexcept { return id_.value_or(noId); }
 
 
     /**
      * Return the Data Definition Id.
      */
-    operator SIMCONNECT_DATA_DEFINITION_ID() const { return static_cast<SIMCONNECT_DATA_DEFINITION_ID>(id_); }
+    operator DataDefinitionId() const noexcept { return id(); }
 
 
     /**
@@ -180,13 +182,13 @@ public:
 
         unsigned long datumId{ 1 };
         for (auto& field : fields_) {
-            if (field.dataType == SIMCONNECT_DATATYPE_INVALID) {
+            if (field.dataType == DataTypes::invalid) {
                 throw std::runtime_error("Invalid data type for field: " + field.simVar);
             }
 
             field.datumId = datumId++;
 
-            connection.addDataDefinition(id_, field.simVar, field.units, field.dataType, field.epsilon, field.datumId);
+            connection.addDataDefinition(id(), field.simVar, field.units, field.dataType, field.epsilon, field.datumId);
         }
     }
 
@@ -201,7 +203,7 @@ public:
      * @return A reference to the current DataDefinition object, allowing for method chaining.
      */
     template <typename FieldType>
-    DataDefinition& add(FieldType StructType::* field, SIMCONNECT_DATATYPE dataType, std::string simVar, std::string units = "") {
+    DataDefinition& add(FieldType StructType::* field, DataType dataType, std::string simVar, std::string units = "") {
         GetterFunc getter; // Function to get the value from the struct so it can be added to the DataBlockBuilder.
         SetterFunc setter; // Function to set the value in the struct from the DataBlockReader.
 
@@ -212,7 +214,7 @@ public:
 
         // Numerical values are pretty straightforward.
 
-        case SIMCONNECT_DATATYPE_INT8:
+        case DataTypes::int8:
         {
             if constexpr (!std::is_same_v<FieldType, int8_t>) {
                 useMapping_ = false; // We cannot map this field directly, so we will not use the mapping.
@@ -262,12 +264,12 @@ public:
             }
             else { // Sorry, the rest is a no-go
                 useMapping_ = false; // Make sure we'll not use direct mapping.
-                throw SimConnectException("Invalid field type for SIMCONNECT_DATATYPE_INT8.");
+                throw SimConnectException("Invalid field type for DataTypes::int8.");
             }
         }
             break;
 
-        case SIMCONNECT_DATATYPE_INT32:
+        case DataTypes::int32:
         {
             if constexpr (!std::is_same_v<FieldType, int32_t>) {
                 useMapping_ = false; // We cannot map this field directly, so we will not use the mapping.
@@ -318,12 +320,12 @@ public:
             }
             else { // Sorry, the rest is a no-go
                 useMapping_ = false; // Make sure we'll not use direct mapping.
-                throw SimConnectException("Invalid field type for SIMCONNECT_DATATYPE_INT32.");
+                throw SimConnectException("Invalid field type for DataTypes::int32.");
             }
         }
             break;
 
-        case SIMCONNECT_DATATYPE_INT64:
+        case DataTypes::int64:
         {
             if constexpr (!std::is_same_v<FieldType, int64_t>) {
                 useMapping_ = false; // We cannot map this field directly, so we will not use the mapping.
@@ -374,12 +376,12 @@ public:
             }
             else { // Sorry, the rest is a no-go
                 useMapping_ = false; // Make sure we'll not use direct mapping.
-                throw SimConnectException("Invalid field type for SIMCONNECT_DATATYPE_INT64.");
+                throw SimConnectException("Invalid field type for DataTypes::int64.");
             }
         }
             break;
 
-        case SIMCONNECT_DATATYPE_FLOAT32:
+        case DataTypes::float32:
         {
             if constexpr (!std::is_same_v<FieldType, float>) {
                 useMapping_ = false; // We cannot map this field directly, so we will not use the mapping.
@@ -419,12 +421,12 @@ public:
             }
             else { // Sorry, the rest is a no-go
                 useMapping_ = false; // Make sure we'll not use direct mapping.
-                throw SimConnectException("Invalid field type for SIMCONNECT_DATATYPE_FLOAT32.");
+                throw SimConnectException("Invalid field type for DataTypes::float32.");
             }
         }
             break;
 
-        case SIMCONNECT_DATATYPE_FLOAT64:
+        case DataTypes::float64:
         {
             if constexpr (!std::is_same_v<FieldType, double>) {
                 useMapping_ = false; // We cannot map this field directly, so we will not use the mapping.
@@ -465,7 +467,7 @@ public:
             }
             else { // Sorry, the rest is a no-go
                 useMapping_ = false; // Make sure we'll not use direct mapping.
-                throw SimConnectException("Invalid field type for SIMCONNECT_DATATYPE_FLOAT64.");
+                throw SimConnectException("Invalid field type for DataTypes::float64.");
             }
         }
             break;
@@ -474,12 +476,12 @@ public:
         // Direct mapping requires a fixed size array-of-char. For the rest we can use the
         // DataBlockReader and DataBlockBuilder to read/write the string values.
 
-        case SIMCONNECT_DATATYPE_STRING8:
-        case SIMCONNECT_DATATYPE_STRING32:
-        case SIMCONNECT_DATATYPE_STRING64:
-        case SIMCONNECT_DATATYPE_STRING128:
-        case SIMCONNECT_DATATYPE_STRING256:
-        case SIMCONNECT_DATATYPE_STRING260:
+        case DataTypes::string8:
+        case DataTypes::string32:
+        case DataTypes::string64:
+        case DataTypes::string128:
+        case DataTypes::string256:
+        case DataTypes::string260:
         {
             if constexpr (std::is_same_v<FieldType, std::string>)
             {
@@ -496,8 +498,8 @@ public:
             else if constexpr (std::is_array_v<FieldType> && std::is_same_v<std::remove_extent_t<FieldType>, char>)
             {
                 if (std::extent_v<FieldType> < stringSize(dataType)) {
-                    throw SimConnectException("Invalid field type for SIMCONNECT_DATATYPE_STRING.",
-						std::format("Field type (char[{}]) is too small for SIMCONNECT_DATATYPE_STRING{}.", std::extent_v<FieldType>, stringSize(dataType)));
+                    throw SimConnectException("Invalid field type for a string.",
+						std::format("Field type (char[{}]) is too small for DataTypes::string{}.", std::extent_v<FieldType>, stringSize(dataType)));
                 }
                 if (std::extent_v<FieldType> != stringSize(dataType)) {
                     useMapping_ = false; // We cannot map this field directly, so we will not use the mapping.
@@ -517,8 +519,8 @@ public:
             else if constexpr (is_char_array_v<FieldType>)
             {
                 if (std::tuple_size_v<FieldType> < stringSize(dataType)) {
-                    throw SimConnectException("Invalid field type for SIMCONNECT_DATATYPE_STRING.",
-                        std::format("Field type (char[{}]) is too small for SIMCONNECT_DATATYPE_STRING{}.", std::tuple_size_v<FieldType>, stringSize(dataType)));
+                    throw SimConnectException("Invalid field type for a string.",
+                        std::format("Field type (char[{}]) is too small for DataTypes::string{}.", std::tuple_size_v<FieldType>, stringSize(dataType)));
                 }
                 if (std::tuple_size_v<FieldType> != stringSize(dataType)) {
                     useMapping_ = false; // We cannot map this field directly, so we will not use the mapping.
@@ -536,13 +538,13 @@ public:
             else { // Sorry, the rest is a no-go
                 useMapping_ = false; // Make sure we'll not use direct mapping.
                 throw SimConnectException("Incompatible field type for DataDefinition",
-                    std::format("Invalid field type for SIMCONNECT_DATATYPE_STRING{}.", stringSize(dataType)));
+                    std::format("Invalid field type for DataTypes::string{}.", stringSize(dataType)));
             }
         }
             break;
 
-        case SIMCONNECT_DATATYPE_STRINGV:
-        { // If you're using SIMCONNECT_DATATYPE_STRINGV, you should use std::string.
+        case DataTypes::stringV:
+        { // If you're using DataTypes::StringV, you should use std::string.
             useMapping_ = false; // We cannot map an std::string.
 
             if constexpr (std::is_same_v<FieldType, std::string>) {
@@ -556,102 +558,102 @@ public:
             }
             else { // Sorry, the rest is a no-go
                 useMapping_ = false; // Make sure we'll not use direct mapping.
-                throw SimConnectException("Invalid field type for SIMCONNECT_DATATYPE_STRINGV.");
+                throw SimConnectException("Invalid field type for DataTypes::StringV.");
             }
         }
             break;
 
-        case SIMCONNECT_DATATYPE_INITPOSITION:
+        case DataTypes::initPosition:
         {
-            if constexpr (std::is_same_v<FieldType, SIMCONNECT_DATA_INITPOSITION>) {
+            if constexpr (std::is_same_v<FieldType, DataTypes::InitPosition>) {
                 setter = [field](StructType& data, Data::DataBlockReader& reader) {
                     data.*field = reader.readInitPosition();
                 };
                 getter = [field](Data::DataBlockBuilder& builder, const StructType& data) {
                     builder.addInitPosition(data.*field);
                 };
-				size_ += sizeof(SIMCONNECT_DATA_INITPOSITION); // Update the size of the data definition
+				size_ += sizeof(DataTypes::InitPosition); // Update the size of the data definition
             }
             else {
                 useMapping_ = false; // Make sure we'll not use direct mapping.
-                throw SimConnectException("Invalid field type for SIMCONNECT_DATATYPE_INITPOSITION.");
+                throw SimConnectException("Invalid field type for DataTypes::InitPosition.");
             }
         }
             break;
 
-        case SIMCONNECT_DATATYPE_MARKERSTATE:
+        case DataTypes::markerState:
         {
-            if constexpr (std::is_same_v<FieldType, SIMCONNECT_DATA_MARKERSTATE>) {
+            if constexpr (std::is_same_v<FieldType, DataTypes::MarkerState>) {
                 setter = [field](StructType& data, Data::DataBlockReader& reader) {
                     data.*field = reader.readMarkerState();
                 };
                 getter = [field](Data::DataBlockBuilder& builder, const StructType& data) {
                     builder.addMarkerState(data.*field);
                 };
-				size_ += sizeof(SIMCONNECT_DATA_MARKERSTATE); // Update the size of the data definition
+				size_ += sizeof(DataTypes::MarkerState); // Update the size of the data definition
             } else {
                 useMapping_ = false; // Make sure we'll not use direct mapping.
-                throw SimConnectException("Invalid field type for SIMCONNECT_DATATYPE_MARKERSTATE.");
+                throw SimConnectException("Invalid field type for DataTypes::MarkerState.");
             }
         }
             break;
 
-        case SIMCONNECT_DATATYPE_WAYPOINT:
+        case DataTypes::waypoint:
         {
-            if constexpr (std::is_same_v<FieldType, SIMCONNECT_DATA_WAYPOINT>) {
+            if constexpr (std::is_same_v<FieldType, DataTypes::Waypoint>) {
                 setter = [field](StructType& data, Data::DataBlockReader& reader) {
                     data.*field = reader.readWaypoint();
                 };
                 getter = [field](Data::DataBlockBuilder& builder, const StructType& data) {
                     builder.addWaypoint(data.*field);
                 };
-				size_ += sizeof(SIMCONNECT_DATA_WAYPOINT); // Update the size of the data definition
+				size_ += sizeof(DataTypes::Waypoint); // Update the size of the data definition
             } else {
                 useMapping_ = false; // Make sure we'll not use direct mapping.
-                throw SimConnectException("Invalid field type for SIMCONNECT_DATATYPE_WAYPOINT.");
+                throw SimConnectException("Invalid field type for DataTypes::Waypoint.");
             }
         }
             break;
 
-        case SIMCONNECT_DATATYPE_LATLONALT:
+        case DataTypes::latLonAlt:
         {
-            if constexpr (std::is_same_v<FieldType, SIMCONNECT_DATA_LATLONALT>) {
+            if constexpr (std::is_same_v<FieldType, DataTypes::LatLonAlt>) {
                 setter = [field](StructType& data, Data::DataBlockReader& reader) {
                     data.*field = reader.readLatLonAlt();
                 };
                 getter = [field](Data::DataBlockBuilder& builder, const StructType& data) {
                     builder.addLatLonAlt(data.*field);
                 };
-				size_ += sizeof(SIMCONNECT_DATA_LATLONALT); // Update the size of the data definition
+				size_ += sizeof(DataTypes::LatLonAlt); // Update the size of the data definition
             } else {
                 useMapping_ = false; // Make sure we'll not use direct mapping.
-                throw SimConnectException("Invalid field type for SIMCONNECT_DATATYPE_LATLONALT.");
+                throw SimConnectException("Invalid field type for DataTypes::LatLonAlt.");
             }
         }
             break;
 
-        case SIMCONNECT_DATATYPE_XYZ:
+        case DataTypes::xyz:
         {
-            if constexpr (std::is_same_v<FieldType, SIMCONNECT_DATA_XYZ>) {
+            if constexpr (std::is_same_v<FieldType, DataTypes::XYZ>) {
                 setter = [field](StructType& data, Data::DataBlockReader& reader) {
                     data.*field = reader.readXYZ();
                 };
                 getter = [field](Data::DataBlockBuilder& builder, const StructType& data) {
                     builder.addXYZ(data.*field);
                 };
-				size_ += sizeof(SIMCONNECT_DATA_XYZ); // Update the size of the data definition
+				size_ += sizeof(DataTypes::XYZ); // Update the size of the data definition
             } else {
                 useMapping_ = false; // Make sure we'll not use direct mapping.
-                throw SimConnectException("Invalid field type for SIMCONNECT_DATATYPE_XYZ.");
+                throw SimConnectException("Invalid field type for DataTypes::XYZ.");
             }
         }
             break;
     
-        case SIMCONNECT_DATATYPE_INVALID:
-        case SIMCONNECT_DATATYPE_MAX:
+        case DataTypes::invalid:
+        case DataTypes::max:
             throw SimConnectException("DataDefinition error", std::format("Invalid data type specified for field '{}'.", simVar));
         }
-        fields_.emplace_back(simVar, units, dataType, 0.0f, SIMCONNECT_UNUSED, setter, getter);
+        fields_.emplace_back(simVar, units, dataType, 0.0f, unused, setter, getter);
         return *this;
     }
 
@@ -662,12 +664,12 @@ public:
 
     //TODO: Add support for epsilon.
 
-    // For SIMCONNECT_DATATYPE_INT32:
+    // For DataTypes::int32:
 
     DataDefinition& addInt32(std::string simVar, std::string units, std::function<void(int32_t)> setter, std::function<int32_t()> getter) {
         useMapping_ = false; // We cannot map this field directly, so we will not use the mapping.
 
-        fields_.emplace_back(simVar, units, SIMCONNECT_DATATYPE_INT32, 0.0f, SIMCONNECT_UNUSED,
+        fields_.emplace_back(simVar, units, DataTypes::int32, 0.0f, unused,
             [setter](Data::DataBlockReader& reader) {
                 setter(reader.readInt32());
             },
@@ -680,14 +682,14 @@ public:
     DataDefinition& addInt32(std::string simVar, std::string units, std::function<void(StructType& data, int32_t value)> setter, std::function<int32_t(const StructType& data)> getter) {
         useMapping_ = false; // We cannot map this field directly, so we will not use the mapping.
 
-        fields_.emplace_back(simVar, units, SIMCONNECT_DATATYPE_INT32, 0.0f, SIMCONNECT_UNUSED,
+        fields_.emplace_back(simVar, units, DataTypes::int32, 0.0f, unused,
             [setter](StructType& data, Data::DataBlockReader& reader) { setter(data, reader.readInt32()); },
             [getter](Data::DataBlockBuilder& builder, const StructType& data) { builder.addInt32(getter(data)); });
         size_ += sizeof(int32_t);
         return *this;
     }
     DataDefinition& addInt32(int32_t StructType::* field, std::string simVar, std::string units) {
-        fields_.emplace_back(simVar, units, SIMCONNECT_DATATYPE_INT32, 0.0f, SIMCONNECT_UNUSED,
+        fields_.emplace_back(simVar, units, DataTypes::int32, 0.0f, unused,
             [field](StructType& data, Data::DataBlockReader& reader) {
                 data.*field = reader.readInt32();
             },
@@ -700,7 +702,7 @@ public:
     DataDefinition& addInt32(int64_t StructType::* field, std::string simVar, std::string units) {
         useMapping_ = false; // We cannot map this field directly, so we will not use the mapping.
 
-        fields_.emplace_back(simVar, units, SIMCONNECT_DATATYPE_INT32, 0.0f, SIMCONNECT_UNUSED,
+        fields_.emplace_back(simVar, units, DataTypes::int32, 0.0f, unused,
             [field](StructType& data, Data::DataBlockReader& reader) {
                 data.*field = reader.readInt32();
             },
@@ -713,7 +715,7 @@ public:
     DataDefinition& addInt32(float StructType::* field, std::string simVar, std::string units) {
         useMapping_ = false; // We cannot map this field directly, so we will not use the mapping.
 
-        fields_.emplace_back(simVar, units, SIMCONNECT_DATATYPE_INT32, 0.0f, SIMCONNECT_UNUSED,
+        fields_.emplace_back(simVar, units, DataTypes::int32, 0.0f, unused,
             [field](StructType& data, Data::DataBlockReader& reader) {
                 data.*field = static_cast<float>(reader.readInt32());
             },
@@ -726,7 +728,7 @@ public:
     DataDefinition& addInt32(double StructType::* field, std::string simVar, std::string units) {
         useMapping_ = false; // We cannot map this field directly, so we will not use the mapping.
 
-        fields_.emplace_back(simVar, units, SIMCONNECT_DATATYPE_INT32, 0.0f, SIMCONNECT_UNUSED,
+        fields_.emplace_back(simVar, units, DataTypes::int32, 0.0f, unused,
             [field](StructType& data, Data::DataBlockReader& reader) {
                 data.*field = static_cast<double>(reader.readInt32());
             },
@@ -739,7 +741,7 @@ public:
     DataDefinition& addInt32(bool StructType::* field, std::string simVar, std::string units) {
         useMapping_ = false; // We cannot map this field directly, so we will not use the mapping.
 
-        fields_.emplace_back(simVar, units, SIMCONNECT_DATATYPE_INT32, 0.0f, SIMCONNECT_UNUSED,
+        fields_.emplace_back(simVar, units, DataTypes::int32, 0.0f, unused,
             [field](StructType& data, Data::DataBlockReader& reader) {
                 data.*field = reader.readInt32() != 0;
             },
@@ -752,7 +754,7 @@ public:
     DataDefinition& addInt32(std::string StructType::* field, std::string simVar, std::string units) {
         useMapping_ = false; // We cannot map this field directly, so we will not use the mapping.
 
-        fields_.emplace_back(simVar, units, SIMCONNECT_DATATYPE_INT32, 0.0f, SIMCONNECT_UNUSED,
+        fields_.emplace_back(simVar, units, DataTypes::int32, 0.0f, unused,
             [field](StructType& data, Data::DataBlockReader& reader) {
                 data.*field = std::format("{}", reader.readInt32());
             },
@@ -764,12 +766,12 @@ public:
     }
 
 
-    // For SIMCONNECT_DATATYPE_INT64:
+    // For DataTypes::int64:
 
     DataDefinition& addInt64(std::string simVar, std::string units, std::function<void(int64_t)> setter, std::function<int64_t()> getter) {
         useMapping_ = false; // We cannot map this field directly, so we will not use the mapping.
 
-        fields_.emplace_back(simVar, units, SIMCONNECT_DATATYPE_INT64, 0.0f, SIMCONNECT_UNUSED,
+        fields_.emplace_back(simVar, units, DataTypes::int64, 0.0f, unused,
             [setter](Data::DataBlockReader& reader) {
                 setter(reader.readInt64());
             },
@@ -782,7 +784,7 @@ public:
     DataDefinition& addInt64(std::string simVar, std::string units, std::function<void(StructType& data, int64_t value)> setter, std::function<int64_t(const StructType& data)> getter) {
         useMapping_ = false; // We cannot map this field directly, so we will not use the mapping.
 
-        fields_.emplace_back(simVar, units, SIMCONNECT_DATATYPE_INT64, 0.0f, SIMCONNECT_UNUSED,
+        fields_.emplace_back(simVar, units, DataTypes::int64, 0.0f, unused,
             [setter](StructType& data, Data::DataBlockReader& reader) { setter(data, reader.readInt64()); },
             [getter](Data::DataBlockBuilder& builder, const StructType& data) { builder.addInt64(getter(data)); });
         size_ += sizeof(int64_t);
@@ -791,7 +793,7 @@ public:
     DataDefinition& addInt64(int32_t StructType::* field, std::string simVar, std::string units) {
         useMapping_ = false; // We cannot map this field directly, so we will not use the mapping.
 
-        fields_.emplace_back(simVar, units, SIMCONNECT_DATATYPE_INT64, 0.0f, SIMCONNECT_UNUSED,
+        fields_.emplace_back(simVar, units, DataTypes::int64, 0.0f, unused,
             [field](StructType& data, Data::DataBlockReader& reader) {
                 data.*field = static_cast<int32_t>(reader.readInt64());
             },
@@ -802,7 +804,7 @@ public:
         return *this;
     }
     DataDefinition& addInt64(int64_t StructType::* field, std::string simVar, std::string units) {
-        fields_.emplace_back(simVar, units, SIMCONNECT_DATATYPE_INT64, 0.0f, SIMCONNECT_UNUSED,
+        fields_.emplace_back(simVar, units, DataTypes::int64, 0.0f, unused,
             [field](StructType& data, Data::DataBlockReader& reader) {
                 data.*field = reader.readInt64();
             },
@@ -815,7 +817,7 @@ public:
     DataDefinition& addInt64(float StructType::* field, std::string simVar, std::string units) {
         useMapping_ = false; // We cannot map this field directly, so we will not use the mapping.
 
-        fields_.emplace_back(simVar, units, SIMCONNECT_DATATYPE_INT64, 0.0f, SIMCONNECT_UNUSED,
+        fields_.emplace_back(simVar, units, DataTypes::int64, 0.0f, unused,
             [field](StructType& data, Data::DataBlockReader& reader) {
                 data.*field = static_cast<float>(reader.readInt64());
             },
@@ -828,7 +830,7 @@ public:
     DataDefinition& addInt64(double StructType::* field, std::string simVar, std::string units) {
         useMapping_ = false; // We cannot map this field directly, so we will not use the mapping.
 
-        fields_.emplace_back(simVar, units, SIMCONNECT_DATATYPE_INT64, 0.0f, SIMCONNECT_UNUSED,
+        fields_.emplace_back(simVar, units, DataTypes::int64, 0.0f, unused,
             [field](StructType& data, Data::DataBlockReader& reader) {
                 data.*field = static_cast<double>(reader.readInt64());
             },
@@ -841,7 +843,7 @@ public:
     DataDefinition& addInt64(bool StructType::* field, std::string simVar, std::string units) {
         useMapping_ = false; // We cannot map this field directly, so we will not use the mapping.
 
-        fields_.emplace_back(simVar, units, SIMCONNECT_DATATYPE_INT64, 0.0f, SIMCONNECT_UNUSED,
+        fields_.emplace_back(simVar, units, DataTypes::int64, 0.0f, unused,
             [field](StructType& data, Data::DataBlockReader& reader) {
                 data.*field = reader.readInt64() != 0;
             },
@@ -854,7 +856,7 @@ public:
     DataDefinition& addInt64(std::string StructType::* field, std::string simVar, std::string units) {
         useMapping_ = false; // We cannot map this field directly, so we will not use the mapping.
 
-        fields_.emplace_back(simVar, units, SIMCONNECT_DATATYPE_INT64, 0.0f, SIMCONNECT_UNUSED,
+        fields_.emplace_back(simVar, units, DataTypes::int64, 0.0f, unused,
             [field](StructType& data, Data::DataBlockReader& reader) {
                 data.*field = std::format("{}", reader.readInt64());
             },
@@ -866,12 +868,12 @@ public:
     }
 
  
-    // For SIMCONNECT_DATATYPE_FLOAT32:
+    // For DataTypes::float32:
 
     DataDefinition& addFloat32(std::string simVar, std::string units, std::function<void(float)> setter, std::function<float()> getter) {
         useMapping_ = false; // We cannot map this field directly, so we will not use the mapping.
 
-        fields_.emplace_back(simVar, units, SIMCONNECT_DATATYPE_FLOAT32, 0.0f, SIMCONNECT_UNUSED,
+        fields_.emplace_back(simVar, units, DataTypes::float32, 0.0f, unused,
             [setter](Data::DataBlockReader& reader) {
                 setter(reader.readFloat32());
             },
@@ -884,7 +886,7 @@ public:
     DataDefinition& addFloat32(std::string simVar, std::string units, std::function<void(StructType& data, float value)> setter, std::function<float(const StructType& data)> getter) {
         useMapping_ = false; // We cannot map this field directly, so we will not use the mapping.
 
-        fields_.emplace_back(simVar, units, SIMCONNECT_DATATYPE_FLOAT32, 0.0f, SIMCONNECT_UNUSED,
+        fields_.emplace_back(simVar, units, DataTypes::float32, 0.0f, unused,
             [setter](StructType& data, Data::DataBlockReader& reader) { setter(data, reader.readFloat32()); },
             [getter](Data::DataBlockBuilder& builder, const StructType& data) { builder.addFloat32(getter(data)); });
         size_ += sizeof(float);
@@ -893,7 +895,7 @@ public:
     DataDefinition& addFloat32(int32_t StructType::* field, std::string simVar, std::string units) {
         useMapping_ = false; // We cannot map this field directly, so we will not use the mapping.
 
-        fields_.emplace_back(simVar, units, SIMCONNECT_DATATYPE_FLOAT32, 0.0f, SIMCONNECT_UNUSED,
+        fields_.emplace_back(simVar, units, DataTypes::float32, 0.0f, unused,
             [field](StructType& data, Data::DataBlockReader& reader) {
                 data.*field = static_cast<int32_t>(reader.readFloat32());
             },
@@ -906,7 +908,7 @@ public:
     DataDefinition& addFloat32(int64_t StructType::* field, std::string simVar, std::string units) {
         useMapping_ = false; // We cannot map this field directly, so we will not use the mapping.
 
-        fields_.emplace_back(simVar, units, SIMCONNECT_DATATYPE_FLOAT32, 0.0f, SIMCONNECT_UNUSED,
+        fields_.emplace_back(simVar, units, DataTypes::float32, 0.0f, unused,
             [field](StructType& data, Data::DataBlockReader& reader) {
                 data.*field = static_cast<int64_t>(reader.readFloat32());
             },
@@ -917,7 +919,7 @@ public:
         return *this;
     }
     DataDefinition& addFloat32(float StructType::* field, std::string simVar, std::string units) {
-        fields_.emplace_back(simVar, units, SIMCONNECT_DATATYPE_FLOAT32, 0.0f, SIMCONNECT_UNUSED,
+        fields_.emplace_back(simVar, units, DataTypes::float32, 0.0f, unused,
             [field](StructType& data, Data::DataBlockReader& reader) {
                 data.*field = reader.readFloat32();
             },
@@ -930,7 +932,7 @@ public:
     DataDefinition& addFloat32(double StructType::* field, std::string simVar, std::string units) {
         useMapping_ = false; // We cannot map this field directly, so we will not use the mapping.
 
-        fields_.emplace_back(simVar, units, SIMCONNECT_DATATYPE_FLOAT32, 0.0f, SIMCONNECT_UNUSED,
+        fields_.emplace_back(simVar, units, DataTypes::float32, 0.0f, unused,
             [field](StructType& data, Data::DataBlockReader& reader) {
                 data.*field = reader.readFloat32();
             },
@@ -943,7 +945,7 @@ public:
     DataDefinition& addFloat32(bool StructType::* field, std::string simVar, std::string units) {
         useMapping_ = false; // We cannot map this field directly, so we will not use the mapping.
 
-        fields_.emplace_back(simVar, units, SIMCONNECT_DATATYPE_FLOAT32, 0.0f, SIMCONNECT_UNUSED,
+        fields_.emplace_back(simVar, units, DataTypes::float32, 0.0f, unused,
             [field](StructType& data, Data::DataBlockReader& reader) {
                 data.*field = reader.readFloat32() != 0.0f;
             },
@@ -956,7 +958,7 @@ public:
     DataDefinition& addFloat32(std::string StructType::* field, std::string simVar, std::string units) {
         useMapping_ = false; // We cannot map this field directly, so we will not use the mapping.
 
-        fields_.emplace_back(simVar, units, SIMCONNECT_DATATYPE_FLOAT32, 0.0f, SIMCONNECT_UNUSED,
+        fields_.emplace_back(simVar, units, DataTypes::float32, 0.0f, unused,
             [field](StructType& data, Data::DataBlockReader& reader) {
                 data.*field = std::format("{}", reader.readFloat32());
             },
@@ -968,12 +970,12 @@ public:
     }
 
 
-    // For SIMCONNECT_DATATYPE_FLOAT64:
+    // For DataTypes::float64:
 
     DataDefinition& addFloat64(std::string simVar, std::string units, std::function<void(double)> setter, std::function<double()> getter) {
         useMapping_ = false; // We cannot map this field directly, so we will not use the mapping.
 
-        fields_.emplace_back(simVar, units, SIMCONNECT_DATATYPE_FLOAT64, 0.0f, SIMCONNECT_UNUSED,
+        fields_.emplace_back(simVar, units, DataTypes::float64, 0.0f, unused,
             [setter](Data::DataBlockReader& reader) {
                 setter(reader.readFloat64());
             },
@@ -986,7 +988,7 @@ public:
     DataDefinition& addFloat64(std::string simVar, std::string units, std::function<void(StructType& data, double value)> setter, std::function<double(const StructType& data)> getter) {
         useMapping_ = false; // We cannot map this field directly, so we will not use the mapping.
 
-        fields_.emplace_back(simVar, units, SIMCONNECT_DATATYPE_FLOAT64, 0.0f, SIMCONNECT_UNUSED,
+        fields_.emplace_back(simVar, units, DataTypes::float64, 0.0f, unused,
             [setter](StructType& data, Data::DataBlockReader& reader) { setter(data, reader.readFloat64()); },
             [getter](Data::DataBlockBuilder& builder, const StructType& data) { builder.addFloat64(getter(data)); });
         size_ += sizeof(double);
@@ -995,7 +997,7 @@ public:
     DataDefinition& addFloat64(int32_t StructType::* field, std::string simVar, std::string units) {
         useMapping_ = false; // We cannot map this field directly, so we will not use the mapping.
 
-        fields_.emplace_back(simVar, units, SIMCONNECT_DATATYPE_FLOAT64, 0.0f, SIMCONNECT_UNUSED,
+        fields_.emplace_back(simVar, units, DataTypes::float64, 0.0f, unused,
             [field](StructType& data, Data::DataBlockReader& reader) {
                 data.*field = static_cast<int32_t>(reader.readFloat64());
             },
@@ -1008,7 +1010,7 @@ public:
     DataDefinition& addFloat64(int64_t StructType::* field, std::string simVar, std::string units) {
         useMapping_ = false; // We cannot map this field directly, so we will not use the mapping.
 
-        fields_.emplace_back(simVar, units, SIMCONNECT_DATATYPE_FLOAT64, 0.0f, SIMCONNECT_UNUSED,
+        fields_.emplace_back(simVar, units, DataTypes::float64, 0.0f, unused,
             [field](StructType& data, Data::DataBlockReader& reader) {
                 data.*field = static_cast<int64_t>(reader.readFloat64());
             },
@@ -1021,7 +1023,7 @@ public:
     DataDefinition& addFloat64(float StructType::* field, std::string simVar, std::string units) {
         useMapping_ = false; // We cannot map this field directly, so we will not use the mapping.
 
-        fields_.emplace_back(simVar, units, SIMCONNECT_DATATYPE_FLOAT64, 0.0f, SIMCONNECT_UNUSED,
+        fields_.emplace_back(simVar, units, DataTypes::float64, 0.0f, unused,
             [field](StructType& data, Data::DataBlockReader& reader) {
                 data.*field = static_cast<float>(reader.readFloat64());
             },
@@ -1032,7 +1034,7 @@ public:
         return *this;
     }
     DataDefinition& addFloat64(double StructType::* field, std::string simVar, std::string units) {
-        fields_.emplace_back(simVar, units, SIMCONNECT_DATATYPE_FLOAT64, 0.0f, SIMCONNECT_UNUSED,
+        fields_.emplace_back(simVar, units, DataTypes::float64, 0.0f, unused,
             [field](StructType& data, Data::DataBlockReader& reader) {
                 data.*field = reader.readFloat64();
             },
@@ -1045,7 +1047,7 @@ public:
     DataDefinition& addFloat64(bool StructType::* field, std::string simVar, std::string units) {
         useMapping_ = false; // We cannot map this field directly, so we will not use the mapping.
 
-        fields_.emplace_back(simVar, units, SIMCONNECT_DATATYPE_FLOAT64, 0.0f, SIMCONNECT_UNUSED,
+        fields_.emplace_back(simVar, units, DataTypes::float64, 0.0f, unused,
             [field](StructType& data, Data::DataBlockReader& reader) {
                 data.*field = reader.readFloat64() != 0.0;
             },
@@ -1058,7 +1060,7 @@ public:
     DataDefinition& addFloat64(std::string StructType::* field, std::string simVar, std::string units) {
         useMapping_ = false; // We cannot map this field directly, so we will not use the mapping.
 
-        fields_.emplace_back(simVar, units, SIMCONNECT_DATATYPE_FLOAT64, 0.0f, SIMCONNECT_UNUSED,
+        fields_.emplace_back(simVar, units, DataTypes::float64, 0.0f, unused,
             [field](StructType& data, Data::DataBlockReader& reader) {
                 data.*field = std::format("{}", reader.readFloat64());
             },
@@ -1070,13 +1072,13 @@ public:
     }
 
 
-    // For SIMCONNECT_DATATYPE_STRING*:
+    // For DataTypes::string*:
     //TODO: character array fields...
 
     DataDefinition& addString8(std::string simVar, std::function<void(std::string)> setter, std::function<std::string()> getter) {
         useMapping_ = false; // We cannot map this field directly, so we will not use the mapping.
 
-        fields_.emplace_back(simVar, "", SIMCONNECT_DATATYPE_STRING8, 0.0f, SIMCONNECT_UNUSED,
+        fields_.emplace_back(simVar, "", DataTypes::string8, 0.0f, unused,
             [setter](Data::DataBlockReader& reader) {
                 setter(reader.readString8());
             },
@@ -1089,7 +1091,7 @@ public:
     DataDefinition& addString8(std::string simVar, std::function<void(StructType& data, std::string value)> setter, std::function<std::string(const StructType& data)> getter) {
         useMapping_ = false; // We cannot map this field directly, so we will not use the mapping.
 
-        fields_.emplace_back(simVar, "", SIMCONNECT_DATATYPE_STRING8, 0.0f, SIMCONNECT_UNUSED,
+        fields_.emplace_back(simVar, "", DataTypes::string8, 0.0f, unused,
             [setter](StructType& data, Data::DataBlockReader& reader) { setter(data, reader.readString8()); },
             [getter](Data::DataBlockBuilder& builder, const StructType& data) { builder.addString8(getter(data)); });
         size_ += 8;
@@ -1098,7 +1100,7 @@ public:
     DataDefinition& addString8(std::string StructType::* field, std::string simVar) {
         useMapping_ = false; // We cannot map this field directly, so we will not use the mapping.
 
-        fields_.emplace_back(simVar, "", SIMCONNECT_DATATYPE_STRING8, 0.0f, SIMCONNECT_UNUSED,
+        fields_.emplace_back(simVar, "", DataTypes::string8, 0.0f, unused,
             [field](StructType& data, Data::DataBlockReader& reader) {
                 data.*field = reader.readString8();
             },
@@ -1111,7 +1113,7 @@ public:
     DataDefinition& addString32(std::string simVar, std::function<void(std::string)> setter, std::function<std::string()> getter) {
         useMapping_ = false; // We cannot map this field directly, so we will not use the mapping.
 
-        fields_.emplace_back(simVar, "", SIMCONNECT_DATATYPE_STRING32, 0.0f, SIMCONNECT_UNUSED,
+        fields_.emplace_back(simVar, "", DataTypes::string32, 0.0f, unused,
             [setter](Data::DataBlockReader& reader) {
                 setter(reader.readString32());
             },
@@ -1124,7 +1126,7 @@ public:
     DataDefinition& addString32(std::string simVar, std::function<void(StructType& data, std::string value)> setter, std::function<std::string(const StructType& data)> getter) {
         useMapping_ = false; // We cannot map this field directly, so we will not use the mapping.
 
-        fields_.emplace_back(simVar, "", SIMCONNECT_DATATYPE_STRING32, 0.0f, SIMCONNECT_UNUSED,
+        fields_.emplace_back(simVar, "", DataTypes::string32, 0.0f, unused,
             [setter](StructType& data, Data::DataBlockReader& reader) { setter(data, reader.readString32()); },
             [getter](Data::DataBlockBuilder& builder, const StructType& data) { builder.addString32(getter(data)); });
         size_ += 32;
@@ -1133,7 +1135,7 @@ public:
     DataDefinition& addString32(std::string StructType::* field, std::string simVar) {
         useMapping_ = false; // We cannot map this field directly, so we will not use the mapping.
 
-        fields_.emplace_back(simVar, "", SIMCONNECT_DATATYPE_STRING32, 0.0f, SIMCONNECT_UNUSED,
+        fields_.emplace_back(simVar, "", DataTypes::string32, 0.0f, unused,
             [field](StructType& data, Data::DataBlockReader& reader) {
                 data.*field = reader.readString32();
             },
@@ -1146,7 +1148,7 @@ public:
     DataDefinition& addString64(std::string simVar, std::function<void(std::string)> setter, std::function<std::string()> getter) {
         useMapping_ = false; // We cannot map this field directly, so we will not use the mapping.
 
-        fields_.emplace_back(simVar, "", SIMCONNECT_DATATYPE_STRING64, 0.0f, SIMCONNECT_UNUSED,
+        fields_.emplace_back(simVar, "", DataTypes::string64, 0.0f, unused,
             [setter](Data::DataBlockReader& reader) {
                 setter(reader.readString64());
             },
@@ -1159,7 +1161,7 @@ public:
     DataDefinition& addString64(std::string simVar, std::function<void(StructType& data, std::string value)> setter, std::function<std::string(const StructType& data)> getter) {
         useMapping_ = false; // We cannot map this field directly, so we will not use the mapping.
 
-        fields_.emplace_back(simVar, "", SIMCONNECT_DATATYPE_STRING64, 0.0f, SIMCONNECT_UNUSED,
+        fields_.emplace_back(simVar, "", DataTypes::string64, 0.0f, unused,
             [setter](StructType& data, Data::DataBlockReader& reader) { setter(data, reader.readString64()); },
             [getter](Data::DataBlockBuilder& builder, const StructType& data) { builder.addString64(getter(data)); });
         size_ += 64;
@@ -1168,7 +1170,7 @@ public:
     DataDefinition& addString64(std::string StructType::* field, std::string simVar) {
         useMapping_ = false; // We cannot map this field directly, so we will not use the mapping.
 
-        fields_.emplace_back(simVar, "", SIMCONNECT_DATATYPE_STRING64, 0.0f, SIMCONNECT_UNUSED,
+        fields_.emplace_back(simVar, "", DataTypes::string64, 0.0f, unused,
             [field](StructType& data, Data::DataBlockReader& reader) {
                 data.*field = reader.readString64();
             },
@@ -1181,7 +1183,7 @@ public:
     DataDefinition& addString128(std::string simVar, std::function<void(std::string)> setter, std::function<std::string()> getter) {
         useMapping_ = false; // We cannot map this field directly, so we will not use the mapping.
 
-        fields_.emplace_back(simVar, "", SIMCONNECT_DATATYPE_STRING128, 0.0f, SIMCONNECT_UNUSED,
+        fields_.emplace_back(simVar, "", DataTypes::string128, 0.0f, unused,
             [setter](Data::DataBlockReader& reader) {
                 setter(reader.readString128());
             },
@@ -1194,7 +1196,7 @@ public:
     DataDefinition& addString128(std::string simVar, std::function<void(StructType& data, std::string value)> setter, std::function<std::string(const StructType& data)> getter) {
         useMapping_ = false; // We cannot map this field directly, so we will not use the mapping.
 
-        fields_.emplace_back(simVar, "", SIMCONNECT_DATATYPE_STRING128, 0.0f, SIMCONNECT_UNUSED,
+        fields_.emplace_back(simVar, "", DataTypes::string128, 0.0f, unused,
             [setter](StructType& data, Data::DataBlockReader& reader) { setter(data, reader.readString128()); },
             [getter](Data::DataBlockBuilder& builder, const StructType& data) { builder.addString128(getter(data)); });
         size_ += 128;
@@ -1203,7 +1205,7 @@ public:
     DataDefinition& addString128(std::string StructType::* field, std::string simVar) {
         useMapping_ = false; // We cannot map this field directly, so we will not use the mapping.
 
-        fields_.emplace_back(simVar, "", SIMCONNECT_DATATYPE_STRING128, 0.0f, SIMCONNECT_UNUSED,
+        fields_.emplace_back(simVar, "", DataTypes::string128, 0.0f, unused,
             [field](StructType& data, Data::DataBlockReader& reader) {
                 data.*field = reader.readString128();
             },
@@ -1216,7 +1218,7 @@ public:
     DataDefinition& addString256(std::string simVar, std::function<void(std::string)> setter, std::function<std::string()> getter) {
         useMapping_ = false; // We cannot map this field directly, so we will not use the mapping.
 
-        fields_.emplace_back(simVar, "", SIMCONNECT_DATATYPE_STRING256, 0.0f, SIMCONNECT_UNUSED,
+        fields_.emplace_back(simVar, "", DataTypes::string256, 0.0f, unused,
             [setter](Data::DataBlockReader& reader) {
                 setter(reader.readString256());
             },
@@ -1229,7 +1231,7 @@ public:
     DataDefinition& addString256(std::string simVar, std::function<void(StructType& data, std::string value)> setter, std::function<std::string(const StructType& data)> getter) {
         useMapping_ = false; // We cannot map this field directly, so we will not use the mapping.
 
-        fields_.emplace_back(simVar, "", SIMCONNECT_DATATYPE_STRING256, 0.0f, SIMCONNECT_UNUSED,
+        fields_.emplace_back(simVar, "", DataTypes::string256, 0.0f, unused,
             [setter](StructType& data, Data::DataBlockReader& reader) { setter(data, reader.readString256()); },
             [getter](Data::DataBlockBuilder& builder, const StructType& data) { builder.addString256(getter(data)); });
         size_ += 256;
@@ -1238,7 +1240,7 @@ public:
     DataDefinition& addString256(std::string StructType::* field, std::string simVar) {
         useMapping_ = false; // We cannot map this field directly, so we will not use the mapping.
 
-        fields_.emplace_back(simVar, "", SIMCONNECT_DATATYPE_STRING256, 0.0f, SIMCONNECT_UNUSED,
+        fields_.emplace_back(simVar, "", DataTypes::string256, 0.0f, unused,
             [field](StructType& data, Data::DataBlockReader& reader) {
                 data.*field = reader.readString256();
             },
@@ -1251,7 +1253,7 @@ public:
     DataDefinition& addString260(std::string simVar, std::function<void(std::string)> setter, std::function<std::string()> getter) {
         useMapping_ = false; // We cannot map this field directly, so we will not use the mapping.
 
-        fields_.emplace_back(simVar, "", SIMCONNECT_DATATYPE_STRING260, 0.0f, SIMCONNECT_UNUSED,
+        fields_.emplace_back(simVar, "", DataTypes::string260, 0.0f, unused,
             [setter](Data::DataBlockReader& reader) {
                 setter(reader.readString260());
             },
@@ -1264,7 +1266,7 @@ public:
     DataDefinition& addString260(std::string simVar, std::function<void(StructType& data, std::string value)> setter, std::function<std::string(const StructType& data)> getter) {
         useMapping_ = false; // We cannot map this field directly, so we will not use the mapping.
 
-        fields_.emplace_back(simVar, "", SIMCONNECT_DATATYPE_STRING260, 0.0f, SIMCONNECT_UNUSED,
+        fields_.emplace_back(simVar, "", DataTypes::string260, 0.0f, unused,
             [setter](StructType& data, Data::DataBlockReader& reader) { setter(data, reader.readString260()); },
             [getter](Data::DataBlockBuilder& builder, const StructType& data) { builder.addString260(getter(data)); });
         size_ += 260;
@@ -1273,7 +1275,7 @@ public:
     DataDefinition& addString260(std::string StructType::* field, std::string simVar) {
         useMapping_ = false; // We cannot map this field directly, so we will not use the mapping.
 
-        fields_.emplace_back(simVar, "", SIMCONNECT_DATATYPE_STRING260, 0.0f, SIMCONNECT_UNUSED,
+        fields_.emplace_back(simVar, "", DataTypes::string260, 0.0f, unused,
             [field](StructType& data, Data::DataBlockReader& reader) {
                 data.*field = reader.readString260();
             },
@@ -1286,7 +1288,7 @@ public:
     DataDefinition& addStringV(std::string simVar, std::function<void(std::string)> setter, std::function<std::string()> getter) {
         useMapping_ = false; // We cannot map this field directly, so we will not use the mapping.
 
-        fields_.emplace_back(simVar, "", SIMCONNECT_DATATYPE_STRINGV, 0.0f, SIMCONNECT_UNUSED,
+        fields_.emplace_back(simVar, "", DataTypes::stringV, 0.0f, unused,
             [setter](Data::DataBlockReader& reader) {
                 setter(reader.readStringV());
             },
@@ -1299,7 +1301,7 @@ public:
     DataDefinition& addStringV(std::string simVar, std::function<void(StructType& data, std::string value)> setter, std::function<std::string(const StructType& data)> getter) {
         useMapping_ = false; // We cannot map this field directly, so we will not use the mapping.
 
-        fields_.emplace_back(simVar, "", SIMCONNECT_DATATYPE_STRINGV, 0.0f, SIMCONNECT_UNUSED,
+        fields_.emplace_back(simVar, "", DataTypes::stringV, 0.0f, unused,
             [setter](StructType& data, Data::DataBlockReader& reader) { setter(data, reader.readStringV()); },
             [getter](Data::DataBlockBuilder& builder, const StructType& data) { builder.addStringV(getter(data)); });
         size_ += 4; // StringV is variable length, with a minimum of 4 bytes for the length.
@@ -1308,7 +1310,7 @@ public:
     DataDefinition& addStringV(std::string StructType::* field, std::string simVar) {
         useMapping_ = false; // We cannot map this field directly, so we will not use the mapping.
 
-        fields_.emplace_back(simVar, "", SIMCONNECT_DATATYPE_STRINGV, 0.0f, SIMCONNECT_UNUSED,
+        fields_.emplace_back(simVar, "", DataTypes::stringV, 0.0f, unused,
             [field](StructType& data, Data::DataBlockReader& reader) {
                 data.*field = reader.readStringV();
             },
@@ -1320,187 +1322,187 @@ public:
     }
 
 
-    // For SIMCONNECT_DATATYPE_INITPOSITION:
+    // For DataTypes::InitPosition:
 
-    DataDefinition& addInitPosition(std::string simVar, std::string units, std::function<void(const SIMCONNECT_DATA_INITPOSITION&)> setter, std::function<const SIMCONNECT_DATA_INITPOSITION&()> getter) {
+    DataDefinition& addInitPosition(std::string simVar, std::string units, std::function<void(const DataTypes::InitPosition&)> setter, std::function<const DataTypes::InitPosition&()> getter) {
         useMapping_ = false; // We cannot map this field directly, so we will not use the mapping.
 
-        fields_.emplace_back(simVar, units, SIMCONNECT_DATATYPE_INITPOSITION, 0.0f, SIMCONNECT_UNUSED,
+        fields_.emplace_back(simVar, units, DataTypes::initPosition, 0.0f, unused,
             [setter](Data::DataBlockReader& reader) {
                 setter(reader.readInitPosition());
             },
             [getter](Data::DataBlockBuilder& builder) {
                 builder.addInitPosition(getter());
             });
-        size_ += sizeof(SIMCONNECT_DATA_INITPOSITION);
+        size_ += sizeof(DataTypes::InitPosition);
         return *this;
     }
-    DataDefinition& addInitPosition(std::string simVar, std::string units, std::function<void(StructType& data, const SIMCONNECT_DATA_INITPOSITION& value)> setter, std::function<SIMCONNECT_DATA_INITPOSITION(const StructType& data)> getter) {
+    DataDefinition& addInitPosition(std::string simVar, std::string units, std::function<void(StructType& data, const DataTypes::InitPosition& value)> setter, std::function<DataTypes::InitPosition(const StructType& data)> getter) {
         useMapping_ = false; // We cannot map this field directly, so we will not use the mapping.
 
-        fields_.emplace_back(simVar, units, SIMCONNECT_DATATYPE_INITPOSITION, 0.0f, SIMCONNECT_UNUSED,
+        fields_.emplace_back(simVar, units, DataTypes::initPosition, 0.0f, unused,
             [setter](StructType& data, Data::DataBlockReader& reader) { setter(data, reader.readInitPosition()); },
             [getter](Data::DataBlockBuilder& builder, const StructType& data) { builder.addInitPosition(getter(data)); });
-        size_ += sizeof(SIMCONNECT_DATA_INITPOSITION);
+        size_ += sizeof(DataTypes::InitPosition);
         return *this;
     }
-    DataDefinition& addInitPosition(SIMCONNECT_DATA_INITPOSITION StructType::* field, std::string simVar, std::string units) {
-        fields_.emplace_back(simVar, units, SIMCONNECT_DATATYPE_INITPOSITION, 0.0f, SIMCONNECT_UNUSED,
+    DataDefinition& addInitPosition(DataTypes::InitPosition StructType::* field, std::string simVar, std::string units) {
+        fields_.emplace_back(simVar, units, DataTypes::initPosition, 0.0f, unused,
             [field](StructType& data, Data::DataBlockReader& reader) {
                 data.*field = reader.readInitPosition();
             },
             [field](Data::DataBlockBuilder& builder, const StructType& data) {
                 builder.addInitPosition(data.*field);
             });
-        size_ += sizeof(SIMCONNECT_DATA_INITPOSITION);
+        size_ += sizeof(DataTypes::InitPosition);
         return *this;
     }
 
 
-    // For SIMCONNECT_DATATYPE_MARKERSTATE:
+    // For DataTypes::markerState:
 
-    DataDefinition& addMarkerState(std::string simVar, std::string units, std::function<void(const SIMCONNECT_DATA_MARKERSTATE&)> setter, std::function<const SIMCONNECT_DATA_MARKERSTATE&()> getter) {
+    DataDefinition& addMarkerState(std::string simVar, std::string units, std::function<void(const DataTypes::MarkerState&)> setter, std::function<const DataTypes::MarkerState&()> getter) {
         useMapping_ = false; // We cannot map this field directly, so we will not use the mapping.
 
-        fields_.emplace_back(simVar, units, SIMCONNECT_DATATYPE_MARKERSTATE, 0.0f, SIMCONNECT_UNUSED,
+        fields_.emplace_back(simVar, units, DataTypes::markerState, 0.0f, unused,
             [setter](Data::DataBlockReader& reader) {
                 setter(reader.readMarkerState());
             },
             [getter](Data::DataBlockBuilder& builder) {
                 builder.addMarkerState(getter());
             });
-        size_ += sizeof(SIMCONNECT_DATA_MARKERSTATE);
+        size_ += sizeof(DataTypes::MarkerState);
         return *this;
     }
-    DataDefinition& addMarkerState(std::string simVar, std::string units, std::function<void(StructType& data, const SIMCONNECT_DATA_MARKERSTATE& value)> setter, std::function<SIMCONNECT_DATA_MARKERSTATE(const StructType& data)> getter) {
+    DataDefinition& addMarkerState(std::string simVar, std::string units, std::function<void(StructType& data, const DataTypes::MarkerState& value)> setter, std::function<DataTypes::MarkerState(const StructType& data)> getter) {
         useMapping_ = false; // We cannot map this field directly, so we will not use the mapping.
 
-        fields_.emplace_back(simVar, units, SIMCONNECT_DATATYPE_MARKERSTATE, 0.0f, SIMCONNECT_UNUSED,
+        fields_.emplace_back(simVar, units, DataTypes::markerState, 0.0f, unused,
             [setter](StructType& data, Data::DataBlockReader& reader) { setter(data, reader.readMarkerState()); },
             [getter](Data::DataBlockBuilder& builder, const StructType& data) { builder.addMarkerState(getter(data)); });
-        size_ += sizeof(SIMCONNECT_DATA_MARKERSTATE);
+        size_ += sizeof(DataTypes::MarkerState);
         return *this;
     }
-    DataDefinition& addMarkerState(SIMCONNECT_DATA_MARKERSTATE StructType::* field, std::string simVar, std::string units) {
-        fields_.emplace_back(simVar, units, SIMCONNECT_DATATYPE_MARKERSTATE, 0.0f, SIMCONNECT_UNUSED,
+    DataDefinition& addMarkerState(DataTypes::MarkerState StructType::* field, std::string simVar, std::string units) {
+        fields_.emplace_back(simVar, units, DataTypes::markerState, 0.0f, unused,
             [field](StructType& data, Data::DataBlockReader& reader) {
                 data.*field = reader.readMarkerState();
             },
             [field](Data::DataBlockBuilder& builder, const StructType& data) {
                 builder.addMarkerState(data.*field);
             });
-        size_ += sizeof(SIMCONNECT_DATA_MARKERSTATE);
+        size_ += sizeof(DataTypes::MarkerState);
         return *this;
     }
 
 
-    // For SIMCONNECT_DATATYPE_WAYPOINT:
+    // For DataTypes::waypoint:
 
-    DataDefinition& addWaypoint(std::string simVar, std::string units, std::function<void(const SIMCONNECT_DATA_WAYPOINT&)> setter, std::function<const SIMCONNECT_DATA_WAYPOINT&()> getter) {
+    DataDefinition& addWaypoint(std::string simVar, std::string units, std::function<void(const DataTypes::Waypoint&)> setter, std::function<const DataTypes::Waypoint&()> getter) {
         useMapping_ = false; // We cannot map this field directly, so we will not use the mapping.
 
-        fields_.emplace_back(simVar, units, SIMCONNECT_DATATYPE_WAYPOINT, 0.0f, SIMCONNECT_UNUSED,
+        fields_.emplace_back(simVar, units, DataTypes::waypoint, 0.0f, unused,
             [setter](Data::DataBlockReader& reader) {
                 setter(reader.readWaypoint());
             },
             [getter](Data::DataBlockBuilder& builder) {
                 builder.addWaypoint(getter());
             });
-        size_ += sizeof(SIMCONNECT_DATA_WAYPOINT);
+        size_ += sizeof(DataTypes::Waypoint);
         return *this;
     }
-    DataDefinition& addWaypoint(std::string simVar, std::string units, std::function<void(StructType& data, const SIMCONNECT_DATA_WAYPOINT& value)> setter, std::function<SIMCONNECT_DATA_WAYPOINT(const StructType& data)> getter) {
+    DataDefinition& addWaypoint(std::string simVar, std::string units, std::function<void(StructType& data, const DataTypes::Waypoint& value)> setter, std::function<DataTypes::Waypoint(const StructType& data)> getter) {
         useMapping_ = false; // We cannot map this field directly, so we will not use the mapping.
 
-        fields_.emplace_back(simVar, units, SIMCONNECT_DATATYPE_WAYPOINT, 0.0f, SIMCONNECT_UNUSED,
+        fields_.emplace_back(simVar, units, DataTypes::waypoint, 0.0f, unused,
             [setter](StructType& data, Data::DataBlockReader& reader) { setter(data, reader.readWaypoint()); },
             [getter](Data::DataBlockBuilder& builder, const StructType& data) { builder.addWaypoint(getter(data)); });
-        size_ += sizeof(SIMCONNECT_DATA_WAYPOINT);
+        size_ += sizeof(DataTypes::Waypoint);
         return *this;
     }
-    DataDefinition& addWaypoint(SIMCONNECT_DATA_WAYPOINT StructType::* field, std::string simVar, std::string units) {
-        fields_.emplace_back(simVar, units, SIMCONNECT_DATATYPE_WAYPOINT, 0.0f, SIMCONNECT_UNUSED,
+    DataDefinition& addWaypoint(DataTypes::Waypoint StructType::* field, std::string simVar, std::string units) {
+        fields_.emplace_back(simVar, units, DataTypes::waypoint, 0.0f, unused,
             [field](StructType& data, Data::DataBlockReader& reader) {
                 data.*field = reader.readWaypoint();
             },
             [field](Data::DataBlockBuilder& builder, const StructType& data) {
                 builder.addWaypoint(data.*field);
             });
-        size_ += sizeof(SIMCONNECT_DATA_WAYPOINT);
+        size_ += sizeof(DataTypes::Waypoint);
         return *this;
     }
 
 
-    // For SIMCONNECT_DATATYPE_LATLONALT:
+    // For DataTypes::latLonAlt:
 
-    DataDefinition& addLatLonAlt(std::string simVar, std::string units, std::function<void(const SIMCONNECT_DATA_LATLONALT&)> setter, std::function<const SIMCONNECT_DATA_LATLONALT&()> getter) {
+    DataDefinition& addLatLonAlt(std::string simVar, std::string units, std::function<void(const DataTypes::LatLonAlt&)> setter, std::function<const DataTypes::LatLonAlt&()> getter) {
         useMapping_ = false; // We cannot map this field directly, so we will not use the mapping.
 
-        fields_.emplace_back(simVar, units, SIMCONNECT_DATATYPE_LATLONALT, 0.0f, SIMCONNECT_UNUSED,
+        fields_.emplace_back(simVar, units, DataTypes::latLonAlt, 0.0f, unused,
             [setter](Data::DataBlockReader& reader) {
                 setter(reader.readLatLonAlt());
             },
             [getter](Data::DataBlockBuilder& builder) {
                 builder.addLatLonAlt(getter());
             });
-        size_ += sizeof(SIMCONNECT_DATA_LATLONALT);
+        size_ += sizeof(DataTypes::LatLonAlt);
         return *this;
     }
-    DataDefinition& addLatLonAlt(std::string simVar, std::string units, std::function<void(StructType& data, const SIMCONNECT_DATA_LATLONALT& value)> setter, std::function<SIMCONNECT_DATA_LATLONALT(const StructType& data)> getter) {
+    DataDefinition& addLatLonAlt(std::string simVar, std::string units, std::function<void(StructType& data, const DataTypes::LatLonAlt& value)> setter, std::function<DataTypes::LatLonAlt(const StructType& data)> getter) {
         useMapping_ = false; // We cannot map this field directly, so we will not use the mapping.
 
-        fields_.emplace_back(simVar, units, SIMCONNECT_DATATYPE_LATLONALT, 0.0f, SIMCONNECT_UNUSED,
+        fields_.emplace_back(simVar, units, DataTypes::latLonAlt, 0.0f, unused,
             [setter](StructType& data, Data::DataBlockReader& reader) { setter(data, reader.readLatLonAlt()); },
             [getter](Data::DataBlockBuilder& builder, const StructType& data) { builder.addLatLonAlt(getter(data)); });
-        size_ += sizeof(SIMCONNECT_DATA_LATLONALT);
+        size_ += sizeof(DataTypes::LatLonAlt);
         return *this;
     }
-    DataDefinition& addLatLonAlt(SIMCONNECT_DATA_LATLONALT StructType::* field, std::string simVar, std::string units) {
-        fields_.emplace_back(simVar, units, SIMCONNECT_DATATYPE_LATLONALT, 0.0f, SIMCONNECT_UNUSED,
+    DataDefinition& addLatLonAlt(DataTypes::LatLonAlt StructType::* field, std::string simVar, std::string units) {
+        fields_.emplace_back(simVar, units, DataTypes::latLonAlt, 0.0f, unused,
             [field](StructType& data, Data::DataBlockReader& reader) {
                 data.*field = reader.readLatLonAlt();
             },
             [field](Data::DataBlockBuilder& builder, const StructType& data) {
                 builder.addLatLonAlt(data.*field);
             });
-        size_ += sizeof(SIMCONNECT_DATA_LATLONALT);
+        size_ += sizeof(DataTypes::LatLonAlt);
         return *this;
     }
 
 
-    // For SIMCONNECT_DATATYPE_XYZ:
+    // For DataTypes::xyz:
 
-    DataDefinition& addXYZ(std::string simVar, std::string units, std::function<void(const SIMCONNECT_DATA_XYZ&)> setter, std::function<const SIMCONNECT_DATA_XYZ&()> getter) {
+    DataDefinition& addXYZ(std::string simVar, std::string units, std::function<void(const DataTypes::XYZ&)> setter, std::function<const DataTypes::XYZ&()> getter) {
         useMapping_ = false; // We cannot map this field directly, so we will not use the mapping.
 
-        fields_.emplace_back(simVar, units, SIMCONNECT_DATATYPE_XYZ, 0.0f, SIMCONNECT_UNUSED,
+        fields_.emplace_back(simVar, units, DataTypes::xyz, 0.0f, unused,
             [setter](Data::DataBlockReader& reader) {
                 setter(reader.readXYZ());
             },
             [getter](Data::DataBlockBuilder& builder) {
                 builder.addXYZ(getter());
             });
-        size_ += sizeof(SIMCONNECT_DATA_XYZ);
+        size_ += sizeof(DataTypes::XYZ);
         return *this;
     }
-    DataDefinition& addXYZ(std::string simVar, std::string units, std::function<void(StructType& data, const SIMCONNECT_DATA_XYZ& value)> setter, std::function<const SIMCONNECT_DATA_XYZ&(const StructType& data)> getter) {
+    DataDefinition& addXYZ(std::string simVar, std::string units, std::function<void(StructType& data, const DataTypes::XYZ& value)> setter, std::function<const DataTypes::XYZ&(const StructType& data)> getter) {
         useMapping_ = false; // We cannot map this field directly, so we will not use the mapping.
 
-        fields_.emplace_back(simVar, units, SIMCONNECT_DATATYPE_XYZ, 0.0f, SIMCONNECT_UNUSED,
+        fields_.emplace_back(simVar, units, DataTypes::xyz, 0.0f, unused,
             [setter](StructType& data, Data::DataBlockReader& reader) { setter(data, reader.readXYZ()); },
             [getter](Data::DataBlockBuilder& builder, const StructType& data) { builder.addXYZ(getter(data)); });
-        size_ += sizeof(SIMCONNECT_DATA_XYZ);
+        size_ += sizeof(DataTypes::XYZ);
         return *this;
     }
-    DataDefinition& addXYZ(SIMCONNECT_DATA_XYZ StructType::* field, std::string simVar, std::string units) {
-        fields_.emplace_back(simVar, units, SIMCONNECT_DATATYPE_XYZ, 0.0f, SIMCONNECT_UNUSED,
+    DataDefinition& addXYZ(DataTypes::XYZ StructType::* field, std::string simVar, std::string units) {
+        fields_.emplace_back(simVar, units, DataTypes::xyz, 0.0f, unused,
             [field](StructType& data, Data::DataBlockReader& reader) {
                 data.*field = reader.readXYZ();
             },
             [field](Data::DataBlockBuilder& builder, const StructType& data) {
                 builder.addXYZ(data.*field);
             });
-        size_ += sizeof(SIMCONNECT_DATA_XYZ);
+        size_ += sizeof(DataTypes::XYZ);
         return *this;
     }
 
@@ -1528,7 +1530,7 @@ public:
     }
 
 
-    static constexpr int unTagged = -1;
+    inline static constexpr int unTagged = -1;
 
     /**
      * Unmarshall the data from a DataBlockReader.
@@ -1593,15 +1595,15 @@ public:
 
 
     /**
-     * Unmarshall the data from a SIMCONNECT_RECV_SIMOBJECT_DATA message.
+     * Unmarshall the data from a Messages::SimObjectData message.
      *
-     * @param msg The SIMCONNECT_RECV_SIMOBJECT_DATA message containing the data.
+     * @param msg The Messages::SimObjectData message containing the data.
      * @param data The data to unmarshall.
      */
-    void unmarshall(const SIMCONNECT_RECV_SIMOBJECT_DATA& msg, StructType& data) const {
+    void unmarshall(const Messages::SimObjectData& msg, StructType& data) const {
         Data::DataBlockReader reader(msg);
 
-        unmarshall(reader, data, ((msg.dwFlags & SIMCONNECT_DATA_REQUEST_FLAG_TAGGED) != 0) ? msg.dwDefineCount : unTagged);
+        unmarshall(reader, data, ((msg.dwFlags & DataRequestFlags::tagged) != 0) ? msg.dwDefineCount : unTagged);
     }
 };
 

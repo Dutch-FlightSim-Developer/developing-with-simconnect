@@ -17,6 +17,8 @@
 
 #include <unordered_map>
 
+
+#include <simconnect/simconnect.hpp>
 #include <simconnect/simobject_type.hpp>
 #include <simconnect/message_handler.hpp>
 
@@ -29,11 +31,11 @@ namespace SimConnect {
  * It is used by the requestDataByType methods to return the ID of the SimObject that the data was requested for.
  */
 struct SimObjectIdHolder {
-    unsigned long objectId{ 0 };
+    SimObjectId objectId{ 0 };
 
     constexpr SimObjectIdHolder() = default;
-    constexpr SimObjectIdHolder(unsigned long id) : objectId(id) {}
-	SimObjectIdHolder(const SIMCONNECT_RECV_SIMOBJECT_DATA& msg) : objectId(msg.dwObjectID) {}
+    constexpr SimObjectIdHolder(SimObjectId id) : objectId(id) {}
+	SimObjectIdHolder(const Messages::SimObjectData& msg) : objectId(msg.dwObjectID) {}
 	SimObjectIdHolder(const SimObjectIdHolder&) = default;
     SimObjectIdHolder(SimObjectIdHolder&&) = default;
     SimObjectIdHolder& operator=(const SimObjectIdHolder&) = default;
@@ -42,8 +44,8 @@ struct SimObjectIdHolder {
 
 
 /**
- * The SimObjectDataHandler class provides for responsive handling of SIMCONNECT_RECV_SIMOBJECT_DATA and
- * SIMCONNECT_RECV_SIMOBJECT_DATA_BYTYPE messages.
+ * The SimObjectDataHandler class provides for responsive handling of Messages::SimObjectData and
+ * Messages::SimObjectDataByType messages.
  * 
  * @note This handler is used to request data from the simulator for a specific object or type.
  * 
@@ -51,7 +53,7 @@ struct SimObjectIdHolder {
  */
 template <class M>
 class SimObjectDataHandler
-    : public MessageHandler<SIMCONNECT_DATA_REQUEST_ID, SimObjectDataHandler<M>, M, SIMCONNECT_RECV_ID_SIMOBJECT_DATA, SIMCONNECT_RECV_ID_SIMOBJECT_DATA_BYTYPE>
+    : public MessageHandler<RequestId, SimObjectDataHandler<M>, M, Messages::simObjectData, Messages::simObjectDataByType>
 {
 public:
     using simconnect_message_handler_type = M;
@@ -77,15 +79,15 @@ public:
 
 
     /**
-     * Returns the request ID from the message. This is specific to the SIMCONNECT_RECV_SIMOBJECT_DATA and
-	 * SIMCONNECT_RECV_SIMOBJ_DATA_BTYPE messages. The latter type does not actually add fields, so we can
+     * Returns the request ID from the message. This is specific to the Messages::SimObjectData and
+	 * Messages::SimObjectDataByType messages. The latter type does not actually add fields, so we can
      * use the same method for both.
      * 
      * @param msg The message to get the correlation ID from.
      * @returns The correlation ID from the message.
 	 */
-    unsigned long correlationId(const SIMCONNECT_RECV& msg) const {
-        return static_cast<const SIMCONNECT_RECV_SIMOBJECT_DATA&>(msg).dwRequestID;
+    unsigned long correlationId(const Messages::MsgBase& msg) const {
+        return static_cast<const Messages::SimObjectData&>(msg).dwRequestID;
     }
 
 
@@ -97,9 +99,7 @@ public:
      * @param objectId The object ID to stop the request for. Defaults to the current user's Avatar or Aircraft.
      * @note If the request is not active, this will do nothing.
      */
-    void stopDataRequest(SIMCONNECT_DATA_DEFINITION_ID dataDef,
-        unsigned long requestId,
-        unsigned long objectId = SIMCONNECT_OBJECT_ID_USER_CURRENT)
+    void stopDataRequest(DataDefinitionId dataDef, RequestId requestId, SimObjectId objectId = SimObject::userCurrent)
     {
         this->removeHandler(requestId);
         simConnectMessageHandler_.connection().stopDataRequest(requestId, dataDef, objectId);
@@ -109,7 +109,7 @@ public:
     // Requesting data for specific SimObjects.
 
     // Three groups of requestData methods are provided, depending on how the caller wants to receive the data:
-    // 1. As a raw message data structure (SIMCONNECT_RECV_SIMOBJECT_DATA).
+    // 1. As a raw message data structure (Messages::SimObjectData).
     // 2. As a DataBlockReader that can be used to read the data.
     // 3. As a struct (or class), where the setters and getters are used.
     //
@@ -134,17 +134,17 @@ public:
      * @return A Request object that can be used to stop the request.
      */
     [[nodiscard]]
-    Request requestData(SIMCONNECT_DATA_DEFINITION_ID dataDef,
-        std::function<void(const SIMCONNECT_RECV_SIMOBJECT_DATA&)> handler,
+    Request requestData(DataDefinitionId dataDef,
+        std::function<void(const Messages::SimObjectData&)> handler,
         DataFrequency frequency = DataFrequency::once(),
         PeriodLimits limits = PeriodLimits::none(),
-        unsigned long objectId = SIMCONNECT_OBJECT_ID_USER_CURRENT,
+        SimObjectId objectId = SimObject::userCurrent,
         bool onlyWhenChanged = false)
     {
         auto requestId = simConnectMessageHandler_.connection().requests().nextRequestID();
 
-        this->registerHandler(requestId, [requestId, handler](const SIMCONNECT_RECV& msg) {
-                handler(reinterpret_cast<const SIMCONNECT_RECV_SIMOBJECT_DATA&>(msg));
+        this->registerHandler(requestId, [requestId, handler](const Messages::MsgBase& msg) {
+                handler(reinterpret_cast<const Messages::SimObjectData&>(msg));
             }, frequency.isOnce());
         simConnectMessageHandler_.connection().requestData(dataDef, requestId, frequency, limits, objectId, onlyWhenChanged);
 
@@ -166,9 +166,9 @@ public:
      * @return A Request object that can be used to stop the request.
      */
     [[nodiscard]]
-    Request requestDataOnce(SIMCONNECT_DATA_DEFINITION_ID dataDef,
-        std::function<void(const SIMCONNECT_RECV_SIMOBJECT_DATA&)> handler,
-        unsigned long objectId = SIMCONNECT_OBJECT_ID_USER_CURRENT)
+    Request requestDataOnce(DataDefinitionId dataDef,
+        std::function<void(const Messages::SimObjectData&)> handler,
+        SimObjectId objectId = SimObject::userCurrent)
     {
         return requestData(dataDef, handler, DataFrequency::once(), PeriodLimits::none(), objectId, false);
     }
@@ -189,17 +189,17 @@ public:
      * @return A Request object that can be used to stop the request.
      */
     [[nodiscard]]
-    Request requestDataTagged(SIMCONNECT_DATA_DEFINITION_ID dataDef,
-        std::function<void(const SIMCONNECT_RECV_SIMOBJECT_DATA&)> handler,
+    Request requestDataTagged(DataDefinitionId dataDef,
+        std::function<void(const Messages::SimObjectData&)> handler,
         DataFrequency frequency = DataFrequency::once(),
         PeriodLimits limits = PeriodLimits::none(),
-        unsigned long objectId = SIMCONNECT_OBJECT_ID_USER_CURRENT,
+        SimObjectId objectId = SimObject::userCurrent,
         bool onlyWhenChanged = false)
     {
         auto requestId = simConnectMessageHandler_.connection().requests().nextRequestID();
 
-        this->registerHandler(requestId, [requestId, handler](const SIMCONNECT_RECV& msg) {
-                handler(reinterpret_cast<const SIMCONNECT_RECV_SIMOBJECT_DATA&>(msg));
+        this->registerHandler(requestId, [requestId, handler](const Messages::MsgBase& msg) {
+                handler(reinterpret_cast<const Messages::SimObjectData&>(msg));
             }, frequency.isOnce());
         simConnectMessageHandler_.connection().requestDataTagged(dataDef, requestId, frequency, limits, objectId, onlyWhenChanged);
 
@@ -221,9 +221,9 @@ public:
      * @return A Request object that can be used to stop the request.
      */
     [[nodiscard]]
-    Request requestDataOnceTagged(SIMCONNECT_DATA_DEFINITION_ID dataDef,
-        std::function<void(const SIMCONNECT_RECV_SIMOBJECT_DATA&)> handler,
-        unsigned long objectId = SIMCONNECT_OBJECT_ID_USER_CURRENT)
+    Request requestDataOnceTagged(DataDefinitionId dataDef,
+        std::function<void(const Messages::SimObjectData&)> handler,
+        SimObjectId objectId = SimObject::userCurrent)
     {
         return requestDataTagged(dataDef, handler, DataFrequency::once(), PeriodLimits::none(), objectId, false);
     }
@@ -249,17 +249,17 @@ public:
      * @return A Request object that can be used to stop the request.
      */
     [[nodiscard]]
-    Request requestData(SIMCONNECT_DATA_DEFINITION_ID dataDef,
+    Request requestData(DataDefinitionId dataDef,
         std::function<void(Data::DataBlockReader&)> handler,
         DataFrequency frequency = DataFrequency::once(),
         PeriodLimits limits = PeriodLimits::none(),
-        unsigned long objectId = SIMCONNECT_OBJECT_ID_USER_CURRENT,
+        SimObjectId objectId = SimObject::userCurrent,
         bool onlyWhenChanged = false)
     {
         auto requestId = simConnectMessageHandler_.connection().requests().nextRequestID();
 
-        this->registerHandler(requestId, [requestId, handler](const SIMCONNECT_RECV& msg) {
-                Data::DataBlockReader reader(reinterpret_cast<const SIMCONNECT_RECV_SIMOBJECT_DATA&>(msg));
+        this->registerHandler(requestId, [requestId, handler](const Messages::MsgBase& msg) {
+                Data::DataBlockReader reader(reinterpret_cast<const Messages::SimObjectData&>(msg));
 
                 handler(reader);
             }, frequency.isOnce());
@@ -284,9 +284,9 @@ public:
      * @return A Request object that can be used to stop the request.
      */
     [[nodiscard]]
-    Request requestDataOnce(SIMCONNECT_DATA_DEFINITION_ID dataDef,
+    Request requestDataOnce(DataDefinitionId dataDef,
         std::function<void(Data::DataBlockReader&)> handler,
-        unsigned long objectId = SIMCONNECT_OBJECT_ID_USER_CURRENT,
+        SimObjectId objectId = SimObject::userCurrent,
         bool onlyWhenChanged = false)
     {
         return requestData(dataDef, handler, DataFrequency::once(), PeriodLimits::none(), objectId, onlyWhenChanged);
@@ -308,17 +308,17 @@ public:
      * @return A Request object that can be used to stop the request.
      */
     [[nodiscard]]
-    Request requestDataTagged(SIMCONNECT_DATA_DEFINITION_ID dataDef,
+    Request requestDataTagged(DataDefinitionId dataDef,
         std::function<void(Data::DataBlockReader&)> handler,
         DataFrequency frequency = DataFrequency::once(),
         PeriodLimits limits = PeriodLimits::none(),
-        unsigned long objectId = SIMCONNECT_OBJECT_ID_USER_CURRENT,
+        SimObjectId objectId = SimObject::userCurrent,
         bool onlyWhenChanged = false)
     {
         auto requestId = simConnectMessageHandler_.connection().requests().nextRequestID();
 
-        this->registerHandler(requestId, [requestId, handler](const SIMCONNECT_RECV& msg) {
-                Data::DataBlockReader reader(reinterpret_cast<const SIMCONNECT_RECV_SIMOBJECT_DATA&>(msg));
+        this->registerHandler(requestId, [requestId, handler](const Messages::MsgBase& msg) {
+                Data::DataBlockReader reader(reinterpret_cast<const Messages::SimObjectData&>(msg));
 
                 handler(reader);
             }, frequency.isOnce());
@@ -343,9 +343,9 @@ public:
      * @return A Request object that can be used to stop the request.
      */
     [[nodiscard]]
-    Request requestDataOnceTagged(SIMCONNECT_DATA_DEFINITION_ID dataDef,
+    Request requestDataOnceTagged(DataDefinitionId dataDef,
         std::function<void(Data::DataBlockReader&)> handler,
-        unsigned long objectId = SIMCONNECT_OBJECT_ID_USER_CURRENT,
+        SimObjectId objectId = SimObject::userCurrent,
         bool onlyWhenChanged = false)
     {
         return requestDataTagged(dataDef, handler, DataFrequency::once(), PeriodLimits::none(), objectId, onlyWhenChanged);
@@ -378,7 +378,7 @@ public:
         std::function<void(const StructType&)> handler,
         DataFrequency frequency = DataFrequency::once(),
         PeriodLimits limits = PeriodLimits::none(),
-        unsigned long objectId = SIMCONNECT_OBJECT_ID_USER_CURRENT,
+        SimObjectId objectId = SimObject::userCurrent,
         bool onlyWhenChanged = false)
     {
         dataDef.define(simConnectMessageHandler_.connection());
@@ -386,16 +386,16 @@ public:
         const auto requestId = simConnectMessageHandler_.connection().requests().nextRequestID();
 
         if (dataDef.useMapping()) {
-            this->registerHandler(requestId, [handler](const SIMCONNECT_RECV& msg) {
-                const StructType* data = reinterpret_cast<const StructType*>(&(reinterpret_cast<const SIMCONNECT_RECV_SIMOBJECT_DATA&>(msg).dwData));
+            this->registerHandler(requestId, [handler](const Messages::MsgBase& msg) {
+                const StructType* data = reinterpret_cast<const StructType*>(&(reinterpret_cast<const Messages::SimObjectData&>(msg).dwData));
                 handler(*data);
                 }, frequency.isOnce());
         }
         else {
-            this->registerHandler(requestId, [&dataDef, handler](const SIMCONNECT_RECV& msg) {
+            this->registerHandler(requestId, [&dataDef, handler](const Messages::MsgBase& msg) {
                 StructType data;
 
-                dataDef.unmarshall(reinterpret_cast<const SIMCONNECT_RECV_SIMOBJECT_DATA&>(msg), data);
+                dataDef.unmarshall(reinterpret_cast<const Messages::SimObjectData&>(msg), data);
                 handler(data);
                 }, frequency.isOnce());
         }
@@ -424,7 +424,7 @@ public:
     [[nodiscard]]
     Request requestDataOnce(DataDefinition<StructType>& dataDef,
         std::function<void(const StructType&)> handler,
-        unsigned long objectId = SIMCONNECT_OBJECT_ID_USER_CURRENT,
+        SimObjectId objectId = SimObject::userCurrent,
         bool onlyWhenChanged = false)
     {
         return requestData(dataDef, handler, DataFrequency::once(), PeriodLimits::none(), objectId, onlyWhenChanged);
@@ -452,17 +452,17 @@ public:
         std::function<void(const StructType&)> handler,
         DataFrequency frequency = DataFrequency::once(),
         PeriodLimits limits = PeriodLimits::none(),
-        unsigned long objectId = SIMCONNECT_OBJECT_ID_USER_CURRENT,
+        SimObjectId objectId = SimObject::userCurrent,
         bool onlyWhenChanged = false)
     {
         dataDef.define(simConnectMessageHandler_.connection());
 
         const auto requestId = simConnectMessageHandler_.connection().requests().nextRequestID();
 
-        this->registerHandler(requestId, [requestId, &dataDef, handler](const SIMCONNECT_RECV& msg) {
+        this->registerHandler(requestId, [requestId, &dataDef, handler](const Messages::MsgBase& msg) {
             StructType data;
 
-            dataDef.unmarshall(reinterpret_cast<const SIMCONNECT_RECV_SIMOBJECT_DATA&>(msg), data);
+            dataDef.unmarshall(reinterpret_cast<const Messages::SimObjectData&>(msg), data);
             handler(data);
         }, frequency.isOnce());
         simConnectMessageHandler_.connection().requestDataTagged(dataDef, requestId, frequency, limits, objectId, onlyWhenChanged);
@@ -490,7 +490,7 @@ public:
     [[nodiscard]]
     Request requestDataOnceTagged(DataDefinition<StructType>& dataDef,
         std::function<void(const StructType&)> handler,
-        unsigned long objectId = SIMCONNECT_OBJECT_ID_USER_CURRENT,
+        SimObjectId objectId = SimObject::userCurrent,
         bool onlyWhenChanged = false)
     {
         return requestData(dataDef, handler, DataFrequency::once(), PeriodLimits::none(), objectId, onlyWhenChanged);
@@ -514,7 +514,7 @@ public:
      * @param data The data structure to store the object ID in.
      */
     template <typename StructType>
-    static void storeObjectId(unsigned long objectId, StructType& data) {
+    static void storeObjectId(SimObjectId objectId, StructType& data) {
         if constexpr (std::is_base_of_v<SimObjectIdHolder, StructType>) {
             data.objectId = objectId;
         }
@@ -540,7 +540,7 @@ public:
     Request requestDataByType(DataDefinition<StructType>& dataDef,
         std::function<void(const StructType&)> handler, std::function<void()> onDone,
         unsigned long radiusInMeters,
-        SIMCONNECT_SIMOBJECT_TYPE objectType)
+        SimObjectType objectType)
     {
         if (!handler) {
             throw std::invalid_argument("Handler must not be null.");
@@ -554,8 +554,8 @@ public:
 
         if (dataDef.useMapping()) {
 			logger.debug("Using mapping for requestDataByType with request ID {}.", requestId);
-            this->registerHandler(requestId, [&logger = simConnectMessageHandler_.connection().logger(), requestId, handler, onDone](const SIMCONNECT_RECV& msg) {
-				const SIMCONNECT_RECV_SIMOBJECT_DATA_BYTYPE& dataMsg = reinterpret_cast<const SIMCONNECT_RECV_SIMOBJECT_DATA_BYTYPE&>(msg);
+            this->registerHandler(requestId, [&logger = simConnectMessageHandler_.connection().logger(), requestId, handler, onDone](const Messages::MsgBase& msg) {
+				const Messages::SimObjectDataByType& dataMsg = reinterpret_cast<const Messages::SimObjectDataByType&>(msg);
                 const StructType* data = reinterpret_cast<const StructType*>(&(dataMsg.dwData));
 
                 logger.trace("RequestDataByType handler invoked for request ID {} with message {} out of {}.",
@@ -573,8 +573,8 @@ public:
         }
         else {
 			logger.debug("Not using mapping for requestDataByType with request ID {}.", requestId);
-            this->registerHandler(requestId, [&logger = simConnectMessageHandler_.connection().logger(), requestId, &dataDef, handler, onDone](const SIMCONNECT_RECV& msg) {
-                const SIMCONNECT_RECV_SIMOBJECT_DATA_BYTYPE& dataMsg = reinterpret_cast<const SIMCONNECT_RECV_SIMOBJECT_DATA_BYTYPE&>(msg);
+            this->registerHandler(requestId, [&logger = simConnectMessageHandler_.connection().logger(), requestId, &dataDef, handler, onDone](const Messages::MsgBase& msg) {
+                const Messages::SimObjectDataByType& dataMsg = reinterpret_cast<const Messages::SimObjectDataByType&>(msg);
 
                 StructType data;
 
@@ -619,7 +619,7 @@ public:
     Request requestDataByType(DataDefinition<StructType>& dataDef,
         std::function<void(std::unordered_map<unsigned long, StructType>&)> handler,
         unsigned long radiusInMeters,
-        SIMCONNECT_SIMOBJECT_TYPE objectType)
+        SimObjectType objectType)
     {
         if (!handler) {
             throw std::invalid_argument("Handler must not be null.");
@@ -635,9 +635,9 @@ public:
         if (dataDef.useMapping()) {
             logger.debug("Using mapping for requestDataByType with request ID {}.", requestId);
             this->registerHandler(requestId,
-                            [&logger, requestId, handler, result](const SIMCONNECT_RECV& msg) mutable
+                            [&logger, requestId, handler, result](const Messages::MsgBase& msg) mutable
                 {
-                    const SIMCONNECT_RECV_SIMOBJECT_DATA_BYTYPE& dataMsg = reinterpret_cast<const SIMCONNECT_RECV_SIMOBJECT_DATA_BYTYPE&>(msg);
+                    const Messages::SimObjectDataByType& dataMsg = reinterpret_cast<const Messages::SimObjectDataByType&>(msg);
                     const StructType& data = reinterpret_cast<const StructType&>(dataMsg.dwData);
 
 					(*result)[dataMsg.dwObjectID] = data;
@@ -651,9 +651,9 @@ public:
         }
         else {
             logger.debug("Not using mapping for requestDataByType with request ID {}.", requestId);
-            this->registerHandler(requestId, [&logger, requestId, &dataDef, handler, result](const SIMCONNECT_RECV& msg) mutable
+            this->registerHandler(requestId, [&logger, requestId, &dataDef, handler, result](const Messages::MsgBase& msg) mutable
                 {
-                    const SIMCONNECT_RECV_SIMOBJECT_DATA_BYTYPE& dataMsg = reinterpret_cast<const SIMCONNECT_RECV_SIMOBJECT_DATA_BYTYPE&>(msg);
+                    const Messages::SimObjectDataByType& dataMsg = reinterpret_cast<const Messages::SimObjectDataByType&>(msg);
 
                     StructType data;
 
@@ -689,15 +689,15 @@ public:
      * @param objectType The type of SimObject to request data for.
 	 */
     [[nodiscard]]
-    Request requestDataByType(SIMCONNECT_DATA_DEFINITION_ID dataDef,
-        std::function<void(const SIMCONNECT_RECV_SIMOBJECT_DATA_BYTYPE&)> handler, std::function<void()> onDone,
+    Request requestDataByType(DataDefinitionId dataDef,
+        std::function<void(const Messages::SimObjectDataByType&)> handler, std::function<void()> onDone,
         unsigned long radiusInMeters,
-        SIMCONNECT_SIMOBJECT_TYPE objectType)
+        SimObjectType objectType)
     {
         auto requestId = simConnectMessageHandler_.connection().requests().nextRequestID();
 
-        this->registerHandler(requestId, [requestId, handler, onDone](const SIMCONNECT_RECV& msg) {
-			const SIMCONNECT_RECV_SIMOBJECT_DATA_BYTYPE& dataMsg = reinterpret_cast<const SIMCONNECT_RECV_SIMOBJECT_DATA_BYTYPE&>(msg);
+        this->registerHandler(requestId, [requestId, handler, onDone](const Messages::MsgBase& msg) {
+			const Messages::SimObjectDataByType& dataMsg = reinterpret_cast<const Messages::SimObjectDataByType&>(msg);
             handler(dataMsg);
             if (dataMsg.dwentrynumber == dataMsg.dwoutof) {
                 if (onDone) {
@@ -723,9 +723,7 @@ public:
      * @param objectId The object ID to send the data to. Defaults to the current user's Avatar or Aircraft.
      * @param data The raw data to send.
      */
-    void sendData(SIMCONNECT_DATA_DEFINITION_ID dataDef,
-        unsigned long objectId,
-        const void* data)
+    void sendData(DataDefinitionId dataDef, SimObjectId objectId, const void* data)
     {
         simConnectMessageHandler_.connection().sendData(dataDef, objectId, data);
     }
@@ -740,9 +738,7 @@ public:
      * @tparam StructType The type of the structure containing the data to send.
      */
     template <typename StructType>
-    void sendData(DataDefinition<StructType>& dataDef,
-        unsigned long objectId,
-        const StructType& data)
+    void sendData(DataDefinition<StructType>& dataDef, SimObjectId objectId, const StructType& data)
     {
         dataDef.define(simConnectMessageHandler_.connection());
 

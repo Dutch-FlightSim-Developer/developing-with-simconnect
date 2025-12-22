@@ -15,6 +15,8 @@
  * limitations under the License.
  */
 
+
+#include <simconnect/simconnect.hpp>
 #include <simconnect/events/event_handler.hpp>
 #include <simconnect/events/events.hpp>
 
@@ -97,8 +99,8 @@ public:
      * @param systemStateEvent The event to subscribe to.
      * @param handler The handler to call when the event is received.
      */
-    void subscribeToSystemEvent(event systemStateEvent, std::function<void(const SIMCONNECT_RECV_EVENT&)> handler) {
-        handler_.template registerEventHandler<SIMCONNECT_RECV_EVENT>(systemStateEvent, std::move(handler), false);
+    void subscribeToSystemEvent(event systemStateEvent, std::function<void(const Messages::Event&)> handler) {
+        handler_.template registerEventHandler<Messages::Event>(systemStateEvent, std::move(handler), false);
         handler_.connection().subscribeToSystemEvent(systemStateEvent);
     }
 
@@ -116,7 +118,7 @@ public:
     /**
      * Subscribe to a system event with a handler that receives the specific event message type.
      * 
-     * @tparam EventType The specific event message type (SIMCONNECT_RECV_EVENT, etc.)
+     * @tparam EventType The specific event message type (Messages::Event, etc.)
      * @param systemStateEvent The event to subscribe to.
      * @param handler The typed handler to call when the event is received.
      */

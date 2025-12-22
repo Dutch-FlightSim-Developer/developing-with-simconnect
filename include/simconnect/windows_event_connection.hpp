@@ -15,6 +15,13 @@
  * limitations under the License.
  */
 
+
+#pragma warning(push, 3)
+
+#include <Windows.h>
+
+#pragma warning(pop)
+
 #include <simconnect/connection.hpp>
 
 #include <chrono>
@@ -110,7 +117,7 @@ public:
 	 * @returns True if a message is available.
 	 */
 	bool checkForMessage(std::chrono::milliseconds duration = std::chrono::milliseconds(0)) {
-		return ::WaitForSingleObject(eventHandle_, (duration < std::chrono::milliseconds(0)) ? 0 : static_cast<DWORD>(duration.count())) == WAIT_OBJECT_0;
+		return ::WaitForSingleObject(eventHandle_, (duration < std::chrono::milliseconds(0)) ? 0 : static_cast<unsigned long>(duration.count())) == WAIT_OBJECT_0;
 	}
 
 	/**
@@ -119,7 +126,7 @@ public:
 	 * @returns True if a message is available.
 	 */
 	bool waitForMessage(std::chrono::milliseconds duration = std::chrono::milliseconds(0)) {
-		return ::WaitForSingleObject(eventHandle_, (duration <= std::chrono::milliseconds(0)) ? INFINITE : static_cast<DWORD>(duration.count())) == WAIT_OBJECT_0;
+		return ::WaitForSingleObject(eventHandle_, (duration <= std::chrono::milliseconds(0)) ? INFINITE : static_cast<unsigned long>(duration.count())) == WAIT_OBJECT_0;
 	}
 };
 

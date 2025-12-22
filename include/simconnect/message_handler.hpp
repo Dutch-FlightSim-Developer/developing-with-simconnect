@@ -22,6 +22,8 @@
 #include <functional>
 
 
+#include <simconnect/simconnect.hpp>
+
 #include <simconnect/messaging/message_dispatcher.hpp>
 #include <simconnect/simconnect_message_handler.hpp>
 #include <simconnect/requests/request.hpp>
@@ -36,17 +38,17 @@ namespace SimConnect {
  * @tparam ID The type of the correlation id.
  * @tparam D The type of the message handler, which must be derived from this class.
  * @tparam M The type of the SimConnect message handler, which must be derived from SimConnectMessageHandler.
- * @tparam id The SIMCONNECT_RECV_IDs that this handler will respond to.
+ * @tparam id The MessageIds that this handler will respond to.
  */
-template <class ID, class D, class M, SIMCONNECT_RECV_ID... id>
-class MessageHandler : public MessageDispatcher<ID, SIMCONNECT_RECV, M, MultiHandlerPolicy<SIMCONNECT_RECV>>
+template <class ID, class D, class M, MessageId... id>
+class MessageHandler : public MessageDispatcher<ID, Messages::MsgBase, M, MultiHandlerPolicy<Messages::MsgBase>>
 {
 public:
 	using correlation_id_type = ID;
     using simconnect_message_handler_type = M;
     using connection_type = typename M::connection_type;
 	using logger_type = typename M::logger_type;
-	using handler_type = MultiHandlerPolicy<SIMCONNECT_RECV>;
+	using handler_type = MultiHandlerPolicy<Messages::MsgBase>;
 	using handler_id_type = typename handler_type::handler_id_type;
 	using handler_proc_type = typename handler_type::handler_proc_type;
 
@@ -55,7 +57,7 @@ public:
 
 private:
     constexpr static size_t numIds = sizeof...(id);
-    std::array<std::tuple<SIMCONNECT_RECV_ID, handler_id_type>, numIds> registrations_;
+    std::array<std::tuple<MessageId, handler_id_type>, numIds> registrations_;
     std::map<correlation_id_type, std::tuple<handler_type, bool>> messageHandlers_;
     std::function<void()> cleanup_;
 
@@ -79,7 +81,7 @@ protected:
      * @returns true if we had a handler for the associated correlation ID.
      */
     [[nodiscard]]
-    bool dispatch(const SIMCONNECT_RECV& msg) {
+    bool dispatch(const Messages::MsgBase& msg) {
         handler_type handler;
         bool remove{ false };
 
@@ -122,8 +124,8 @@ protected:
 	 * @param msgHandler The message handler where we must register the handler.
 	 * @param id The message type ID to register for.
      */
-    void registerFor(size_t& index, simconnect_message_handler_type& msgHandler, SIMCONNECT_RECV_ID msgId) {
-        registrations_ [index++] = std::make_tuple(msgId, msgHandler.registerHandler(msgId, [this] (const SIMCONNECT_RECV& msg) {
+    void registerFor(size_t& index, simconnect_message_handler_type& msgHandler, MessageId msgId) {
+        registrations_ [index++] = std::make_tuple(msgId, msgHandler.registerHandler(msgId, [this] (const Messages::MsgBase& msg) {
             if (!dispatch(msg)) {
 				auto defaultHandlerProc = this->defaultHandler();
                 if (defaultHandlerProc.hasHandlers()) {
@@ -148,7 +150,7 @@ public:
      * @param msg The message to get the correlation ID from.
      * @returns The correlation ID from the message.
      */
-    unsigned long correlationId(const SIMCONNECT_RECV& msg) const {
+    unsigned long correlationId(const Messages::MsgBase& msg) const {
         return static_cast<const D*>(this)->correlationId(msg);
     }
 

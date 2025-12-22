@@ -15,6 +15,13 @@
  * limitations under the License.
  */
 
+
+#pragma warning(push, 3)
+
+#include <Windows.h>
+
+#pragma warning(pop)
+
 #include <simconnect/simconnect_exception.hpp>
 #include <simconnect/connection.hpp>
 

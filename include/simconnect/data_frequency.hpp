@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-#include <simconnect.hpp>
+#include <simconnect/simconnect.hpp>
 
 
 namespace SimConnect {
@@ -56,47 +56,47 @@ struct PeriodLimits {
 };
 
 struct DataFrequency {
-    int period{ SIMCONNECT_PERIOD_ONCE };
+    DataPeriod period{ DataPeriods::once };
     unsigned long interval{ 0 };
 
 
     constexpr static DataFrequency once() noexcept {
-        return { SIMCONNECT_PERIOD_ONCE, 0 };
+        return { DataPeriods::once, 0 };
     }
     constexpr static DataFrequency every(unsigned long intval) noexcept {
-        return { SIMCONNECT_PERIOD_SECOND, intval };
+        return { DataPeriods::second, intval };
     }
     constexpr static DataFrequency never() noexcept {
-        return { SIMCONNECT_PERIOD_NEVER, 0 };
+        return { DataPeriods::never, 0 };
     }
 
     [[nodiscard]]
-    constexpr SIMCONNECT_PERIOD getPeriod() const noexcept {
-        return static_cast<SIMCONNECT_PERIOD>(period);
+    constexpr DataPeriod getPeriod() const noexcept {
+        return period;
     }
     [[nodiscard]]
-    constexpr operator SIMCONNECT_PERIOD() const noexcept {
+    constexpr operator DataPeriod() const noexcept {
         return getPeriod();
     }
     [[nodiscard]]
-    constexpr DWORD getInterval() const noexcept {
+    constexpr unsigned long getInterval() const noexcept {
         return interval;
     }
 
 
     [[nodiscard]]
     constexpr bool isOnce() const noexcept {
-        return period == SIMCONNECT_PERIOD_ONCE;
+        return period == DataPeriods::once;
     }
 
     constexpr DataFrequency seconds() const noexcept {
-        return { SIMCONNECT_PERIOD_SECOND, interval };
+        return { DataPeriods::second, interval };
     }
     constexpr DataFrequency visualFrames() const noexcept {
-        return { SIMCONNECT_PERIOD_VISUAL_FRAME, interval };
+        return { DataPeriods::visualFrame, interval };
     }
     constexpr DataFrequency simFrames() const noexcept {
-        return { SIMCONNECT_PERIOD_SIM_FRAME, interval };
+        return { DataPeriods::simFrame, interval };
     }
 };
 

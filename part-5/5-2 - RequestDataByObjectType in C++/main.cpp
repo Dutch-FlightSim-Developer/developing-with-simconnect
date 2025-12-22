@@ -26,6 +26,8 @@
 #include <format>
 #include <string_view>
 
+
+#include <simconnect/simconnect.hpp>
 #include <simconnect/windows_event_connection.hpp>
 #include <simconnect/windows_event_handler.hpp>
 
@@ -330,9 +332,9 @@ void testGetData() {
 				<< "  Category: " << info.category << "\n";
 			}, [] {
 				std::cout << "All data received.\n";
-			}, radiusInMeters, SIMCONNECT_SIMOBJECT_TYPE_AIRCRAFT); // NOLINT(misc-include-cleaner)
+			}, radiusInMeters, SimConnect::SimObjectTypes::aircraft);
 
-		auto allRequest = dataHandler.requestDataByType<SimObjectInfo>(aircraftDef, &handleSimObjectDataMap, 0, SIMCONNECT_SIMOBJECT_TYPE_ALL); // NOLINT(misc-include-cleaner)
+		auto allRequest = dataHandler.requestDataByType<SimObjectInfo>(aircraftDef, &handleSimObjectDataMap, 0, SimConnect::SimObjectTypes::all);
 
         std::cout << "\n\nHandling messages for 10 seconds.\n";
         constexpr auto duration = 10s;

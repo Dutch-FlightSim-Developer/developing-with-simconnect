@@ -15,6 +15,7 @@
  * limitations under the License.
  */
 
+#include <simconnect/simconnect.hpp>
 #include <simconnect/simconnect_error.hpp>
 #include <simconnect/events/events.hpp>
 #include <simconnect/events/event_handler.hpp>
@@ -24,9 +25,6 @@
 namespace SimConnect {
 
 
-using InputGroupId = unsigned long;
-
-
 /**
  * An input group is a group of Input Events that can be enabled or disabled together.
  */
@@ -34,7 +32,7 @@ template <class M>
 class InputGroup {
     EventHandler<M>& handler_;
     InputGroupId id_;
-    std::optional<unsigned long> priority_;
+    std::optional<Events::Priority> priority_;
 
     inline static std::atomic<InputGroupId> nextId_{ 0 };
 
@@ -56,8 +54,8 @@ public:
     operator InputGroupId() const noexcept { return id_; }
 
     [[nodiscard]]
-    unsigned long priority() const noexcept { 
-        return priority_.value_or(SIMCONNECT_GROUP_PRIORITY_DEFAULT); 
+    Events::Priority priority() const noexcept { 
+        return priority_.value_or(Events::defaultPriority); 
     }
     [[nodiscard]]
     bool hasPriority() const noexcept {
@@ -65,7 +63,7 @@ public:
     }
 
 
-    Result<InputGroup&> withPriority(unsigned long priority) {
+    InputGroup& withPriority(Events::Priority priority) {
         priority_ = priority;
         auto result = handler_.connection().setInputGroupPriority(id_, priority);
         if (result.hasError()) {
@@ -73,31 +71,31 @@ public:
         }
         return *this;
     }
-    Result<InputGroup&> withHighestPriority() {
-        return withPriority(SIMCONNECT_GROUP_PRIORITY_HIGHEST);
+    InputGroup& withHighestPriority() {
+        return withPriority(Events::highestPriority);
     }
-    Result<InputGroup&> withMaskablePriority() {
-        return withPriority(SIMCONNECT_GROUP_PRIORITY_HIGHEST_MASKABLE);
+    InputGroup& withMaskablePriority() {
+        return withPriority(Events::highestMaskablePriority);
     }
-    Result<InputGroup&> withStandardPriority() {
-        return withPriority(SIMCONNECT_GROUP_PRIORITY_STANDARD);
+    InputGroup& withStandardPriority() {
+        return withPriority(Events::standardPriority);
     }
-    Result<InputGroup&> withDefaultPriority() {
-        return withPriority(SIMCONNECT_GROUP_PRIORITY_DEFAULT);
+    InputGroup& withDefaultPriority() {
+        return withPriority(Events::defaultPriority);
     }
-    Result<InputGroup&> withLowestPriority() {
-        return withPriority(SIMCONNECT_GROUP_PRIORITY_LOWEST);
+    InputGroup& withLowestPriority() {
+        return withPriority(Events::lowestPriority);
     }
 
-    Result<InputGroup&> enable() {
-        auto result = handler_.connection().setInputGroupState(id_, SIMCONNECT_STATE_ON);
+    InputGroup& enable() {
+        auto result = handler_.connection().setInputGroupState(id_, Events::on);
         if (result.hasError()) {
             return result.error();
         }
         return *this;
     }
-    Result<InputGroup&> disable() {
-        auto result = handler_.connection().setInputGroupState(id_, SIMCONNECT_STATE_OFF);
+    InputGroup& disable() {
+        auto result = handler_.connection().setInputGroupState(id_, Events::off);
         if (result.hasError()) {
             return result.error();
         }
@@ -105,7 +103,7 @@ public:
     }
 
 
-    Result<InputGroup&> addEvent(event evt, std::string inputEvent) {
+    InputGroup& addEvent(event evt, std::string inputEvent) {
         if (!priority_.has_value()) {
             auto priorityResult = withDefaultPriority();
             if (priorityResult.hasError()) {

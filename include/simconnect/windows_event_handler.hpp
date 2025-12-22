@@ -16,6 +16,7 @@
  */
 
 
+#include <simconnect/simconnect.hpp>
 #include <simconnect/simconnect_message_handler.hpp>
 #include <simconnect/windows_event_connection.hpp>
 
@@ -25,7 +26,7 @@ namespace SimConnect {
 /**
  * A SimConnect message handler.
  */
-template <bool ThreadSafe = false, class L = NullLogger, class M = MultiHandlerPolicy<SIMCONNECT_RECV>>
+template <bool ThreadSafe = false, class L = NullLogger, class M = MultiHandlerPolicy<Messages::MsgBase>>
 class WindowsEventHandler : public SimConnectMessageHandler<WindowsEventConnection<ThreadSafe, L>, WindowsEventHandler<ThreadSafe, L, M>, M>
 {
 public:
@@ -49,7 +50,7 @@ public:
     ~WindowsEventHandler() = default;
 
 
-	static constexpr std::chrono::milliseconds noWait{ 0 };
+	inline static constexpr std::chrono::milliseconds noWait{ 0 };
 
     /**
      * Handles incoming SimConnect messages.

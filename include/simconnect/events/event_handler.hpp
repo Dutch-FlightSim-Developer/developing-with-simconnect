@@ -16,6 +16,8 @@
  */
 
 
+#include <simconnect/simconnect.hpp>
+
 #include <simconnect/message_handler.hpp>
 #include <simconnect/events/events.hpp>
 
@@ -31,35 +33,33 @@ class NotificationGroup;
  * The EventHandler class provides base dispatching functionality for Events.
  * 
  * @tparam M The type of the SimConnect message handler, which must be derived from SimConnectMessageHandler.
- * @tparam Derived The derived class type (CRTP pattern).
- * @tparam id The SIMCONNECT_RECV_IDs that this handler will respond to.
  */
 template <class M>
-class EventHandler : public MessageHandler<DWORD, EventHandler<M>, M,
-    SIMCONNECT_RECV_ID_EVENT,
-    SIMCONNECT_RECV_ID_EVENT_EX1,
-    SIMCONNECT_RECV_ID_EVENT_OBJECT_ADDREMOVE,
-    SIMCONNECT_RECV_ID_EVENT_FILENAME,
-    SIMCONNECT_RECV_ID_EVENT_FRAME,
-    SIMCONNECT_RECV_ID_EVENT_WEATHER_MODE,
-    SIMCONNECT_RECV_ID_EVENT_MULTIPLAYER_SERVER_STARTED,
-    SIMCONNECT_RECV_ID_EVENT_MULTIPLAYER_CLIENT_STARTED,
-    SIMCONNECT_RECV_ID_EVENT_MULTIPLAYER_SESSION_ENDED,
-    SIMCONNECT_RECV_ID_EVENT_RACE_LAP,
-    SIMCONNECT_RECV_ID_EVENT_RACE_END>
+class EventHandler : public MessageHandler<EventId, EventHandler<M>, M,
+    Messages::event,
+    Messages::eventEx1,
+    Messages::eventObjectAddRemove,
+    Messages::eventFilename,
+    Messages::eventFrame,
+    Messages::eventWeatherMode,
+    Messages::eventMultiplayerServerStarted,
+    Messages::eventMultiplayerClientStarted,
+    Messages::eventMultiplayerSessionEnded,
+    Messages::eventRaceLap,
+    Messages::eventRaceEnd>
 {
-	using Base = MessageHandler<DWORD, EventHandler<M>, M,
-        SIMCONNECT_RECV_ID_EVENT,
-        SIMCONNECT_RECV_ID_EVENT_EX1,
-        SIMCONNECT_RECV_ID_EVENT_OBJECT_ADDREMOVE,
-        SIMCONNECT_RECV_ID_EVENT_FILENAME,
-        SIMCONNECT_RECV_ID_EVENT_FRAME,
-        SIMCONNECT_RECV_ID_EVENT_WEATHER_MODE,
-        SIMCONNECT_RECV_ID_EVENT_MULTIPLAYER_SERVER_STARTED,
-        SIMCONNECT_RECV_ID_EVENT_MULTIPLAYER_CLIENT_STARTED,
-        SIMCONNECT_RECV_ID_EVENT_MULTIPLAYER_SESSION_ENDED,
-        SIMCONNECT_RECV_ID_EVENT_RACE_LAP,
-        SIMCONNECT_RECV_ID_EVENT_RACE_END>;
+	using Base = MessageHandler<EventId, EventHandler<M>, M,
+        Messages::event,
+        Messages::eventEx1,
+        Messages::eventObjectAddRemove,
+        Messages::eventFilename,
+        Messages::eventFrame,
+        Messages::eventWeatherMode,
+        Messages::eventMultiplayerServerStarted,
+        Messages::eventMultiplayerClientStarted,
+        Messages::eventMultiplayerSessionEnded,
+        Messages::eventRaceLap,
+        Messages::eventRaceEnd>;
 
 
 public:
@@ -103,9 +103,9 @@ public:
      * @param msg The message to get the correlation ID from.
      * @returns The correlation ID from the message.
      */
-    unsigned long correlationId(const SIMCONNECT_RECV& msg) const {
-        // All event message types have uEventID as the first field after the base SIMCONNECT_RECV
-        return static_cast<const SIMCONNECT_RECV_EVENT&>(msg).uEventID;
+    unsigned long correlationId(const Messages::MsgBase& msg) const {
+        // All event message types have uEventID as the first field after the base Messages::MsgBase
+        return static_cast<const Messages::Event&>(msg).uEventID;
     }
 
 
@@ -128,9 +128,11 @@ public:
      * The event will be mapped using its own name.
      * 
      * @param evt The event to map.
+     * @returns A reference to this EventHandler.
      */
-    void mapEvent(event evt) {
+    EventHandler& mapEvent(event evt) {
         connection().mapClientEvent(evt);
+        return *this;
     }
 
 #pragma endregion
@@ -140,18 +142,21 @@ public:
     /**
      * Register a handler for a specific event ID with typed event message.
      * 
-     * @tparam EventType The specific event message type (SIMCONNECT_RECV_EVENT, etc.)
+     * @tparam EventType The specific event message type (Messages::Event, etc.)
      * @param eventId The event ID to register.
      * @param handler The typed handler to call when the event is received.
      * @param autoRemove True to automatically remove the handler after it has been called.
+     * @returns A reference to this EventHandler.
      */
-    template <typename EventType = SIMCONNECT_RECV_EVENT>
-    void registerEventHandler(DWORD eventId, 
+    template <typename EventType = Messages::Event>
+    EventHandler& registerEventHandler(EventId eventId, 
                              std::function<void(const EventType&)> handler,
                              bool autoRemove = false) {
-        this->registerHandler(eventId, [handler](const SIMCONNECT_RECV& msg) {
+        this->registerHandler(eventId, [handler](const Messages::MsgBase& msg) {
             handler(reinterpret_cast<const EventType&>(msg));
         }, autoRemove);
+
+        return *this;
     }
 
 
@@ -159,9 +164,11 @@ public:
      * Remove a handler for a specific event ID.
      * 
      * @param eventId The event ID to remove the handler for.
+     * @returns A reference to this EventHandler.
      */
-    void removeEventHandler(DWORD eventId) {
+    EventHandler& removeEventHandler(EventId eventId) {
         this->removeHandler(eventId);
+        return *this;
     }
 
 #pragma endregion
@@ -174,9 +181,11 @@ public:
      * @param evt The event to send.
      * @param groupId The notification group ID to send the event to.
      * @param data The optional data to send with the event.
+     * @returns A reference to this EventHandler.
      */
-    void sendEvent(event evt, SIMCONNECT_NOTIFICATION_GROUP_ID groupId, unsigned long data = 0) {
-        this->connection().transmitClientEvent(SIMCONNECT_OBJECT_ID_USER, evt, groupId, data);
+    EventHandler& sendEvent(event evt, NotificationGroupId groupId, unsigned long data = 0) {
+        this->connection().transmitClientEvent(SimObject::user, evt, groupId, data);
+        return *this;
     }
 
 
@@ -186,9 +195,11 @@ public:
      * @param evt The event to send.
      * @param priority The priority to send the event with.
      * @param data The optional data to send with the event.
+     * @returns A reference to this EventHandler.
      */
-    void sendEventWithPriority(event evt, unsigned long priority, unsigned long data = 0) {
-        this->connection().transmitClientEventWithPriority(SIMCONNECT_OBJECT_ID_USER, evt, priority, data);
+    EventHandler& sendEventWithPriority(event evt, unsigned long priority, unsigned long data = 0) {
+        this->connection().transmitClientEventWithPriority(SimObject::user, evt, priority, data);
+        return *this;
     }
 
 
@@ -199,9 +210,11 @@ public:
      * @param evt The event to send.
      * @param groupId The notification group ID to send the event to.
      * @param data The optional data to send with the event.
+     * @returns A reference to this EventHandler.
      */
-    void sendEventToObject(SIMCONNECT_OBJECT_ID objectId, event evt, SIMCONNECT_NOTIFICATION_GROUP_ID groupId, unsigned long data = 0) {
+    EventHandler& sendEventToObject(SimObjectId objectId, event evt, NotificationGroupId groupId, unsigned long data = 0) {
         this->connection().transmitClientEvent(objectId, evt, groupId, data);
+        return *this;
     }
 
 
@@ -212,9 +225,11 @@ public:
      * @param evt The event to send.
      * @param priority The priority to send the event with.
      * @param data The optional data to send with the event.
+     * @returns A reference to this EventHandler.
      */
-    void sendEventToObjectWithPriority(SIMCONNECT_OBJECT_ID objectId, event evt, unsigned long priority, unsigned long data = 0) {
+    EventHandler& sendEventToObjectWithPriority(SimObjectId objectId, event evt, unsigned long priority, unsigned long data = 0) {
         this->connection().transmitClientEventWithPriority(objectId, evt, priority, data);
+        return *this;
     }
 
 
@@ -228,9 +243,11 @@ public:
      * @param data2 The third data value to send with the event.
      * @param data3 The fourth data value to send with the event.
      * @param data4 The fifth data value to send with the event.
+     * @returns A reference to this EventHandler.
      */
-    void sendEvent(event evt, SIMCONNECT_NOTIFICATION_GROUP_ID groupId, unsigned long data0, unsigned long data1, unsigned long data2 = 0, unsigned long data3 = 0, unsigned long data4 = 0) {
-        this->connection().transmitClientEvent(SIMCONNECT_OBJECT_ID_USER, evt, groupId, data0, data1, data2, data3, data4);
+    EventHandler& sendEvent(event evt, NotificationGroupId groupId, unsigned long data0, unsigned long data1, unsigned long data2 = 0, unsigned long data3 = 0, unsigned long data4 = 0) {
+        this->connection().transmitClientEvent(SimObject::user, evt, groupId, data0, data1, data2, data3, data4);
+        return *this;
     }
 
 
@@ -244,9 +261,11 @@ public:
      * @param data2 The third data value to send with the event.
      * @param data3 The fourth data value to send with the event.
      * @param data4 The fifth data value to send with the event.
+     * @returns A reference to this EventHandler.
      */
-    void sendEventWithPriority(event evt, unsigned long priority, unsigned long data0, unsigned long data1, unsigned long data2 = 0, unsigned long data3 = 0, unsigned long data4 = 0) {
-        this->connection().transmitClientEventWithPriority(SIMCONNECT_OBJECT_ID_USER, evt, priority, data0, data1, data2, data3, data4);
+    EventHandler& sendEventWithPriority(event evt, unsigned long priority, unsigned long data0, unsigned long data1, unsigned long data2 = 0, unsigned long data3 = 0, unsigned long data4 = 0) {
+        this->connection().transmitClientEventWithPriority(SimObject::user, evt, priority, data0, data1, data2, data3, data4);
+        return *this;
     }
 
 
@@ -261,9 +280,11 @@ public:
      * @param data2 The third data value to send with the event.
      * @param data3 The fourth data value to send with the event.
      * @param data4 The fifth data value to send with the event.
+     * @returns A reference to this EventHandler.
      */
-    void sendEventToObject(SIMCONNECT_OBJECT_ID objectId, event evt, SIMCONNECT_NOTIFICATION_GROUP_ID groupId, unsigned long data0, unsigned long data1, unsigned long data2 = 0, unsigned long data3 = 0, unsigned long data4 = 0) {
+    EventHandler& sendEventToObject(SimObjectId objectId, event evt, NotificationGroupId groupId, unsigned long data0, unsigned long data1, unsigned long data2 = 0, unsigned long data3 = 0, unsigned long data4 = 0) {
         this->connection().transmitClientEvent(objectId, evt, groupId, data0, data1, data2, data3, data4);
+        return *this;
     }
 
 
@@ -278,9 +299,11 @@ public:
      * @param data2 The third data value to send with the event.
      * @param data3 The fourth data value to send with the event.
      * @param data4 The fifth data value to send with the event.
+     * @returns A reference to this EventHandler.
      */
-    void sendEventToObjectWithPriority(SIMCONNECT_OBJECT_ID objectId, event evt, unsigned long priority, unsigned long data0, unsigned long data1, unsigned long data2 = 0, unsigned long data3 = 0, unsigned long data4 = 0) {
+    EventHandler& sendEventToObjectWithPriority(SimObjectId objectId, event evt, unsigned long priority, unsigned long data0, unsigned long data1, unsigned long data2 = 0, unsigned long data3 = 0, unsigned long data4 = 0) {
         this->connection().transmitClientEventWithPriority(objectId, evt, priority, data0, data1, data2, data3, data4);
+        return *this;
     }
 
 #pragma endregion

@@ -15,8 +15,10 @@
  * limitations under the License.
  */
 
+#include <simconnect/simconnect.hpp>
 #include <simconnect/events/events.hpp>
 #include <simconnect/events/event_handler.hpp>
+#include <simconnect/util/statefull_object.hpp>
 
 #include <optional>
 
@@ -24,17 +26,21 @@
 namespace SimConnect {
 
 
-using NotificationGroupId = unsigned long;
-
-
 /**
  * A notification group is a group of events that can be enabled or disabled together.
  */
 template <class M>
-class NotificationGroup {
+class NotificationGroup : public StateFullObject {
+public:
+    using handler_type = EventHandler<M>;
+    using connection_type = typename M::connection_type;
+    using logger_type = typename M::logger_type;
+
+
+private:
     EventHandler<M>& handler_;
     NotificationGroupId id_;
-    std::optional<unsigned long> priority_;
+    std::optional<Events::Priority> priority_;
 
 
     inline static std::atomic<NotificationGroupId> nextId_{ 0 };
@@ -50,143 +56,318 @@ public:
     ~NotificationGroup() = default;
 
 
+    /**
+     * Get the ID of this notification group.
+     * 
+     * @returns The notification group ID.
+     */
     [[nodiscard]]
     NotificationGroupId id() const noexcept { return id_; }
 
+
+    /**
+     * Implicit conversion to NotificationGroupId.
+     * 
+     * @returns The notification group ID.
+     */
     [[nodiscard]]
     operator NotificationGroupId() const noexcept { return id_; }
 
+
+    /**
+     * Get the priority of this notification group.
+     * 
+     * @returns The priority of this notification group.
+     */
     [[nodiscard]]
-    unsigned long priority() const noexcept { 
-        return priority_.value_or(SIMCONNECT_GROUP_PRIORITY_DEFAULT); 
+    Events::Priority priority() const noexcept { 
+        return priority_.value_or(Events::defaultPriority); 
     }
 
+
+    /**
+     * Check if this notification group has a priority set.
+     * 
+     * @returns True if this notification group has a priority set.
+     */
     [[nodiscard]]
     bool hasPriority() const noexcept { 
         return priority_.has_value(); 
     }
 
 
-    NotificationGroup& withPriority(unsigned long priority) {
+    /**
+     * Set the priority of this notification group.
+     * 
+     * @param priority The priority to set.
+     * @returns A reference to this notification group.
+     */
+    NotificationGroup& withPriority(Events::Priority priority) {
         priority_ = priority;
-        handler_.connection().setNotificationGroupPriority(id_, static_cast<int>(priority));
+        state(handler_.connection().setNotificationGroupPriority(id_, static_cast<int>(priority)));
         return *this;
     }
+    /**
+     * Set the priority of this notification group to highest.
+     * 
+     * @returns A reference to this notification group.
+     */
     NotificationGroup& withHighestPriority() {
-        return withPriority(SIMCONNECT_GROUP_PRIORITY_HIGHEST);
+        return withPriority(Events::highestPriority);
     }
+    /**
+     * Set the priority of this notification group to highest maskable.
+     * 
+     * @returns A reference to this notification group.
+     */
     NotificationGroup& withMaskablePriority() {
-        return withPriority(SIMCONNECT_GROUP_PRIORITY_HIGHEST_MASKABLE);
+        return withPriority(Events::highestMaskablePriority);
     }
+    /**
+     * Set the priority of this notification group to standard.
+     * 
+     * @returns A reference to this notification group.
+     */
     NotificationGroup& withStandardPriority() {
-        return withPriority(SIMCONNECT_GROUP_PRIORITY_STANDARD);
+        return withPriority(Events::standardPriority);
     }
+    /**
+     * Set the priority of this notification group to default.
+     * 
+     * @returns A reference to this notification group.
+     */
     NotificationGroup& withDefaultPriority() {
-        return withPriority(SIMCONNECT_GROUP_PRIORITY_DEFAULT);
+        return withPriority(Events::defaultPriority);
     }
+    /**
+     * Set the priority of this notification group to lowest.
+     * 
+     * @returns A reference to this notification group.
+     */
     NotificationGroup& withLowestPriority() {
-        return withPriority(SIMCONNECT_GROUP_PRIORITY_LOWEST);
+        return withPriority(Events::lowestPriority);
     }
 
 
+    /**
+     * Add an event to this notification group.
+     * 
+     * Note: if the priority of this notification group is not set yet, it will be set to default.
+     * 
+     * @param evt The event to add.
+     * @returns A reference to this notification group.
+     */
     NotificationGroup& addEvent(event evt) {
         if (!priority_.has_value()) {
             withDefaultPriority();
         }
         // Automatically map the event if not already mapped
         handler_.mapEvent(evt);
-        handler_.connection().addClientEventToNotificationGroup(id_, evt);
+        state(handler_.connection().addClientEventToNotificationGroup(id_, evt));
         return *this;
     }
-    NotificationGroup& addEvent(int evtId) {
+    /**
+     * Add an event to this notification group.
+     * 
+     * Note: if the priority of this notification group is not set yet, it will be set to default.
+     * 
+     * @param evtId The ID of the event to add.
+     * @returns A reference to this notification group.
+     * @throws UnknownEvent if the event does not exist.
+     */
+    NotificationGroup& addEvent(EventId evtId) {
         if (!priority_.has_value()) {
             withDefaultPriority();
         }
-        auto evt = event::get(static_cast<unsigned long>(evtId));
+        auto evt = event::get(evtId);
         handler_.mapEvent(evt);
-        handler_.connection().addClientEventToNotificationGroup(id_, evtId);
+        state(handler_.connection().addClientEventToNotificationGroup(id_, evtId));
         return *this;
     }
+    /**
+     * Add an event to this notification group.
+     * 
+     * Note: if the priority of this notification group is not set yet, it will be set to default.
+     * 
+     * @param evtName The name of the event to add.
+     * @returns A reference to this notification group.
+     * @throws UnknownEvent if the event does not exist.
+     */
     NotificationGroup& addEvent(std::string evtName) {
         if (!priority_.has_value()) {
             withDefaultPriority();
         }
         auto evt = event::get(evtName);
         handler_.mapEvent(evt);
-        handler_.connection().addClientEventToNotificationGroup(id_, evt);
+        state(handler_.connection().addClientEventToNotificationGroup(id_, evt));
         return *this;
     }
 
 
+    /**
+     * Add a maskable event to this notification group.
+     * 
+     * Note: if the priority of this notification group is not set yet, it will be set to default.
+     * 
+     * @param evt The event to add.
+     * @returns A reference to this notification group.
+     */
     NotificationGroup& addMaskableEvent(event evt) {
         if (!priority_.has_value()) {
             withDefaultPriority();
         }
         // Automatically map the event if not already mapped
         handler_.mapEvent(evt);
-        handler_.connection().addClientEventToNotificationGroup(id_, evt, true);
+        state(handler_.connection().addClientEventToNotificationGroup(id_, evt, true));
         return *this;
     }
-    NotificationGroup& addMaskableEvent(int evtId) {
+    /**
+     * Add a maskable event to this notification group.
+     * 
+     * Note: if the priority of this notification group is not set yet, it will be set to default.
+     * 
+     * @param evtId The ID of the event to add.
+     * @returns A reference to this notification group.
+     */
+    NotificationGroup& addMaskableEvent(EventId evtId) {
         if (!priority_.has_value()) {
             withDefaultPriority();
         }
-        auto evt = event::get(static_cast<unsigned long>(evtId));
+        auto evt = event::get(evtId);
         handler_.mapEvent(evt);
-        handler_.connection().addClientEventToNotificationGroup(id_, evtId, true);
+        state(handler_.connection().addClientEventToNotificationGroup(id_, evtId, true));
         return *this;
     }
+    /**
+     * Add a maskable event to this notification group.
+     * 
+     * Note: if the priority of this notification group is not set yet, it will be set to default.
+     * 
+     * @param evtName The name of the event to add.
+     * @returns A reference to this notification group.
+     */
     NotificationGroup& addMaskableEvent(std::string evtName) {
         if (!priority_.has_value()) {
             withDefaultPriority();
         }
         auto evt = event::get(evtName);
         handler_.mapEvent(evt);
-        handler_.connection().addClientEventToNotificationGroup(id_, evt, true);
+        state(handler_.connection().addClientEventToNotificationGroup(id_, evt, true));
         return *this;
     }
 
 
+    /**
+     * Remove an event from this notification group.
+     * 
+     * @param evt The event to remove.
+     * @returns A reference to this notification group.
+     */
     NotificationGroup& removeEvent(event evt) {
-        handler_.connection().removeClientEventFromNotificationGroup(id_, evt);
+        state(handler_.connection().removeClientEventFromNotificationGroup(id_, evt));
         return *this;
     }
-    NotificationGroup& removeEvent(int evtId) {
-        handler_.connection().removeClientEventFromNotificationGroup(id_, evtId);
+    /**
+     * Remove an event from this notification group.
+     * 
+     * @param evtName The name of the event to remove.
+     * @returns A reference to this notification group.
+     */
+    NotificationGroup& removeEvent(EventId evtId) {
+        state(handler_.connection().removeClientEventFromNotificationGroup(id_, evtId));
         return *this;
     }
+    /**
+     * Remove an event from this notification group.
+     * 
+     * @param evtName The name of the event to remove.
+     * @returns A reference to this notification group.
+     */
     NotificationGroup& removeEvent(std::string evtName) {
-        handler_.connection().removeClientEventFromNotificationGroup(id_, event::get(evtName));
+        state(handler_.connection().removeClientEventFromNotificationGroup(id_, event::get(evtName)));
         return *this;
     }
 
 
-    void clear() {
-        handler_.connection().clearNotificationGroup(id_);
+    /**
+     * Clear all events from this notification group.
+     * 
+     * @returns A reference to this notification group.
+     */
+    NotificationGroup& clear() {
+        state(handler_.connection().clearNotificationGroup(id_));
+        return *this;
     }
 
 
-    void request() {
-        handler_.connection().requestNotificationGroup(id_);
+    /**
+     * Request this notification group to be active.
+     * 
+     * @returns A reference to this notification group.
+     */
+    NotificationGroup& request() {
+        state(handler_.connection().requestNotificationGroup(id_));
+        return *this;
     }
 
 
+    /**
+     * Send an event to this notification group.
+     * 
+     * @param evt The event to send.
+     * @param data Optional data to send with the event.
+     * @returns A reference to this notification group.
+     */
     NotificationGroup& sendEvent(event evt, unsigned long data = 0) {
         handler_.sendEvent(evt, id_, data);
         return *this;
     }
 
-    NotificationGroup& sendEventToObject(SIMCONNECT_OBJECT_ID objectId, event evt, unsigned long data = 0) {
+
+    /**
+     * Send an event to a specific object in this notification group.
+     * 
+     * @param objectId The ID of the object to send the event to.
+     * @param evt The event to send.
+     * @param data Optional data to send with the event.
+     * @returns A reference to this notification group.
+     */
+    NotificationGroup& sendEventToObject(SimObjectId objectId, event evt, unsigned long data = 0) {
         handler_.sendEventToObject(objectId, evt, id_, data);
         return *this;
     }
 
+
+    /**
+     * Send an event with multiple data values to this notification group.
+     * 
+     * @param evt The event to send.
+     * @param data0 The first data value to send.
+     * @param data1 The second data value to send.
+     * @param data2 The third data value to send.
+     * @param data3 The fourth data value to send.
+     * @param data4 The fifth data value to send.
+     * @returns A reference to this notification group.
+     */
     NotificationGroup& sendEvent(event evt, unsigned long data0, unsigned long data1, unsigned long data2 = 0, unsigned long data3 = 0, unsigned long data4 = 0) {
         handler_.sendEvent(evt, id_, data0, data1, data2, data3, data4);
         return *this;
     }
 
-    NotificationGroup& sendEventToObject(SIMCONNECT_OBJECT_ID objectId, event evt, unsigned long data0, unsigned long data1, unsigned long data2 = 0, unsigned long data3 = 0, unsigned long data4 = 0) {
+
+    /**
+     * Send an event with multiple data values to a specific object in this notification group.
+     * 
+     * @param objectId The ID of the object to send the event to.
+     * @param evt The event to send.
+     * @param data0 The first data value to send.
+     * @param data1 The second data value to send.
+     * @param data2 The third data value to send.
+     * @param data3 The fourth data value to send.
+     * @param data4 The fifth data value to send.
+     * @returns A reference to this notification group.
+     */
+    NotificationGroup& sendEventToObject(SimObjectId objectId, event evt, unsigned long data0, unsigned long data1, unsigned long data2 = 0, unsigned long data3 = 0, unsigned long data4 = 0) {
         handler_.sendEventToObject(objectId, evt, id_, data0, data1, data2, data3, data4);
         return *this;
     }

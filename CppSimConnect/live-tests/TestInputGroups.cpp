@@ -16,18 +16,20 @@
 
 #include "gtest/gtest.h"
 
-#include <simconnect/simconnect.hpp>
-#include <simconnect/simobject_type.hpp>
+#include <simconnect/windows_event_connection.hpp>
+#include <simconnect/windows_event_handler.hpp>
+
+#include <simconnect/events/events.hpp>
+#include <simconnect/events/event_handler.hpp>
+#include <simconnect/events/input_group.hpp>
+
+#include <atomic>
+#include <chrono>
 
 using namespace SimConnect;
+using namespace std::chrono_literals;
 
-// Unit tests for SimConnect::SimObjectType
 
-TEST(TestSimObjectType, OrMethods) {
-    constexpr SimObjectTypeSet type = SimObjectTypeSet(SimObjectTypes::boat).orUser().orAircraft();
-    const unsigned long types = type;
+//NOLINTBEGIN(readability-function-cognitive-complexity)
 
-    EXPECT_TRUE(static_cast<unsigned long>(types) & static_cast<unsigned long>(SimObjectTypeAsBitField::user));
-    EXPECT_TRUE(static_cast<unsigned long>(types) & static_cast<unsigned long>(SimObjectTypeAsBitField::aircraft));
-    EXPECT_TRUE(static_cast<unsigned long>(types) & static_cast<unsigned long>(SimObjectTypeAsBitField::boat));
-}
+//NOLINTEND(readability-function-cognitive-complexity)

@@ -15,13 +15,16 @@
  * limitations under the License.
  */
 
+
+#include <simconnect/simconnect.hpp>
 #include <simconnect/message_handler.hpp>
 #include <simconnect/data/init_position.hpp>
 
 
- namespace SimConnect {
+namespace SimConnect {
 
-class AIHandler : public MessageHandler<AIHandler, SIMCONNECT_RECV_ID_ASSIGNED_OBJECT_ID> {
+template <class M>
+class AIHandler : public MessageHandler<RequestId, AIHandler, M, Messages::assignedObjectId> {
 
     // No copies or moves
     AIHandler(const AIHandler&) = delete;
@@ -35,13 +38,13 @@ public:
 
 
     /**
-     * Returns the correlation ID from the message. This is specific to the SIMCONNECT_RECV_ASSIGNED_OBJECT_ID message.
+     * Returns the correlation ID from the message. This is specific to the Messages::AssignedObjectId message.
      *
      * @param msg The message to get the correlation ID from.
      * @returns The correlation ID from the message.
      */
-    unsigned long correlationId(const SIMCONNECT_RECV& msg) const {
-        return static_cast<const SIMCONNECT_RECV_ASSIGNED_OBJECT_ID*>(&msg)->dwRequestID;
+    unsigned long correlationId(const Messages::MsgBase& msg) const {
+        return static_cast<const Messages::AssignedObjectId*>(&msg)->dwRequestID;
     }
 
 
@@ -52,8 +55,8 @@ public:
     {
         auto requestId = connection.requests().nextRequestID();
 
-        registerHandler(requestId, [objectIdHandler](const SIMCONNECT_RECV& msg) {
-            auto& assigned = reinterpret_cast<const SIMCONNECT_RECV_ASSIGNED_OBJECT_ID&>(msg);
+        registerHandler(requestId, [objectIdHandler](const Messages::MsgBase& msg) {
+            auto& assigned = static_cast<const Messages::AssignedObjectId&>(msg);
             objectIdHandler(assigned.dwObjectID);
         }, true);
 

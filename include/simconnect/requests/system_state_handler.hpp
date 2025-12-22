@@ -15,6 +15,7 @@
  * limitations under the License.
  */
 
+#include <simconnect/simconnect.hpp>
 #include <simconnect/message_handler.hpp>
 
 
@@ -32,7 +33,7 @@ namespace SystemState {
 
 
 template <class M>
-class SystemStateHandler : public MessageHandler<DWORD, SystemStateHandler<M>, M, SIMCONNECT_RECV_ID_SYSTEM_STATE> {
+class SystemStateHandler : public MessageHandler<RequestId, SystemStateHandler<M>, M, Messages::systemState> {
 public:
     using simconnect_message_handler_type = M;
 	using connection_type = typename simconnect_message_handler_type::connection_type;
@@ -57,13 +58,13 @@ public:
 
 
     /**
-     * Returns the correlation ID from the message. This is specific to the SIMCONNECT_RECV_SYSTEM_STATE message.
+     * Returns the correlation ID from the message. This is specific to the Messages::systemState message.
      *
      * @param msg The message to get the correlation ID from.
      * @returns The correlation ID from the message.
      */
-    unsigned long correlationId(const SIMCONNECT_RECV& msg) const {
-        return static_cast<const SIMCONNECT_RECV_SYSTEM_STATE*>(&msg)->dwRequestID;
+    unsigned long correlationId(const Messages::MsgBase& msg) const {
+        return static_cast<const Messages::SystemState*>(&msg)->dwRequestID;
     }
 
 
@@ -76,8 +77,8 @@ public:
     void requestSystemState(std::string name, std::function<void(bool)> requestHandler) {
         auto requestId = simConnectMessageHandler_.connection().requests().nextRequestID();
 
-        this->registerHandler(requestId, [requestHandler](const SIMCONNECT_RECV& msg) {
-            auto& state = reinterpret_cast<const SIMCONNECT_RECV_SYSTEM_STATE&>(msg);
+        this->registerHandler(requestId, [requestHandler](const Messages::MsgBase& msg) {
+            auto& state = reinterpret_cast<const Messages::SystemState&>(msg);
             requestHandler(state.dwInteger != 0);
         }, true);
         simConnectMessageHandler_.connection().requestSystemState(name, requestId);
@@ -93,8 +94,8 @@ public:
     void requestSystemState(std::string name, std::function<void(std::string)> requestHandler) {
         auto requestId = simConnectMessageHandler_.connection().requests().nextRequestID();
 
-        this->registerHandler(requestId, [requestHandler](const SIMCONNECT_RECV& msg) {
-            auto& state = reinterpret_cast<const SIMCONNECT_RECV_SYSTEM_STATE&>(msg);
+        this->registerHandler(requestId, [requestHandler](const Messages::MsgBase& msg) {
+            auto& state = reinterpret_cast<const Messages::SystemState&>(msg);
             requestHandler(std::string(state.szString));
         }, true);
         simConnectMessageHandler_.connection().requestSystemState(name, requestId);

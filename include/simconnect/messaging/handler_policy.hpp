@@ -20,7 +20,7 @@
  #include <optional>
  #include <vector>
 
- #include <simconnect.hpp>
+ #include <simconnect/simconnect.hpp>
 
 
 namespace SimConnect {
@@ -31,7 +31,7 @@ namespace SimConnect {
  * @tparam Derived The derived policy class (CRTP pattern)
  * @tparam M The message type to handle
  */
-template <class Derived, class M = SIMCONNECT_RECV>
+template <class Derived, class M = Messages::MsgBase>
 class HandlerPolicy {
 public:
     using message_type = M;
@@ -93,7 +93,7 @@ public:
  * 
  * @tparam M The type of the message to handle.
  */
-template <class M = SIMCONNECT_RECV>
+template <class M = Messages::MsgBase>
 class SingleHandlerPolicy : public HandlerPolicy<SingleHandlerPolicy<M>, M> {
 public:
     using base_type = HandlerPolicy<SingleHandlerPolicy<M>, M>;
@@ -185,7 +185,7 @@ public:
     }
 };
 
-template <class M = SIMCONNECT_RECV>
+template <class M = Messages::MsgBase>
 class MultiHandlerPolicy : public HandlerPolicy<MultiHandlerPolicy<M>, M> {
 public:
     using base_type = HandlerPolicy<MultiHandlerPolicy<M>, M>;

@@ -15,6 +15,8 @@
  * limitations under the License.
  */
 
+
+#include <simconnect/simconnect.hpp>
 #include <simconnect/windows_event_connection.hpp>
 #include <simconnect/windows_event_handler.hpp>
 
@@ -103,7 +105,7 @@ struct VoidResult {
  * @tparam C The connection type to use
  * @tparam H The handler type for SimConnect message processing
  */
-template <class C = WindowsEventConnection<true, NullLogger>, class H = WindowsEventHandler<true, NullLogger, MultiHandlerPolicy<SIMCONNECT_RECV>>>
+template <class C = WindowsEventConnection<true, NullLogger>, class H = WindowsEventHandler<true, NullLogger, MultiHandlerPolicy<Messages::MsgBase>>>
 class BackgroundSimConnectManager {
 public:
     using connection_type = C;
@@ -145,8 +147,8 @@ private:
 
 
     // Message handler registration storage
-    std::vector<std::pair<SIMCONNECT_RECV_ID, std::function<void(const SIMCONNECT_RECV&)>>> pendingHandlerRegistrations_;
-    std::function<void(const SIMCONNECT_RECV&)> defaultHandlerFunc_;
+    std::vector<std::pair<MessageId, std::function<void(const Messages::MsgBase&)>>> pendingHandlerRegistrations_;
+    std::function<void(const Messages::MsgBase&)> defaultHandlerFunc_;
     std::function<void(handler_type&)> correlationHandlerSetup_;
 
     // Simulator state handlers
@@ -483,7 +485,7 @@ private:
     /**
      * Helper to format version strings.
      */
-    std::string version(DWORD major, DWORD minor) const noexcept {
+    std::string version(unsigned long major, unsigned long minor) const noexcept {
         if (major == 0) {
             return "Unknown";
         } else if (minor == 0) {
@@ -509,7 +511,7 @@ private:
 
         logger_.trace("Registering OPEN handler");
         // Register essential handlers for connection state management
-        handler_.template registerHandler<SIMCONNECT_RECV_OPEN>(SIMCONNECT_RECV_ID_OPEN, [this](const SIMCONNECT_RECV_OPEN& msg) {
+        handler_.template registerHandler<Messages::Open>(Messages::open, [this](const Messages::Open& msg) {
             simName_ = msg.szApplicationName;
             simVersion_ = version(msg.dwApplicationVersionMajor, msg.dwApplicationVersionMinor);
             simBuild_ = version(msg.dwApplicationBuildMajor, msg.dwApplicationBuildMinor);
@@ -526,7 +528,7 @@ private:
         });
         
         logger_.trace("Registering QUIT handler");
-        handler_.template registerHandler<SIMCONNECT_RECV_QUIT>(SIMCONNECT_RECV_ID_QUIT, [this]([[maybe_unused]]const SIMCONNECT_RECV_QUIT& msg) {
+        handler_.template registerHandler<Messages::Quit>(Messages::quit, [this]([[maybe_unused]]const Messages::Quit& msg) {
             logger_.warn("Received QUIT message from simulator");
             setError(ErrorCode::ConnectionFailed, "Simulator quit");
             transitionState(State::Disconnecting);
@@ -603,7 +605,7 @@ private:
     /**
      * Handle WaitingForOpen state.
      * 
-     * In this state, we wait for the SIMCONNECT_RECV_OPEN message to confirm the connection.
+     * In this state, we wait for the Messages::Open message to confirm the connection.
      * @note This state transitions to Connected, Disconnected, or Error.
      */
     void handleWaitingForOpen() noexcept {
@@ -622,7 +624,7 @@ private:
         // Check for timeout
         auto now = std::chrono::steady_clock::now();
         if (now - openWaitStartTime_ > openHandshakeTimeout_) {
-            setError(ErrorCode::ConnectionFailed, "Timeout waiting for SIMCONNECT_RECV_OPEN handshake");
+            setError(ErrorCode::ConnectionFailed, "Timeout waiting for Messages::Open handshake");
             transitionState(State::Disconnecting);
             return;
         }

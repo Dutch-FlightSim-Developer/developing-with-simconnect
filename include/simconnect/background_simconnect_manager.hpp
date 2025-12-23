@@ -511,7 +511,7 @@ private:
 
         logger_.trace("Registering OPEN handler");
         // Register essential handlers for connection state management
-        handler_.template registerHandler<Messages::Open>(Messages::open, [this](const Messages::Open& msg) {
+        handler_.template registerHandler<Messages::OpenMsg>(Messages::open, [this](const Messages::OpenMsg& msg) {
             simName_ = msg.szApplicationName;
             simVersion_ = version(msg.dwApplicationVersionMajor, msg.dwApplicationVersionMinor);
             simBuild_ = version(msg.dwApplicationBuildMajor, msg.dwApplicationBuildMinor);
@@ -528,7 +528,7 @@ private:
         });
         
         logger_.trace("Registering QUIT handler");
-        handler_.template registerHandler<Messages::Quit>(Messages::quit, [this]([[maybe_unused]]const Messages::Quit& msg) {
+        handler_.template registerHandler<Messages::QuitMsg>(Messages::quit, [this]([[maybe_unused]]const Messages::QuitMsg& msg) {
             logger_.warn("Received QUIT message from simulator");
             setError(ErrorCode::ConnectionFailed, "Simulator quit");
             transitionState(State::Disconnecting);
@@ -605,7 +605,7 @@ private:
     /**
      * Handle WaitingForOpen state.
      * 
-     * In this state, we wait for the Messages::Open message to confirm the connection.
+     * In this state, we wait for the Messages::OpenMsg message to confirm the connection.
      * @note This state transitions to Connected, Disconnected, or Error.
      */
     void handleWaitingForOpen() noexcept {
@@ -624,7 +624,7 @@ private:
         // Check for timeout
         auto now = std::chrono::steady_clock::now();
         if (now - openWaitStartTime_ > openHandshakeTimeout_) {
-            setError(ErrorCode::ConnectionFailed, "Timeout waiting for Messages::Open handshake");
+            setError(ErrorCode::ConnectionFailed, "Timeout waiting for Messages::OpenMsg handshake");
             transitionState(State::Disconnecting);
             return;
         }

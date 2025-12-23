@@ -48,7 +48,7 @@ class DataBlockReader : public DataBlock
     }
 
 
-    inline static constexpr size_t headerSize{ 10 * sizeof(unsigned long) }; // Size of the Messages::SimObjectData header.
+    inline static constexpr size_t headerSize{ 10 * sizeof(unsigned long) }; // Size of the Messages::SimObjectDataMsg header.
 
 
 public:
@@ -56,7 +56,7 @@ public:
     DataBlockReader(std::span<const uint8_t> data)
         : DataBlock(data)
     {}
-    DataBlockReader(const Messages::SimObjectData& msg)
+    DataBlockReader(const Messages::SimObjectDataMsg& msg)
         : DataBlock(std::span<const uint8_t>(reinterpret_cast<const uint8_t*>(&(msg.dwData)), msg.dwSize - headerSize))
     {}
     ~DataBlockReader() = default;

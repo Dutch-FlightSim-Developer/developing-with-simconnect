@@ -99,8 +99,8 @@ public:
      * @param systemStateEvent The event to subscribe to.
      * @param handler The handler to call when the event is received.
      */
-    void subscribeToSystemEvent(event systemStateEvent, std::function<void(const Messages::Event&)> handler) {
-        handler_.template registerEventHandler<Messages::Event>(systemStateEvent, std::move(handler), false);
+    void subscribeToSystemEvent(event systemStateEvent, std::function<void(const Messages::EventMsg&)> handler) {
+        handler_.template registerEventHandler<Messages::EventMsg>(systemStateEvent, std::move(handler), false);
         handler_.connection().subscribeToSystemEvent(systemStateEvent);
     }
 

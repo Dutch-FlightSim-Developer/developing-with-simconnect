@@ -182,15 +182,15 @@ public:
 	 * @returns The SendID if the last call to SimConnect was successful, otherwise returns the last error code.
 	 */
 	[[nodiscard]]
-	unsigned long fetchSendId() const {
+	SendId fetchSendId() const {
 		if (succeeded()) {
             guard_type guard(mutex_);
 
-            unsigned long sendId{ 0 };
+            SendId sendId{ 0 };
 			SimConnect_GetLastSentPacketID(hSimConnect_, &sendId);
 			return sendId;
 		}
-		return 0;
+		return noId;
 	}
 
 

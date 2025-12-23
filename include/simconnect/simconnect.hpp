@@ -35,6 +35,7 @@ inline constexpr unsigned long unused{ SIMCONNECT_UNUSED };                     
 inline constexpr unsigned long noId{ 0 };
 
 using MessageId = unsigned long;                                                        ///< The type used for message IDs, SIMCONNECT_RECV_ID.
+using SendId = unsigned long;                                                           ///< The type used for Send IDs.
 
 namespace Messages {
     using MsgBase = SIMCONNECT_RECV;
@@ -43,121 +44,121 @@ namespace Messages {
     using NullMsg = SIMCONNECT_RECV;
 
     inline constexpr MessageId exception{ SIMCONNECT_RECV_ID_EXCEPTION };
-    using Exception = SIMCONNECT_RECV_EXCEPTION;
+    using ExceptionMsg = SIMCONNECT_RECV_EXCEPTION;
 
     inline constexpr MessageId open{ SIMCONNECT_RECV_ID_OPEN };
-    using Open = SIMCONNECT_RECV_OPEN;
+    using OpenMsg = SIMCONNECT_RECV_OPEN;
 
     inline constexpr MessageId quit{ SIMCONNECT_RECV_ID_QUIT };
-    using Quit = SIMCONNECT_RECV_QUIT;
+    using QuitMsg = SIMCONNECT_RECV_QUIT;
 
     inline constexpr MessageId systemState{ SIMCONNECT_RECV_ID_SYSTEM_STATE };
-    using SystemState = SIMCONNECT_RECV_SYSTEM_STATE;
+    using SystemStateMsg = SIMCONNECT_RECV_SYSTEM_STATE;
 
     inline constexpr MessageId flowEvent{ SIMCONNECT_RECV_ID_FLOW_EVENT };
-    using FlowEvent = SIMCONNECT_RECV_FLOW_EVENT;
+    using FlowEventMsg = SIMCONNECT_RECV_FLOW_EVENT;
 
     inline constexpr MessageId event{ SIMCONNECT_RECV_ID_EVENT };
-    using Event = SIMCONNECT_RECV_EVENT;
+    using EventMsg = SIMCONNECT_RECV_EVENT;
 
     inline constexpr MessageId eventObjectAddRemove{ SIMCONNECT_RECV_ID_EVENT_OBJECT_ADDREMOVE };
-    using EventObjectAddRemove = SIMCONNECT_RECV_EVENT_OBJECT_ADDREMOVE;
+    using EventObjectAddRemoveMsg = SIMCONNECT_RECV_EVENT_OBJECT_ADDREMOVE;
 
     inline constexpr MessageId eventFilename{ SIMCONNECT_RECV_ID_EVENT_FILENAME };
-    using EventFilename = SIMCONNECT_RECV_EVENT_FILENAME;
+    using EventFilenameMsg = SIMCONNECT_RECV_EVENT_FILENAME;
 
     inline constexpr MessageId eventFrame{ SIMCONNECT_RECV_ID_EVENT_FRAME };
-    using EventFrame = SIMCONNECT_RECV_EVENT_FRAME;
+    using EventFrameMsg = SIMCONNECT_RECV_EVENT_FRAME;
 
     inline constexpr MessageId eventWeatherMode{ SIMCONNECT_RECV_ID_EVENT_WEATHER_MODE };
-    using EventWeatherMode = SIMCONNECT_RECV_EVENT_WEATHER_MODE;
+    using EventWeatherModeMsg = SIMCONNECT_RECV_EVENT_WEATHER_MODE;
 
     inline constexpr MessageId eventMultiplayerServerStarted{ SIMCONNECT_RECV_ID_EVENT_MULTIPLAYER_SERVER_STARTED };
-    using EventMultiplayerServerStarted = SIMCONNECT_RECV_EVENT_MULTIPLAYER_SERVER_STARTED;
+    using EventMultiplayerServerStartedMsg = SIMCONNECT_RECV_EVENT_MULTIPLAYER_SERVER_STARTED;
 
     inline constexpr MessageId eventMultiplayerClientStarted{ SIMCONNECT_RECV_ID_EVENT_MULTIPLAYER_CLIENT_STARTED };
-    using EventMultiplayerClientStarted = SIMCONNECT_RECV_EVENT_MULTIPLAYER_CLIENT_STARTED;
+    using EventMultiplayerClientStartedMsg = SIMCONNECT_RECV_EVENT_MULTIPLAYER_CLIENT_STARTED;
 
     inline constexpr MessageId eventMultiplayerSessionEnded{ SIMCONNECT_RECV_ID_EVENT_MULTIPLAYER_SESSION_ENDED };
-    using EventMultiplayerSessionEnded = SIMCONNECT_RECV_EVENT_MULTIPLAYER_SESSION_ENDED;
+    using EventMultiplayerSessionEndedMsg = SIMCONNECT_RECV_EVENT_MULTIPLAYER_SESSION_ENDED;
 
     inline constexpr MessageId eventRaceEnd{ SIMCONNECT_RECV_ID_EVENT_RACE_END };
-    using EventRaceEnd = SIMCONNECT_RECV_EVENT_RACE_END;
+    using EventRaceEndMsg = SIMCONNECT_RECV_EVENT_RACE_END;
 
     inline constexpr MessageId eventRaceLap{ SIMCONNECT_RECV_ID_EVENT_RACE_LAP };
-    using EventRaceLap = SIMCONNECT_RECV_EVENT_RACE_LAP;
+    using EventRaceLapMsg = SIMCONNECT_RECV_EVENT_RACE_LAP;
 
     inline constexpr MessageId eventEx1{ SIMCONNECT_RECV_ID_EVENT_EX1 };
-    using EventEx1 = SIMCONNECT_RECV_EVENT_EX1;
+    using EventEx1Msg = SIMCONNECT_RECV_EVENT_EX1;
 
     inline constexpr MessageId simObjectData{ SIMCONNECT_RECV_ID_SIMOBJECT_DATA };
-    using SimObjectData = SIMCONNECT_RECV_SIMOBJECT_DATA;
+    using SimObjectDataMsg = SIMCONNECT_RECV_SIMOBJECT_DATA;
 
     inline constexpr MessageId simObjectDataByType{ SIMCONNECT_RECV_ID_SIMOBJECT_DATA_BYTYPE };
-    using SimObjectDataByType = SIMCONNECT_RECV_SIMOBJECT_DATA_BYTYPE;
+    using SimObjectDataByTypeMsg = SIMCONNECT_RECV_SIMOBJECT_DATA_BYTYPE;
 
     inline constexpr MessageId clientData{ SIMCONNECT_RECV_ID_CLIENT_DATA };
-    using ClientData = SIMCONNECT_RECV_CLIENT_DATA;
+    using ClientDataMsg = SIMCONNECT_RECV_CLIENT_DATA;
 
     inline constexpr MessageId weatherObservation{ SIMCONNECT_RECV_ID_WEATHER_OBSERVATION };
-    using WeatherObservation = SIMCONNECT_RECV_WEATHER_OBSERVATION;
+    using WeatherObservationMsg = SIMCONNECT_RECV_WEATHER_OBSERVATION;
 
     inline constexpr MessageId cloudState{ SIMCONNECT_RECV_ID_CLOUD_STATE };
-    using CloudState = SIMCONNECT_RECV_CLOUD_STATE;
+    using CloudStateMsg = SIMCONNECT_RECV_CLOUD_STATE;
 
     inline constexpr MessageId assignedObjectId{ SIMCONNECT_RECV_ID_ASSIGNED_OBJECT_ID };
-    using AssignedObjectId = SIMCONNECT_RECV_ASSIGNED_OBJECT_ID;
+    using AssignedObjectIdMsg = SIMCONNECT_RECV_ASSIGNED_OBJECT_ID;
 
     inline constexpr MessageId enumerateSimObjectAndLiveryList{ SIMCONNECT_RECV_ID_ENUMERATE_SIMOBJECT_AND_LIVERY_LIST };
-    using EnumerateSimObjectAndLiveryList = SIMCONNECT_RECV_ENUMERATE_SIMOBJECT_AND_LIVERY_LIST;
+    using EnumerateSimObjectAndLiveryListMsg = SIMCONNECT_RECV_ENUMERATE_SIMOBJECT_AND_LIVERY_LIST;
 
     inline constexpr MessageId reservedKey{ SIMCONNECT_RECV_ID_RESERVED_KEY };
-    using ReservedKey = SIMCONNECT_RECV_RESERVED_KEY;
+    using ReservedKeyMsg = SIMCONNECT_RECV_RESERVED_KEY;
 
     inline constexpr MessageId customAction{ SIMCONNECT_RECV_ID_CUSTOM_ACTION };
-    using CustomAction = SIMCONNECT_RECV_CUSTOM_ACTION;
+    using CustomActionMsg = SIMCONNECT_RECV_CUSTOM_ACTION;
 
     inline constexpr MessageId airportList{ SIMCONNECT_RECV_ID_AIRPORT_LIST };
-    using AirportList = SIMCONNECT_RECV_AIRPORT_LIST;
+    using AirportListMsg = SIMCONNECT_RECV_AIRPORT_LIST;
 
     inline constexpr MessageId vorList{ SIMCONNECT_RECV_ID_VOR_LIST };
-    using VorList = SIMCONNECT_RECV_VOR_LIST;
+    using VorListMsg = SIMCONNECT_RECV_VOR_LIST;
 
     inline constexpr MessageId ndbList{ SIMCONNECT_RECV_ID_NDB_LIST };
-    using NdbList = SIMCONNECT_RECV_NDB_LIST;
+    using NdbListMsg = SIMCONNECT_RECV_NDB_LIST;
 
     inline constexpr MessageId waypointList{ SIMCONNECT_RECV_ID_WAYPOINT_LIST };
-    using WaypointList = SIMCONNECT_RECV_WAYPOINT_LIST;
+    using WaypointListMsg = SIMCONNECT_RECV_WAYPOINT_LIST;
 
     inline constexpr MessageId facilityData{ SIMCONNECT_RECV_ID_FACILITY_DATA };
-    using FacilityData = SIMCONNECT_RECV_FACILITY_DATA;
+    using FacilityDataMsg = SIMCONNECT_RECV_FACILITY_DATA;
 
     inline constexpr MessageId facilityDataEnd{ SIMCONNECT_RECV_ID_FACILITY_DATA_END };
-    using FacilityDataEnd = SIMCONNECT_RECV_FACILITY_DATA_END;
+    using FacilityDataEndMsg = SIMCONNECT_RECV_FACILITY_DATA_END;
 
     inline constexpr MessageId facilityMinimalList{ SIMCONNECT_RECV_ID_FACILITY_MINIMAL_LIST };
-    using FacilityMinimalList = SIMCONNECT_RECV_FACILITY_MINIMAL_LIST;
+    using FacilityMinimalListMsg = SIMCONNECT_RECV_FACILITY_MINIMAL_LIST;
 
     inline constexpr MessageId jetwayData{ SIMCONNECT_RECV_ID_JETWAY_DATA };
-    using JetwayData = SIMCONNECT_RECV_JETWAY_DATA;
+    using JetwayDataMsg = SIMCONNECT_RECV_JETWAY_DATA;
 
     inline constexpr MessageId controllersList{ SIMCONNECT_RECV_ID_CONTROLLERS_LIST };
-    using ControllersList = SIMCONNECT_RECV_CONTROLLERS_LIST;
+    using ControllersListMsg = SIMCONNECT_RECV_CONTROLLERS_LIST;
 
     inline constexpr MessageId actionCallback{ SIMCONNECT_RECV_ID_ACTION_CALLBACK };
-    using ActionCallback = SIMCONNECT_RECV_ACTION_CALLBACK;
+    using ActionCallbackMsg = SIMCONNECT_RECV_ACTION_CALLBACK;
 
     inline constexpr MessageId enumerateInputEvents{ SIMCONNECT_RECV_ID_ENUMERATE_INPUT_EVENTS };
-    using EnumerateInputEvents = SIMCONNECT_RECV_ENUMERATE_INPUT_EVENTS;
+    using EnumerateInputEventsMsg = SIMCONNECT_RECV_ENUMERATE_INPUT_EVENTS;
 
     inline constexpr MessageId getInputEvent{ SIMCONNECT_RECV_ID_GET_INPUT_EVENT };
-    using GetInputEvent = SIMCONNECT_RECV_GET_INPUT_EVENT;
+    using GetInputEventMsg = SIMCONNECT_RECV_GET_INPUT_EVENT;
 
     inline constexpr MessageId subscribeInputEvent{ SIMCONNECT_RECV_ID_SUBSCRIBE_INPUT_EVENT };
-    using SubscribeInputEvent = SIMCONNECT_RECV_SUBSCRIBE_INPUT_EVENT;
+    using SubscribeInputEventMsg = SIMCONNECT_RECV_SUBSCRIBE_INPUT_EVENT;
 
     inline constexpr MessageId enumerateInputEventParams{ SIMCONNECT_RECV_ID_ENUMERATE_INPUT_EVENT_PARAMS };
-    using EnumerateInputEventParams = SIMCONNECT_RECV_ENUMERATE_INPUT_EVENT_PARAMS;
+    using EnumerateInputEventParamsMsg = SIMCONNECT_RECV_ENUMERATE_INPUT_EVENT_PARAMS;
 }
 
 using ExceptionCode = unsigned long;                                                    ///< The type used for exception codes.

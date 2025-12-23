@@ -105,7 +105,7 @@ public:
      */
     unsigned long correlationId(const Messages::MsgBase& msg) const {
         // All event message types have uEventID as the first field after the base Messages::MsgBase
-        return static_cast<const Messages::Event&>(msg).uEventID;
+        return static_cast<const Messages::EventMsg&>(msg).uEventID;
     }
 
 
@@ -142,13 +142,13 @@ public:
     /**
      * Register a handler for a specific event ID with typed event message.
      * 
-     * @tparam EventType The specific event message type (Messages::Event, etc.)
+     * @tparam EventType The specific event message type (Messages::EventMsg, etc.)
      * @param eventId The event ID to register.
      * @param handler The typed handler to call when the event is received.
      * @param autoRemove True to automatically remove the handler after it has been called.
      * @returns A reference to this EventHandler.
      */
-    template <typename EventType = Messages::Event>
+    template <typename EventType = Messages::EventMsg>
     EventHandler& registerEventHandler(EventId eventId, 
                              std::function<void(const EventType&)> handler,
                              bool autoRemove = false) {

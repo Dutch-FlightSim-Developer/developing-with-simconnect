@@ -35,7 +35,7 @@ struct SimObjectIdHolder {
 
     constexpr SimObjectIdHolder() = default;
     constexpr SimObjectIdHolder(SimObjectId id) : objectId(id) {}
-	SimObjectIdHolder(const Messages::SimObjectData& msg) : objectId(msg.dwObjectID) {}
+	SimObjectIdHolder(const Messages::SimObjectDataMsg& msg) : objectId(msg.dwObjectID) {}
 	SimObjectIdHolder(const SimObjectIdHolder&) = default;
     SimObjectIdHolder(SimObjectIdHolder&&) = default;
     SimObjectIdHolder& operator=(const SimObjectIdHolder&) = default;
@@ -44,8 +44,8 @@ struct SimObjectIdHolder {
 
 
 /**
- * The SimObjectDataHandler class provides for responsive handling of Messages::SimObjectData and
- * Messages::SimObjectDataByType messages.
+ * The SimObjectDataHandler class provides for responsive handling of Messages::SimObjectDataMsg and
+ * Messages::SimObjectDataByTypeMsg messages.
  * 
  * @note This handler is used to request data from the simulator for a specific object or type.
  * 
@@ -79,15 +79,15 @@ public:
 
 
     /**
-     * Returns the request ID from the message. This is specific to the Messages::SimObjectData and
-	 * Messages::SimObjectDataByType messages. The latter type does not actually add fields, so we can
+     * Returns the request ID from the message. This is specific to the Messages::SimObjectDataMsg and
+	 * Messages::SimObjectDataByTypeMsg messages. The latter type does not actually add fields, so we can
      * use the same method for both.
      * 
      * @param msg The message to get the correlation ID from.
      * @returns The correlation ID from the message.
 	 */
     unsigned long correlationId(const Messages::MsgBase& msg) const {
-        return static_cast<const Messages::SimObjectData&>(msg).dwRequestID;
+        return static_cast<const Messages::SimObjectDataMsg&>(msg).dwRequestID;
     }
 
 
@@ -109,7 +109,7 @@ public:
     // Requesting data for specific SimObjects.
 
     // Three groups of requestData methods are provided, depending on how the caller wants to receive the data:
-    // 1. As a raw message data structure (Messages::SimObjectData).
+    // 1. As a raw message data structure (Messages::SimObjectDataMsg).
     // 2. As a DataBlockReader that can be used to read the data.
     // 3. As a struct (or class), where the setters and getters are used.
     //
@@ -135,7 +135,7 @@ public:
      */
     [[nodiscard]]
     Request requestData(DataDefinitionId dataDef,
-        std::function<void(const Messages::SimObjectData&)> handler,
+        std::function<void(const Messages::SimObjectDataMsg&)> handler,
         DataFrequency frequency = DataFrequency::once(),
         PeriodLimits limits = PeriodLimits::none(),
         SimObjectId objectId = SimObject::userCurrent,
@@ -144,7 +144,7 @@ public:
         auto requestId = simConnectMessageHandler_.connection().requests().nextRequestID();
 
         this->registerHandler(requestId, [requestId, handler](const Messages::MsgBase& msg) {
-                handler(reinterpret_cast<const Messages::SimObjectData&>(msg));
+                handler(reinterpret_cast<const Messages::SimObjectDataMsg&>(msg));
             }, frequency.isOnce());
         simConnectMessageHandler_.connection().requestData(dataDef, requestId, frequency, limits, objectId, onlyWhenChanged);
 
@@ -167,7 +167,7 @@ public:
      */
     [[nodiscard]]
     Request requestDataOnce(DataDefinitionId dataDef,
-        std::function<void(const Messages::SimObjectData&)> handler,
+        std::function<void(const Messages::SimObjectDataMsg&)> handler,
         SimObjectId objectId = SimObject::userCurrent)
     {
         return requestData(dataDef, handler, DataFrequency::once(), PeriodLimits::none(), objectId, false);
@@ -190,7 +190,7 @@ public:
      */
     [[nodiscard]]
     Request requestDataTagged(DataDefinitionId dataDef,
-        std::function<void(const Messages::SimObjectData&)> handler,
+        std::function<void(const Messages::SimObjectDataMsg&)> handler,
         DataFrequency frequency = DataFrequency::once(),
         PeriodLimits limits = PeriodLimits::none(),
         SimObjectId objectId = SimObject::userCurrent,
@@ -199,7 +199,7 @@ public:
         auto requestId = simConnectMessageHandler_.connection().requests().nextRequestID();
 
         this->registerHandler(requestId, [requestId, handler](const Messages::MsgBase& msg) {
-                handler(reinterpret_cast<const Messages::SimObjectData&>(msg));
+                handler(reinterpret_cast<const Messages::SimObjectDataMsg&>(msg));
             }, frequency.isOnce());
         simConnectMessageHandler_.connection().requestDataTagged(dataDef, requestId, frequency, limits, objectId, onlyWhenChanged);
 
@@ -222,7 +222,7 @@ public:
      */
     [[nodiscard]]
     Request requestDataOnceTagged(DataDefinitionId dataDef,
-        std::function<void(const Messages::SimObjectData&)> handler,
+        std::function<void(const Messages::SimObjectDataMsg&)> handler,
         SimObjectId objectId = SimObject::userCurrent)
     {
         return requestDataTagged(dataDef, handler, DataFrequency::once(), PeriodLimits::none(), objectId, false);
@@ -259,7 +259,7 @@ public:
         auto requestId = simConnectMessageHandler_.connection().requests().nextRequestID();
 
         this->registerHandler(requestId, [requestId, handler](const Messages::MsgBase& msg) {
-                Data::DataBlockReader reader(reinterpret_cast<const Messages::SimObjectData&>(msg));
+                Data::DataBlockReader reader(reinterpret_cast<const Messages::SimObjectDataMsg&>(msg));
 
                 handler(reader);
             }, frequency.isOnce());
@@ -318,7 +318,7 @@ public:
         auto requestId = simConnectMessageHandler_.connection().requests().nextRequestID();
 
         this->registerHandler(requestId, [requestId, handler](const Messages::MsgBase& msg) {
-                Data::DataBlockReader reader(reinterpret_cast<const Messages::SimObjectData&>(msg));
+                Data::DataBlockReader reader(reinterpret_cast<const Messages::SimObjectDataMsg&>(msg));
 
                 handler(reader);
             }, frequency.isOnce());
@@ -387,7 +387,7 @@ public:
 
         if (dataDef.useMapping()) {
             this->registerHandler(requestId, [handler](const Messages::MsgBase& msg) {
-                const StructType* data = reinterpret_cast<const StructType*>(&(reinterpret_cast<const Messages::SimObjectData&>(msg).dwData));
+                const StructType* data = reinterpret_cast<const StructType*>(&(reinterpret_cast<const Messages::SimObjectDataMsg&>(msg).dwData));
                 handler(*data);
                 }, frequency.isOnce());
         }
@@ -395,7 +395,7 @@ public:
             this->registerHandler(requestId, [&dataDef, handler](const Messages::MsgBase& msg) {
                 StructType data;
 
-                dataDef.unmarshall(reinterpret_cast<const Messages::SimObjectData&>(msg), data);
+                dataDef.unmarshall(reinterpret_cast<const Messages::SimObjectDataMsg&>(msg), data);
                 handler(data);
                 }, frequency.isOnce());
         }
@@ -462,7 +462,7 @@ public:
         this->registerHandler(requestId, [requestId, &dataDef, handler](const Messages::MsgBase& msg) {
             StructType data;
 
-            dataDef.unmarshall(reinterpret_cast<const Messages::SimObjectData&>(msg), data);
+            dataDef.unmarshall(reinterpret_cast<const Messages::SimObjectDataMsg&>(msg), data);
             handler(data);
         }, frequency.isOnce());
         simConnectMessageHandler_.connection().requestDataTagged(dataDef, requestId, frequency, limits, objectId, onlyWhenChanged);
@@ -555,7 +555,7 @@ public:
         if (dataDef.useMapping()) {
 			logger.debug("Using mapping for requestDataByType with request ID {}.", requestId);
             this->registerHandler(requestId, [&logger = simConnectMessageHandler_.connection().logger(), requestId, handler, onDone](const Messages::MsgBase& msg) {
-				const Messages::SimObjectDataByType& dataMsg = reinterpret_cast<const Messages::SimObjectDataByType&>(msg);
+				const Messages::SimObjectDataByTypeMsg& dataMsg = reinterpret_cast<const Messages::SimObjectDataByTypeMsg&>(msg);
                 const StructType* data = reinterpret_cast<const StructType*>(&(dataMsg.dwData));
 
                 logger.trace("RequestDataByType handler invoked for request ID {} with message {} out of {}.",
@@ -574,7 +574,7 @@ public:
         else {
 			logger.debug("Not using mapping for requestDataByType with request ID {}.", requestId);
             this->registerHandler(requestId, [&logger = simConnectMessageHandler_.connection().logger(), requestId, &dataDef, handler, onDone](const Messages::MsgBase& msg) {
-                const Messages::SimObjectDataByType& dataMsg = reinterpret_cast<const Messages::SimObjectDataByType&>(msg);
+                const Messages::SimObjectDataByTypeMsg& dataMsg = reinterpret_cast<const Messages::SimObjectDataByTypeMsg&>(msg);
 
                 StructType data;
 
@@ -637,7 +637,7 @@ public:
             this->registerHandler(requestId,
                             [&logger, requestId, handler, result](const Messages::MsgBase& msg) mutable
                 {
-                    const Messages::SimObjectDataByType& dataMsg = reinterpret_cast<const Messages::SimObjectDataByType&>(msg);
+                    const Messages::SimObjectDataByTypeMsg& dataMsg = reinterpret_cast<const Messages::SimObjectDataByTypeMsg&>(msg);
                     const StructType& data = reinterpret_cast<const StructType&>(dataMsg.dwData);
 
 					(*result)[dataMsg.dwObjectID] = data;
@@ -653,7 +653,7 @@ public:
             logger.debug("Not using mapping for requestDataByType with request ID {}.", requestId);
             this->registerHandler(requestId, [&logger, requestId, &dataDef, handler, result](const Messages::MsgBase& msg) mutable
                 {
-                    const Messages::SimObjectDataByType& dataMsg = reinterpret_cast<const Messages::SimObjectDataByType&>(msg);
+                    const Messages::SimObjectDataByTypeMsg& dataMsg = reinterpret_cast<const Messages::SimObjectDataByTypeMsg&>(msg);
 
                     StructType data;
 
@@ -690,14 +690,14 @@ public:
 	 */
     [[nodiscard]]
     Request requestDataByType(DataDefinitionId dataDef,
-        std::function<void(const Messages::SimObjectDataByType&)> handler, std::function<void()> onDone,
+        std::function<void(const Messages::SimObjectDataByTypeMsg&)> handler, std::function<void()> onDone,
         unsigned long radiusInMeters,
         SimObjectType objectType)
     {
         auto requestId = simConnectMessageHandler_.connection().requests().nextRequestID();
 
         this->registerHandler(requestId, [requestId, handler, onDone](const Messages::MsgBase& msg) {
-			const Messages::SimObjectDataByType& dataMsg = reinterpret_cast<const Messages::SimObjectDataByType&>(msg);
+			const Messages::SimObjectDataByTypeMsg& dataMsg = reinterpret_cast<const Messages::SimObjectDataByTypeMsg&>(msg);
             handler(dataMsg);
             if (dataMsg.dwentrynumber == dataMsg.dwoutof) {
                 if (onDone) {

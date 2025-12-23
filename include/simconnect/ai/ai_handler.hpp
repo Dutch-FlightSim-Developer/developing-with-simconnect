@@ -38,13 +38,13 @@ public:
 
 
     /**
-     * Returns the correlation ID from the message. This is specific to the Messages::AssignedObjectId message.
+     * Returns the correlation ID from the message. This is specific to the Messages::AssignedObjectIdMsg message.
      *
      * @param msg The message to get the correlation ID from.
      * @returns The correlation ID from the message.
      */
     unsigned long correlationId(const Messages::MsgBase& msg) const {
-        return static_cast<const Messages::AssignedObjectId*>(&msg)->dwRequestID;
+        return static_cast<const Messages::AssignedObjectIdMsg*>(&msg)->dwRequestID;
     }
 
 
@@ -56,7 +56,7 @@ public:
         auto requestId = connection.requests().nextRequestID();
 
         registerHandler(requestId, [objectIdHandler](const Messages::MsgBase& msg) {
-            auto& assigned = static_cast<const Messages::AssignedObjectId&>(msg);
+            auto& assigned = static_cast<const Messages::AssignedObjectIdMsg&>(msg);
             objectIdHandler(assigned.dwObjectID);
         }, true);
 

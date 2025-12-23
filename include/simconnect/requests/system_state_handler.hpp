@@ -64,7 +64,7 @@ public:
      * @returns The correlation ID from the message.
      */
     unsigned long correlationId(const Messages::MsgBase& msg) const {
-        return static_cast<const Messages::SystemState*>(&msg)->dwRequestID;
+        return static_cast<const Messages::SystemStateMsg*>(&msg)->dwRequestID;
     }
 
 
@@ -78,7 +78,7 @@ public:
         auto requestId = simConnectMessageHandler_.connection().requests().nextRequestID();
 
         this->registerHandler(requestId, [requestHandler](const Messages::MsgBase& msg) {
-            auto& state = reinterpret_cast<const Messages::SystemState&>(msg);
+            auto& state = reinterpret_cast<const Messages::SystemStateMsg&>(msg);
             requestHandler(state.dwInteger != 0);
         }, true);
         simConnectMessageHandler_.connection().requestSystemState(name, requestId);
@@ -95,7 +95,7 @@ public:
         auto requestId = simConnectMessageHandler_.connection().requests().nextRequestID();
 
         this->registerHandler(requestId, [requestHandler](const Messages::MsgBase& msg) {
-            auto& state = reinterpret_cast<const Messages::SystemState&>(msg);
+            auto& state = reinterpret_cast<const Messages::SystemStateMsg&>(msg);
             requestHandler(std::string(state.szString));
         }, true);
         simConnectMessageHandler_.connection().requestSystemState(name, requestId);

@@ -1595,12 +1595,12 @@ public:
 
 
     /**
-     * Unmarshall the data from a Messages::SimObjectData message.
+     * Unmarshall the data from a Messages::SimObjectDataMsg message.
      *
-     * @param msg The Messages::SimObjectData message containing the data.
+     * @param msg The Messages::SimObjectDataMsg message containing the data.
      * @param data The data to unmarshall.
      */
-    void unmarshall(const Messages::SimObjectData& msg, StructType& data) const {
+    void unmarshall(const Messages::SimObjectDataMsg& msg, StructType& data) const {
         Data::DataBlockReader reader(msg);
 
         unmarshall(reader, data, ((msg.dwFlags & DataRequestFlags::tagged) != 0) ? msg.dwDefineCount : unTagged);

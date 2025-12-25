@@ -48,11 +48,35 @@ public:
     SimpleHandler& operator=(SimpleHandler&&) = delete;
 
     /**
-     * Handles incoming SimConnect messages.
+     * Handles incoming SimConnect messages. Note that for the SimpleHandler, the duration parameter is ignored.
+     * 
      * @param duration The maximum amount of time to wait for a message, defaults to 0ms meaning don't wait.
      */
     void dispatch([[maybe_unused]] std::chrono::milliseconds duration = std::chrono::milliseconds(0)) {
         this->dispatchWaitingMessages();
+    }
+
+
+    /**
+     * Handles any waiting messages until the specified predicate returns true. Note that for the SimpleHandler, this method performs the same as dispatch().
+     * 
+     * @param predicate The predicate to evaluate.
+     * @param checkInterval The interval to check the predicate, defaults to 100ms.
+     */
+    void dispatchUntil([[maybe_unused]]std::function<bool()> predicate, [[maybe_unused]] std::chrono::milliseconds checkInterval = std::chrono::milliseconds(100)) {
+        dispatch();
+    }
+
+
+    /**
+     * Handles any waiting messages until the specified deadline is reached or the predicate returns true. Note that for the SimpleHandler, this method performs the same as dispatch().
+     * 
+     * @param predicate The predicate to evaluate.
+     * @param duration The maximum duration to handle messages.
+     * @param checkInterval The interval to check the predicate, defaults to 100ms.
+     */
+    void dispatchUntil([[maybe_unused]] std::function<bool()> predicate, [[maybe_unused]] std::chrono::milliseconds duration, [[maybe_unused]] std::chrono::milliseconds checkInterval = std::chrono::milliseconds(100)) {
+        dispatch();
     }
 };
 }

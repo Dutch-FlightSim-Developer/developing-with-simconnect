@@ -152,7 +152,21 @@ protected:
 	}
 
 
-	/**
+    /**
+     * Fetch the send ID of the last sent packet.
+     * 
+     * @pre The mutex must be locked.
+     * @returns The send ID of the last sent packet.
+     */
+    [[nodiscard]]
+    SendId fetchSendIdInternal() {
+        SendId sendId{ 0 };
+        SimConnect_GetLastSentPacketID(hSimConnect_, &sendId);
+        return sendId;
+    }
+
+
+    /**
 	 * Assure we close the connection to SimConnect cleanly.
 	 */
 	~Connection() { close(); }
@@ -182,13 +196,11 @@ public:
 	 * @returns The SendID if the last call to SimConnect was successful, otherwise returns the last error code.
 	 */
 	[[nodiscard]]
-	SendId fetchSendId() const {
+	SendId fetchSendId() {
 		if (succeeded()) {
             guard_type guard(mutex_);
 
-            SendId sendId{ 0 };
-			SimConnect_GetLastSentPacketID(hSimConnect_, &sendId);
-			return sendId;
+            return fetchSendIdInternal();
 		}
 		return noId;
 	}
@@ -302,13 +314,17 @@ public:
 	 */
     [[nodiscard]]
 	Result<RequestId> requestSystemState(std::string stateName) {
-		logger().trace("Requesting system state '{}'", stateName);
-
         auto requestId = requests().nextRequestID();
 
         guard_type guard(mutex_);
 
         state(SimConnect_RequestSystemState(hSimConnect_, requestId, stateName.c_str()));
+
+        if (succeeded()) {
+            logger_.debug("Requested system state '{}' (requestId={}, sendId={})", stateName, requestId, fetchSendIdInternal());
+        } else {
+            logger_.error("SimConnect_RequestSystemState failed with error code 0x{:08X}.", state());
+        }
 
 		return Result<RequestId>(requestId, state(), "SimConnect_RequestSystemState failed");
 	}
@@ -320,14 +336,14 @@ public:
 	 * @returns The request ID used to identify the request.
 	 */
 	Derived& requestSystemState(std::string stateName, RequestId requestId) {
-        logger().trace("Requesting system state '{}'", stateName);
-
         guard_type guard(mutex_);
 
         state(SimConnect_RequestSystemState(hSimConnect_, requestId, stateName.c_str()));
 
         if (failed()) {
             logger_.error("SimConnect_RequestSystemState failed with error code 0x{:08X}.", state());
+        } else {
+            logger_.debug("Requested system state '{}' (requestId={}, sendId={})", stateName, requestId, fetchSendIdInternal());
         }
 
         return *static_cast<Derived*>(this);
@@ -344,13 +360,13 @@ public:
      * @param priority The priority to set.
      */
     Derived& setNotificationGroupPriority(NotificationGroupId groupId, int priority) {
-        logger().trace("Setting notification group ID {} priority to {}", groupId, priority);
-
         guard_type guard(mutex_);
 
         state(SimConnect_SetNotificationGroupPriority(hSimConnect_, groupId, priority));
         if (failed()) {
             logger_.error("SimConnect_SetNotificationGroupPriority failed with error code 0x{:08X}.", state());
+        } else {
+            logger_.debug("Set notification group {} priority to {} (sendId={})", groupId, priority, fetchSendIdInternal());
         }
         return static_cast<Derived&>(*this);
     }
@@ -364,13 +380,13 @@ public:
      * @param maskable True if the event is maskable.
      */
     Derived& addClientEventToNotificationGroup(NotificationGroupId groupId, event evt, bool maskable = false) {
-        logger().trace("Adding event '{}' to notification group ID {} (maskable={})", evt.name(), groupId, maskable);
-
         guard_type guard(mutex_);
 
         state(SimConnect_AddClientEventToNotificationGroup(hSimConnect_, groupId, evt.id(), maskable ? 1 : 0));
         if (failed()) {
             logger_.error("SimConnect_AddClientEventToNotificationGroup failed with error code 0x{:08X}.", state());
+        } else {
+            logger_.debug("Added event '{}' to notification group {} (maskable={}, sendId={})", evt.name(), groupId, maskable, fetchSendIdInternal());
         }
         return static_cast<Derived&>(*this);
     }
@@ -383,13 +399,13 @@ public:
      * @param evt The event to remove.
      */
     Derived& removeClientEventFromNotificationGroup(NotificationGroupId groupId, event evt) {
-        logger().trace("Removing event '{}' from notification group ID {}", evt.name(), groupId);
-
         guard_type guard(mutex_);
 
         state(SimConnect_RemoveClientEvent(hSimConnect_, groupId, evt.id()));
         if (failed()) {
             logger_.error("SimConnect_RemoveClientEvent failed with error code 0x{:08X}.", state());
+        } else {
+            logger_.debug("Removed event '{}' from notification group {} (sendId={})", evt.name(), groupId, fetchSendIdInternal());
         }
         return static_cast<Derived&>(*this);
     }
@@ -401,13 +417,13 @@ public:
      * @param groupId The notification group ID.
      */
     Derived& clearNotificationGroup(NotificationGroupId groupId) {
-        logger().trace("Clearing notification group ID {}", groupId);
-
         guard_type guard(mutex_);
 
         state(SimConnect_ClearNotificationGroup(hSimConnect_, groupId));
         if (failed()) {
             logger_.error("SimConnect_ClearNotificationGroup failed with error code 0x{:08X}.", state());
+        } else {
+            logger_.debug("Cleared notification group {} (sendId={})", groupId, fetchSendIdInternal());
         }
         return static_cast<Derived&>(*this);
     }
@@ -419,13 +435,13 @@ public:
      * @param groupId The notification group ID.
      */
     Derived& requestNotificationGroup(NotificationGroupId groupId) {
-        logger().trace("Requesting notification group ID {}", groupId);
-
         guard_type guard(mutex_);
 
         state(SimConnect_RequestNotificationGroup(hSimConnect_, groupId, 0, 0));
         if (failed()) {
             logger_.error("SimConnect_RequestNotificationGroup failed with error code 0x{:08X}.", state());
+        } else {
+            logger_.debug("Requested notification group {} (sendId={})", groupId, fetchSendIdInternal());
         }
         return static_cast<Derived&>(*this);
     }
@@ -443,11 +459,9 @@ public:
     Derived& mapClientEvent(event evt) {
         // Check if already mapped to avoid Exceptions::eventIdDuplicate (exception 9)
         if (evt.isMapped()) {
-            logger().trace("Event '{}' (ID {}) is already mapped, skipping", evt.name(), evt.id());
+            logger().debug("Event '{}' (ID {}) is already mapped, skipping", evt.name(), evt.id());
             return static_cast<Derived&>(*this);
         }
-
-        logger().trace("Mapping client event ID {} to sim event '{}'", evt.id(), evt.name());
 
         guard_type guard(mutex_);
 
@@ -455,6 +469,7 @@ public:
         
         if (this->succeeded()) {
             evt.setMapped();
+            logger_.debug("Mapped client event ID {} to sim event '{}' (sendId={})", evt.id(), evt.name(), fetchSendIdInternal());
         } else {
             logger_.error("SimConnect_MapClientEventToSimEvent failed with error code 0x{:08X}.", state());
         }
@@ -472,14 +487,14 @@ public:
      * @param data The optional data to send with the event.
      */
     Derived& transmitClientEvent(SimObjectId objectId, event evt, NotificationGroupId groupId, unsigned long data = 0) {
-        logger().trace("Transmitting client event '{}' to object ID {} in group ID {} with data {}",
-            evt.name(), objectId, groupId, data);
-
         guard_type guard(mutex_);
 
         state(SimConnect_TransmitClientEvent(hSimConnect_, objectId, evt.id(), data, groupId, 0));
         if (failed()) {
             logger_.error("SimConnect_TransmitClientEvent failed with error code 0x{:08X}.", state());
+        } else {
+            logger_.debug("Transmitted client event '{}' to object {} in group {} with data {} (sendId={})",
+                evt.name(), objectId, groupId, data, fetchSendIdInternal());
         }
         return static_cast<Derived&>(*this);
     }
@@ -494,14 +509,14 @@ public:
      * @param data The optional data to send with the event.
      */
     Derived& transmitClientEventWithPriority(SimObjectId objectId, event evt, Events::Priority priority, unsigned long data = 0) {
-        logger().trace("Transmitting client event '{}' to object ID {} with priority {} and data {}",
-            evt.name(), objectId, priority, data);
-
         guard_type guard(mutex_);
 
         state(SimConnect_TransmitClientEvent(hSimConnect_, objectId, evt.id(), data, priority, Events::groupIdIsPriority));
         if (failed()) {
             logger_.error("SimConnect_TransmitClientEvent failed with error code 0x{:08X}.", state());
+        } else {
+            logger_.debug("Transmitted client event '{}' to object {} with priority {} and data {} (sendId={})",
+                evt.name(), objectId, priority, data, fetchSendIdInternal());
         }
         return static_cast<Derived&>(*this);
     }
@@ -520,14 +535,14 @@ public:
      * @param data4 The fifth data value to send with the event.
      */
     Derived& transmitClientEvent(SimObjectId objectId, event evt, NotificationGroupId groupId, unsigned long data0, unsigned long data1, unsigned long data2 = 0, unsigned long data3 = 0, unsigned long data4 = 0) {
-        logger().trace("Transmitting client event '{}' to object ID {} in group ID {} with data {}, {}, {}, {}, {}",
-            evt.name(), objectId, groupId, data0, data1, data2, data3, data4);
-
         guard_type guard(mutex_);
 
         state(SimConnect_TransmitClientEvent_EX1(hSimConnect_, objectId, evt.id(), groupId, 0, data0, data1, data2, data3, data4));
         if (failed()) {
             logger_.error("SimConnect_TransmitClientEvent_EX1 failed with error code 0x{:08X}.", state());
+        } else {
+            logger_.debug("Transmitted client event '{}' to object {} in group {} with data [{}, {}, {}, {}, {}] (sendId={})",
+                evt.name(), objectId, groupId, data0, data1, data2, data3, data4, fetchSendIdInternal());
         }
         return static_cast<Derived&>(*this);
     }
@@ -546,14 +561,14 @@ public:
      * @param data4 The fifth data value to send with the event.
      */
     Derived& transmitClientEventWithPriority(SimObjectId objectId, event evt, Events::Priority priority, unsigned long data0, unsigned long data1, unsigned long data2 = 0, unsigned long data3 = 0, unsigned long data4 = 0) {
-        logger().trace("Transmitting client event '{}' to object ID {} with priority {} and data {}, {}, {}, {}, {}",
-            evt.name(), objectId, priority, data0, data1, data2, data3, data4);
-
         guard_type guard(mutex_);
 
         state(SimConnect_TransmitClientEvent_EX1(hSimConnect_, objectId, evt.id(), priority, Events::groupIdIsPriority, data0, data1, data2, data3, data4));
         if (failed()) {
             logger_.error("SimConnect_TransmitClientEvent_EX1 failed with error code 0x{:08X}.", state());
+        } else {
+            logger_.debug("Transmitted client event '{}' to object {} with priority {} and data [{}, {}, {}, {}, {}] (sendId={})",
+                evt.name(), objectId, priority, data0, data1, data2, data3, data4, fetchSendIdInternal());
         }
         return static_cast<Derived&>(*this);
     }
@@ -567,13 +582,13 @@ public:
      * @param event The event to subscribe to.
      */
 	Derived& subscribeToSystemEvent(event event) {
-        logger().trace("Subscribing to system event '{}'", event.name());
-
         guard_type guard(mutex_);
 
         state(SimConnect_SubscribeToSystemEvent(hSimConnect_, event.id(), event.name().c_str()));
         if (failed()) {
             logger_.error("SimConnect_SubscribeToSystemEvent failed with error code 0x{:08X}.", state());
+        } else {
+            logger_.debug("Subscribed to system event '{}' (sendId={})", event.name(), fetchSendIdInternal());
         }
         return static_cast<Derived&>(*this);
 	}
@@ -584,13 +599,13 @@ public:
     * @param event The event to unsubscribe from.
     */
     Derived& unsubscribeFromSystemEvent(event event) {
-        logger().trace("Unsubscribing to system event '{}'", event.name());
-
         guard_type guard(mutex_);
 
         state(SimConnect_UnsubscribeFromSystemEvent(hSimConnect_, event.id()));
         if (failed()) {
             logger_.error("SimConnect_UnsubscribeFromSystemEvent failed with error code 0x{:08X}.", state());
+        } else {
+            logger_.debug("Unsubscribed from system event '{}' (sendId={})", event.name(), fetchSendIdInternal());
         }
         return static_cast<Derived&>(*this);
     }
@@ -607,13 +622,13 @@ public:
      * @return The connection reference for chaining.
      */
     Derived& setInputGroupPriority(InputGroupId groupId, Events::Priority priority) {
-        logger().trace("Setting input group ID {} priority to {}", groupId, priority);
-
         guard_type guard(mutex_);
 
         state(SimConnect_SetInputGroupPriority(hSimConnect_, groupId, priority));
         if (failed()) {
             logger_.error("SimConnect_SetInputGroupPriority failed with error code 0x{:08X}.", state());
+        } else {
+            logger_.debug("Set input group {} priority to {} (sendId={})", groupId, priority, fetchSendIdInternal());
         }
         return static_cast<Derived&>(*this);
     }
@@ -627,12 +642,13 @@ public:
      * @return The connection reference for chaining.
      */
     Derived& setInputGroupState(InputGroupId groupId, Events::State groupState) {
-        logger().trace("Setting input group ID {} state to {}", groupId, groupState);
         guard_type guard(mutex_);
 
         state(SimConnect_SetInputGroupState(hSimConnect_, groupId, groupState));
         if (failed()) {
             logger_.error("SimConnect_SetInputGroupState failed with error code 0x{:08X}.", state());
+        } else {
+            logger_.debug("Set input group {} state to {} (sendId={})", groupId, groupState, fetchSendIdInternal());
         }
         return static_cast<Derived&>(*this);
     }
@@ -647,13 +663,14 @@ public:
      * @return The connection reference for chaining.
      */
     Derived& mapInputEventToClientEvent(event evt, std::string inputEvent, InputGroupId groupId = unused) {
-        logger().trace("Mapping input event '{}' to client event '{}' in group ID {}", inputEvent, evt.name(), groupId);
-
         guard_type guard(mutex_);
 
         state(SimConnect_MapInputEventToClientEvent_EX1(hSimConnect_, groupId, inputEvent.c_str(), evt.id()));
         if (failed()) {
             logger_.error("SimConnect_MapInputEventToClientEvent_EX1 failed with error code 0x{:08X}.", state());
+        } else {
+            logger_.debug("Mapped input event '{}' to client event '{}' in group {} (sendId={})",
+                inputEvent, evt.name(), groupId, fetchSendIdInternal());
         }
         return static_cast<Derived&>(*this);
     }
@@ -668,13 +685,14 @@ public:
      * @return The connection reference for chaining.
      */
     Derived& addClientEventToInputGroup(InputGroupId groupId, event evt, std::string inputEvent) {
-        logger().trace("Adding event '{}' (input: '{}') to input group ID {}", evt.name(), inputEvent, groupId);
-
         guard_type guard(mutex_);
 
         state(SimConnect_MapInputEventToClientEvent_EX1(hSimConnect_, groupId, inputEvent.c_str(), evt.id()));
         if (failed()) {
             logger_.error("SimConnect_AddInputEvent failed with error code 0x{:08X}.", state());
+        } else {
+            logger_.debug("Added event '{}' (input: '{}') to input group {} (sendId={})",
+                evt.name(), inputEvent, groupId, fetchSendIdInternal());
         }
         return static_cast<Derived&>(*this);
     }
@@ -688,13 +706,14 @@ public:
      * @return The connection reference for chaining.
      */
     Derived& removeInputEvent(InputGroupId groupId, std::string inputEvent) {
-        logger().trace("Removing input event '{}' from input group ID {}", inputEvent, groupId);
-
         guard_type guard(mutex_);
 
         state(SimConnect_RemoveInputEvent(hSimConnect_, groupId, inputEvent.c_str()));
         if (failed()) {
             logger_.error("SimConnect_RemoveInputEvent failed with error code 0x{:08X}.", state());
+        } else {
+            logger_.debug("Removed input event '{}' from input group {} (sendId={})",
+                inputEvent, groupId, fetchSendIdInternal());
         }
         return static_cast<Derived&>(*this);
     }
@@ -707,13 +726,13 @@ public:
      * @return The connection reference for chaining.
      */
     Derived& clearInputGroup(InputGroupId groupId) {
-        logger().trace("Clearing input group ID {}", groupId);
-
         guard_type guard(mutex_);
 
         state(SimConnect_ClearInputGroup(hSimConnect_, groupId));
         if (failed()) {
             logger_.error("SimConnect_ClearInputGroup failed with error code 0x{:08X}.", state());
+        } else {
+            logger_.debug("Cleared input group {} (sendId={})", groupId, fetchSendIdInternal());
         }
         return static_cast<Derived&>(*this);
     }
@@ -744,8 +763,6 @@ public:
      */
     Derived& addDataDefinition(DataDefinitionId dataDef, const std::string& itemName, const std::string& itemUnits,
                            DataType itemDataType, float itemEpsilon = 0.0f, unsigned long itemDatumId = unused) {
-		logger_.trace("Adding to data definition {}, simVar '{}', sendId = {}\n", dataDef, itemName, fetchSendId());
-
         guard_type guard(mutex_);
 
         state(SimConnect_AddToDataDefinition(hSimConnect_, dataDef,
@@ -755,6 +772,8 @@ public:
             itemDatumId));
         if (failed()) {
             logger_.error("SimConnect_AddToDataDefinition failed with error code 0x{:08X}.", state());
+        } else {
+            logger_.debug("Added to data definition {}: simVar '{}' (sendId={})", dataDef, itemName, fetchSendIdInternal());
         }
         return static_cast<Derived&>(*this);
 	}
@@ -771,28 +790,29 @@ public:
      * @param frequency The frequency at which to request the data.
      * @param limits The limits for the request in numbers of "periods".
      * @param objectId The object ID to request data for. Defaults to the current user's Avatar or Aircraft.
-     * @param onlyWhenChanged If true, the data will only be sent when it changes.
+     * @param sendOnlyWhenChanged If true, the data will only be sent when it changes.
      */
     Derived& requestData(DataDefinitionId dataDef, RequestId requestId,
         DataFrequency frequency = DataFrequency::once(),
         PeriodLimits limits = PeriodLimits::none(),
         SimObjectId objectId = SimObject::userCurrent,
-        bool onlyWhenChanged = false)
+        bool sendOnlyWhenChanged = false)
     {
         guard_type guard(mutex_);
 
         state(SimConnect_RequestDataOnSimObject(hSimConnect_, requestId, dataDef,
             objectId,
             frequency,
-            onlyWhenChanged ? DataRequestFlags::whenChanged : DataRequestFlags::defaultFlag,
+            sendOnlyWhenChanged ? DataRequestFlags::whenChanged : DataRequestFlags::defaultFlag,
             limits.origin,
             frequency.interval,
             limits.limit));
-		logger_.trace("Requested untagged data on SimObject {} with request ID {} and data definition {}, sendId = {}\n",
-			objectId, requestId, dataDef, fetchSendId());
 		
         if (failed()) {
             logger_.error("SimConnect_RequestDataOnSimObject failed with error code 0x{:08X}.", state());
+        } else {
+            logger_.debug("Requested untagged data on object {} (requestId={}, dataDef={}, sendId={})",
+                objectId, requestId, dataDef, fetchSendIdInternal());
         }
 		return static_cast<Derived&>(*this);
 	}
@@ -805,29 +825,29 @@ public:
      * @param frequency The frequency at which to request the data.
      * @param limits The limits for the request in numbers of "periods".
      * @param objectId The object ID to request data for. Defaults to the current user's Avatar or Aircraft.
-     * @param onlyWhenChanged If true, the data will only be sent when it changes.
+     * @param sendOnlyWhenChanged If true, the data will only be sent when it changes.
      */
     Derived& requestDataTagged(DataDefinitionId dataDef, RequestId requestId,
         DataFrequency frequency = DataFrequency::once(),
         PeriodLimits limits = PeriodLimits::none(),
         SimObjectId objectId = SimObject::userCurrent,
-        bool onlyWhenChanged = false)
+        bool sendOnlyWhenChanged = false)
     {
         guard_type guard(mutex_);
 
         state(SimConnect_RequestDataOnSimObject(hSimConnect_, requestId, dataDef,
             objectId,
             frequency,
-            (onlyWhenChanged ? DataRequestFlags::whenChanged : DataRequestFlags::defaultFlag) | DataRequestFlags::tagged,
+            (sendOnlyWhenChanged ? DataRequestFlags::whenChanged : DataRequestFlags::defaultFlag) | DataRequestFlags::tagged,
             limits.origin,
             frequency.interval,
             limits.limit));
-
-        logger_.trace("Requested tagged data on SimObject {} with request ID {} and data definition {}, sendId = {}\n",
-			objectId, requestId, dataDef, fetchSendId());
 			
         if (failed()) {
             logger_.error("SimConnect_RequestDataOnSimObject failed with error code 0x{:08X}.", state());
+        } else {
+            logger_.debug("Requested tagged data on object {} (requestId={}, dataDef={}, sendId={})",
+                objectId, requestId, dataDef, fetchSendIdInternal());
         }
 		return static_cast<Derived&>(*this);
     }
@@ -847,6 +867,8 @@ public:
         state(SimConnect_RequestDataOnSimObject(hSimConnect_, requestId, dataDef, objectId, DataPeriods::never));
         if (failed()) {
             logger_.error("SimConnect_RequestDataOnSimObject failed with error code 0x{:08X}.", state());
+        } else {
+            logger_.debug("Stopped data request (dataDef={}, requestId={}, objectId={}, sendId={})", dataDef, requestId, objectId, fetchSendIdInternal());
         }
         return static_cast<Derived&>(*this);
     }
@@ -870,6 +892,8 @@ public:
 		state(SimConnect_RequestDataOnSimObjectType(hSimConnect_, requestId, dataDef, radiusInMeters, objectType));
         if (failed()) {
             logger_.error("SimConnect_RequestDataOnSimObjectType failed with error code 0x{:08X}.", state());
+        } else {
+            logger_.debug("Requested data by type (dataDef={}, requestId={}, radius={}, type={}, sendId={})", dataDef, requestId, radiusInMeters, objectType, fetchSendIdInternal());
         }
         return static_cast<Derived&>(*this);
 	}
@@ -885,13 +909,13 @@ public:
     template <typename T>
     Derived& sendData(DataDefinitionId dataDef, SimObjectId objectId, const T& data)
     {
-        logger_.trace("Setting data on SimObject ID {} with data definition ID {}, size {}", objectId, dataDef, sizeof(T));
-
         guard_type guard(mutex_);
 
         state(SimConnect_SetDataOnSimObject(hSimConnect_, dataDef, objectId, DataSetFlags::defaultFlag, 1, sizeof(T), const_cast<void*>(&data)));
         if (failed()) {
             logger_.error("SimConnect_SetDataOnSimObject failed with error code 0x{:08X}.", state());
+        } else {
+            logger_.debug("Sent data to SimObject (dataDef={}, objectId={}, size={}, sendId={})", dataDef, objectId, sizeof(T), fetchSendIdInternal());
         }
         return static_cast<Derived&>(*this);
     }
@@ -916,14 +940,14 @@ public:
             state(E_INVALIDARG);
             return static_cast<Derived&>(*this);
         }
-        logger_.trace("Setting data on SimObject ID {} with data definition ID {}, size {}, count {}, blockSize {}",
-            objectId, dataDef, data.size(), count, blockSize);
 
         guard_type guard(mutex_);
 
         state(SimConnect_SetDataOnSimObject(hSimConnect_, dataDef, objectId, DataSetFlags::defaultFlag, count, blockSize, const_cast<uint8_t*>(data.data())));
         if (failed()) {
             logger_.error("SimConnect_SetDataOnSimObject failed with error code 0x{:08X}.", state());
+        } else {
+            logger_.debug("Sent data to SimObject (dataDef={}, objectId={}, size={}, count={}, blockSize={}, sendId={})", dataDef, objectId, data.size(), count, blockSize, fetchSendIdInternal());
         }
         return static_cast<Derived&>(*this);
     }
@@ -948,14 +972,14 @@ public:
             state(E_INVALIDARG);
             return static_cast<Derived&>(*this);
         }
-        logger_.trace("Setting data on SimObject ID {} with data definition ID {}, size {}, count {}, blockSize {}",
-            objectId, dataDef, data.size(), count, blockSize);
 
         guard_type guard(mutex_);
 
         state(SimConnect_SetDataOnSimObject(hSimConnect_, dataDef, objectId, DataSetFlags::tagged, count, blockSize, const_cast<uint8_t*>(data.data())));
         if (failed()) {
             logger_.error("SimConnect_SetDataOnSimObject failed with error code 0x{:08X}.", state());
+        } else {
+            logger_.debug("Sent tagged data to SimObject (dataDef={}, objectId={}, size={}, count={}, blockSize={}, sendId={})", dataDef, objectId, data.size(), count, blockSize, fetchSendIdInternal());
         }
         return static_cast<Derived&>(*this);
     }
@@ -982,6 +1006,8 @@ public:
         state(SimConnect_AICreateNonATCAircraft(hSimConnect_, title.c_str(), tailNumber.c_str(), initPos, requestId));
         if (failed()) {
             logger_.error("SimConnect_AICreateNonATCAircraft failed with error code 0x{:08X}.", state());
+        } else {
+            logger_.debug("Created non-ATC aircraft '{}' with tail '{}' (requestId={}, sendId={})", title, tailNumber, requestId, fetchSendIdInternal());
         }
         return static_cast<Derived&>(*this);
     }
@@ -1005,6 +1031,8 @@ public:
         state(SimConnect_AICreateNonATCAircraft_EX1(hSimConnect_, title.c_str(), livery.c_str(), tailNumber.c_str(), initPos, requestId));
         if (failed()) {
             logger_.error("SimConnect_AICreateNonATCAircraft_EX1 failed with error code 0x{:08X}.", state());
+        } else {
+            logger_.debug("Created non-ATC aircraft '{}' with livery '{}' and tail '{}' (requestId={}, sendId={})", title, livery, tailNumber, requestId, fetchSendIdInternal());
         }
         return static_cast<Derived&>(*this);
     }
@@ -1025,6 +1053,8 @@ public:
         state(SimConnect_AICreateParkedATCAircraft(hSimConnect_, title.c_str(), tailNumber.c_str(), airportIcao.c_str(), requestId));
         if (failed()) {
             logger_.error("SimConnect_AICreateParkedATCAircraft failed with error code 0x{:08X}.", state());
+        } else {
+            logger_.debug("Created parked aircraft '{}' with tail '{}' at '{}' (requestId={}, sendId={})", title, tailNumber, airportIcao, requestId, fetchSendIdInternal());
         }
         return static_cast<Derived&>(*this);
     }
@@ -1046,6 +1076,8 @@ public:
         state(SimConnect_AICreateParkedATCAircraft_EX1(hSimConnect_, title.c_str(), livery.c_str(), tailNumber.c_str(), airportIcao.c_str(), requestId));
         if (failed()) {
             logger_.error("SimConnect_AICreateParkedATCAircraft_EX1 failed with error code 0x{:08X}.", state());
+        } else {
+            logger_.debug("Created parked aircraft '{}' with livery '{}' and tail '{}' at '{}' (requestId={}, sendId={})", title, livery, tailNumber, airportIcao, requestId, fetchSendIdInternal());
         }
         return static_cast<Derived&>(*this);
     }
@@ -1065,6 +1097,8 @@ public:
         state(SimConnect_AICreateSimulatedObject(hSimConnect_, title.c_str(), initPos, requestId));
         if (failed()) {
             logger_.error("SimConnect_AICreateSimulatedObject failed with error code 0x{:08X}.", state());
+        } else {
+            logger_.debug("Created simulated object '{}' (requestId={}, sendId={})", title, requestId, fetchSendIdInternal());
         }
         return static_cast<Derived&>(*this);
     }
@@ -1085,6 +1119,8 @@ public:
         state(SimConnect_AICreateSimulatedObject_EX1(hSimConnect_, title.c_str(), livery.c_str(), initPos, requestId));
         if (failed()) {
             logger_.error("SimConnect_AICreateSimulatedObject_EX1 failed with error code 0x{:08X}.", state());
+        } else {
+            logger_.debug("Created simulated object '{}' with livery '{}' (requestId={}, sendId={})", title, livery, requestId, fetchSendIdInternal());
         }
         return static_cast<Derived&>(*this);
     }
@@ -1103,6 +1139,8 @@ public:
         state(SimConnect_AIRemoveObject(hSimConnect_, objectId, requestId));
         if (failed()) {
             logger_.error("SimConnect_AIRemoveObject failed with error code 0x{:08X}.", state());
+        } else {
+            logger_.debug("Removed SimObject (objectId={}, requestId={}, sendId={})", objectId, requestId, fetchSendIdInternal());
         }
         return static_cast<Derived&>(*this);
     }

@@ -24,9 +24,12 @@
 
 namespace SimConnect {
 
-// Forward declaration to break circular dependency
+// Forward declarations to break circular dependency
 template <class M>
 class NotificationGroup;
+
+template <class M>
+class InputGroup;
 
 
 /**
@@ -118,6 +121,18 @@ public:
      */
     [[nodiscard]]
     NotificationGroup<M> createNotificationGroup();
+
+#pragma endregion
+
+#pragma region Input Group Factory
+
+    /**
+     * Create a new input group.
+     * 
+     * @returns A new InputGroup instance associated with this EventHandler.
+     */
+    [[nodiscard]]
+    InputGroup<M> createInputGroup();
 
 #pragma endregion
 

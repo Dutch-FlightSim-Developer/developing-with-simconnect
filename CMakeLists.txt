@@ -106,6 +106,8 @@ add_subdirectory(part-4)
 add_subdirectory(part-5)
 #add_subdirectory(part-6) # Not yet working
 add_subdirectory(part-7)
+#add_subdirectory(part-8)
+add_subdirectory(part-9)
 
 
 # Don't even look at tests if we're not top level

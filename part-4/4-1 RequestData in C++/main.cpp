@@ -40,7 +40,6 @@ struct AircraftInfo {
 };
 
 
-
 /**
  * Return a pretty formatted version string.
  * @param major major version number. If 0, return "Unknown".
@@ -73,7 +72,6 @@ static void handleOpen(const SIMCONNECT_RECV_OPEN& msg) { // NOLINT(misc-include
 static void handleClose([[maybe_unused]] const SIMCONNECT_RECV_QUIT& msg) { // NOLINT(misc-include-cleaner)
 	std::cout << "Simulator shutting down.\n";
 }
-
 
 
 // NOLINTBEGIN(misc-include-cleaner)

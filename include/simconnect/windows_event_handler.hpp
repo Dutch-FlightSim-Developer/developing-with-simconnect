@@ -68,5 +68,45 @@ public:
             }
         } while (deadline > std::chrono::steady_clock::now());
     }
+
+
+    /**
+     * Dispatches messages until the specified predicate returns true. Note dispatching will also stop if the connection is closed.
+     *
+     * @param predicate The predicate to evaluate to determine when to stop dispatching messages.
+     * @param checkInterval The interval to wait between checks of the predicate.
+     */
+    void dispatchUntil(std::function<bool()> predicate, std::chrono::milliseconds checkInterval = std::chrono::milliseconds(100)) {
+        while (!predicate()) {
+            if (this->isAutoClosing() && !this->connection_.isOpen()) {
+                break;
+            }
+            if (this->connection_.checkForMessage(checkInterval)) {
+                this->dispatchWaitingMessages();
+            }
+        }
+    }
+
+
+    /**
+     * Dispatches messages until the specified deadline is reached or the predicate returns true. Note dispatching will also stop if the connection is closed.
+     *
+     * @param predicate The predicate to evaluate to determine when to stop dispatching messages.
+     * @param duration The maximum duration to dispatch messages.
+     * @param checkInterval The interval to wait between checks of the predicate.
+     */
+    void dispatchUntil(std::function<bool()> predicate, std::chrono::milliseconds duration, std::chrono::milliseconds checkInterval = std::chrono::milliseconds(100)) {
+        auto startTime = std::chrono::steady_clock::now();
+        auto deadline = startTime + duration;
+
+        while (!predicate() && (std::chrono::steady_clock::now() < deadline)) {
+            if (this->isAutoClosing() && !this->connection_.isOpen()) {
+                break;
+            }
+            if (this->connection_.checkForMessage(checkInterval)) {
+                this->dispatchWaitingMessages();
+            }
+        }
+    }
 };
 }

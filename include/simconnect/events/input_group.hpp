@@ -16,9 +16,11 @@
  */
 
 #include <simconnect/simconnect.hpp>
-#include <simconnect/simconnect_error.hpp>
+
 #include <simconnect/events/events.hpp>
 #include <simconnect/events/event_handler.hpp>
+
+#include <simconnect/util/statefull_object.hpp>
 
 #include <optional>
 
@@ -29,7 +31,7 @@ namespace SimConnect {
  * An input group is a group of Input Events that can be enabled or disabled together.
  */
 template <class M>
-class InputGroup {
+class InputGroup : public StateFullObject {
     EventHandler<M>& handler_;
     InputGroupId id_;
     std::optional<Events::Priority> priority_;
@@ -65,10 +67,7 @@ public:
 
     InputGroup& withPriority(Events::Priority priority) {
         priority_ = priority;
-        auto result = handler_.connection().setInputGroupPriority(id_, priority);
-        if (result.hasError()) {
-            return result.error();
-        }
+        state(handler_.connection().setInputGroupPriority(id_, priority));
         return *this;
     }
     InputGroup& withHighestPriority() {
@@ -88,43 +87,40 @@ public:
     }
 
     InputGroup& enable() {
-        auto result = handler_.connection().setInputGroupState(id_, Events::on);
-        if (result.hasError()) {
-            return result.error();
-        }
+        state(handler_.connection().setInputGroupState(id_, Events::on));
         return *this;
     }
     InputGroup& disable() {
-        auto result = handler_.connection().setInputGroupState(id_, Events::off);
-        if (result.hasError()) {
-            return result.error();
-        }
+        state(handler_.connection().setInputGroupState(id_, Events::off));
         return *this;
     }
 
 
     InputGroup& addEvent(event evt, std::string inputEvent) {
         if (!priority_.has_value()) {
-            auto priorityResult = withDefaultPriority();
-            if (priorityResult.hasError()) {
-                return priorityResult.error();
-            }
+            withDefaultPriority();
         }
         // Automatically map the event if not already mapped
-        handler_.mapEvent(evt);
-        
-        auto mapResult = handler_.connection().mapInputEventToClientEvent(evt, inputEvent, id_);
-        if (mapResult.hasError()) {
-            return mapResult.error();
+        if (succeeded()) {
+            handler_.mapEvent(evt); // TODO: state?
         }
-        
-        auto addResult = handler_.connection().addClientEventToInputGroup(id_, evt, inputEvent);
-        if (addResult.hasError()) {
-            return addResult.error();
+        if (succeeded()) {
+            state(handler_.connection().mapInputEventToClientEvent(evt, inputEvent, id_));
+        }
+        if (succeeded()) {
+            state(handler_.connection().addClientEventToInputGroup(id_, evt, inputEvent));
         }
         
         return *this;
     }
 };
+
+
+// Implementation of EventHandler::createNotificationGroup()
+// This must be defined after NotificationGroup is fully defined to break circular dependency
+template <class M>
+InputGroup<M> EventHandler<M>::createInputGroup() {
+    return InputGroup<M>(*this);
+}
 
 } // namespace SimConnect

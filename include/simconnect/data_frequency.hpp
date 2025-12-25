@@ -63,7 +63,7 @@ struct DataFrequency {
     constexpr static DataFrequency once() noexcept {
         return { DataPeriods::once, 0 };
     }
-    constexpr static DataFrequency every(unsigned long intval) noexcept {
+    constexpr static DataFrequency every(unsigned long intval = 1) noexcept {
         return { DataPeriods::second, intval };
     }
     constexpr static DataFrequency never() noexcept {
@@ -89,15 +89,28 @@ struct DataFrequency {
         return period == DataPeriods::once;
     }
 
+
+    constexpr DataFrequency second() const noexcept {
+        return { DataPeriods::second, interval };
+    }
     constexpr DataFrequency seconds() const noexcept {
         return { DataPeriods::second, interval };
     }
+    constexpr DataFrequency visualFrame() const noexcept {
+        return { DataPeriods::visualFrame, interval };
+    }
     constexpr DataFrequency visualFrames() const noexcept {
         return { DataPeriods::visualFrame, interval };
+    }
+    constexpr DataFrequency simFrame() const noexcept {
+        return { DataPeriods::simFrame, interval };
     }
     constexpr DataFrequency simFrames() const noexcept {
         return { DataPeriods::simFrame, interval };
     }
 };
+
+inline constexpr bool onlyWhenChanged{ true };
+inline constexpr bool always{ false };
 
 } // namespace SimConnect

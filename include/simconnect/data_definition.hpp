@@ -664,12 +664,12 @@ public:
 
     //TODO: Add support for epsilon.
 
-    // For DataTypes::int32:
+#pragma region addInt32
 
-    DataDefinition& addInt32(std::string simVar, std::string units, std::function<void(int32_t)> setter, std::function<int32_t()> getter) {
+    DataDefinition& addInt32(std::string simVar, std::string units, std::function<void(int32_t)> setter, std::function<int32_t()> getter, float epsilon = 0.0f) {
         useMapping_ = false; // We cannot map this field directly, so we will not use the mapping.
 
-        fields_.emplace_back(simVar, units, DataTypes::int32, 0.0f, unused,
+        fields_.emplace_back(simVar, units, DataTypes::int32, epsilon, unused,
             [setter](Data::DataBlockReader& reader) {
                 setter(reader.readInt32());
             },
@@ -679,17 +679,17 @@ public:
         size_ += sizeof(int32_t);
         return *this;
     }
-    DataDefinition& addInt32(std::string simVar, std::string units, std::function<void(StructType& data, int32_t value)> setter, std::function<int32_t(const StructType& data)> getter) {
+    DataDefinition& addInt32(std::string simVar, std::string units, std::function<void(StructType& data, int32_t value)> setter, std::function<int32_t(const StructType& data)> getter, float epsilon = 0.0f) {
         useMapping_ = false; // We cannot map this field directly, so we will not use the mapping.
 
-        fields_.emplace_back(simVar, units, DataTypes::int32, 0.0f, unused,
+        fields_.emplace_back(simVar, units, DataTypes::int32, epsilon, unused,
             [setter](StructType& data, Data::DataBlockReader& reader) { setter(data, reader.readInt32()); },
             [getter](Data::DataBlockBuilder& builder, const StructType& data) { builder.addInt32(getter(data)); });
         size_ += sizeof(int32_t);
         return *this;
     }
-    DataDefinition& addInt32(int32_t StructType::* field, std::string simVar, std::string units) {
-        fields_.emplace_back(simVar, units, DataTypes::int32, 0.0f, unused,
+    DataDefinition& addInt32(int32_t StructType::* field, std::string simVar, std::string units, float epsilon = 0.0f) {
+        fields_.emplace_back(simVar, units, DataTypes::int32, epsilon, unused,
             [field](StructType& data, Data::DataBlockReader& reader) {
                 data.*field = reader.readInt32();
             },
@@ -699,10 +699,10 @@ public:
         size_ += sizeof(int32_t);
         return *this;
     }
-    DataDefinition& addInt32(int64_t StructType::* field, std::string simVar, std::string units) {
+    DataDefinition& addInt32(int64_t StructType::* field, std::string simVar, std::string units, float epsilon = 0.0f) {
         useMapping_ = false; // We cannot map this field directly, so we will not use the mapping.
 
-        fields_.emplace_back(simVar, units, DataTypes::int32, 0.0f, unused,
+        fields_.emplace_back(simVar, units, DataTypes::int32, epsilon, unused,
             [field](StructType& data, Data::DataBlockReader& reader) {
                 data.*field = reader.readInt32();
             },
@@ -712,10 +712,10 @@ public:
         size_ += sizeof(int32_t);
         return *this;
     }
-    DataDefinition& addInt32(float StructType::* field, std::string simVar, std::string units) {
+    DataDefinition& addInt32(float StructType::* field, std::string simVar, std::string units, float epsilon = 0.0f) {
         useMapping_ = false; // We cannot map this field directly, so we will not use the mapping.
 
-        fields_.emplace_back(simVar, units, DataTypes::int32, 0.0f, unused,
+        fields_.emplace_back(simVar, units, DataTypes::int32, epsilon, unused,
             [field](StructType& data, Data::DataBlockReader& reader) {
                 data.*field = static_cast<float>(reader.readInt32());
             },
@@ -725,10 +725,10 @@ public:
         size_ += sizeof(int32_t);
         return *this;
     }
-    DataDefinition& addInt32(double StructType::* field, std::string simVar, std::string units) {
+    DataDefinition& addInt32(double StructType::* field, std::string simVar, std::string units, float epsilon = 0.0f) {
         useMapping_ = false; // We cannot map this field directly, so we will not use the mapping.
 
-        fields_.emplace_back(simVar, units, DataTypes::int32, 0.0f, unused,
+        fields_.emplace_back(simVar, units, DataTypes::int32, epsilon, unused,
             [field](StructType& data, Data::DataBlockReader& reader) {
                 data.*field = static_cast<double>(reader.readInt32());
             },
@@ -738,10 +738,10 @@ public:
         size_ += sizeof(int32_t);
         return *this;
     }
-    DataDefinition& addInt32(bool StructType::* field, std::string simVar, std::string units) {
+    DataDefinition& addInt32(bool StructType::* field, std::string simVar, std::string units, float epsilon = 0.0f) {
         useMapping_ = false; // We cannot map this field directly, so we will not use the mapping.
 
-        fields_.emplace_back(simVar, units, DataTypes::int32, 0.0f, unused,
+        fields_.emplace_back(simVar, units, DataTypes::int32, epsilon, unused,
             [field](StructType& data, Data::DataBlockReader& reader) {
                 data.*field = reader.readInt32() != 0;
             },
@@ -751,10 +751,10 @@ public:
         size_ += sizeof(int32_t);
         return *this;
     }
-    DataDefinition& addInt32(std::string StructType::* field, std::string simVar, std::string units) {
+    DataDefinition& addInt32(std::string StructType::* field, std::string simVar, std::string units, float epsilon = 0.0f) {
         useMapping_ = false; // We cannot map this field directly, so we will not use the mapping.
 
-        fields_.emplace_back(simVar, units, DataTypes::int32, 0.0f, unused,
+        fields_.emplace_back(simVar, units, DataTypes::int32, epsilon, unused,
             [field](StructType& data, Data::DataBlockReader& reader) {
                 data.*field = std::format("{}", reader.readInt32());
             },
@@ -765,13 +765,13 @@ public:
         return *this;
     }
 
-
-    // For DataTypes::int64:
-
-    DataDefinition& addInt64(std::string simVar, std::string units, std::function<void(int64_t)> setter, std::function<int64_t()> getter) {
+#pragma endregion
+#pragma region addInt64
+    
+    DataDefinition& addInt64(std::string simVar, std::string units, std::function<void(int64_t)> setter, std::function<int64_t()> getter, float epsilon = 0.0f) {
         useMapping_ = false; // We cannot map this field directly, so we will not use the mapping.
 
-        fields_.emplace_back(simVar, units, DataTypes::int64, 0.0f, unused,
+        fields_.emplace_back(simVar, units, DataTypes::int64, epsilon, unused,
             [setter](Data::DataBlockReader& reader) {
                 setter(reader.readInt64());
             },
@@ -781,19 +781,19 @@ public:
         size_ += sizeof(int64_t);
         return *this;
     }
-    DataDefinition& addInt64(std::string simVar, std::string units, std::function<void(StructType& data, int64_t value)> setter, std::function<int64_t(const StructType& data)> getter) {
+    DataDefinition& addInt64(std::string simVar, std::string units, std::function<void(StructType& data, int64_t value)> setter, std::function<int64_t(const StructType& data)> getter, float epsilon = 0.0f) {
         useMapping_ = false; // We cannot map this field directly, so we will not use the mapping.
 
-        fields_.emplace_back(simVar, units, DataTypes::int64, 0.0f, unused,
+        fields_.emplace_back(simVar, units, DataTypes::int64, epsilon, unused,
             [setter](StructType& data, Data::DataBlockReader& reader) { setter(data, reader.readInt64()); },
             [getter](Data::DataBlockBuilder& builder, const StructType& data) { builder.addInt64(getter(data)); });
         size_ += sizeof(int64_t);
         return *this;
     }
-    DataDefinition& addInt64(int32_t StructType::* field, std::string simVar, std::string units) {
+    DataDefinition& addInt64(int32_t StructType::* field, std::string simVar, std::string units, float epsilon = 0.0f) {
         useMapping_ = false; // We cannot map this field directly, so we will not use the mapping.
 
-        fields_.emplace_back(simVar, units, DataTypes::int64, 0.0f, unused,
+        fields_.emplace_back(simVar, units, DataTypes::int64, epsilon, unused,
             [field](StructType& data, Data::DataBlockReader& reader) {
                 data.*field = static_cast<int32_t>(reader.readInt64());
             },
@@ -803,8 +803,8 @@ public:
         size_ += sizeof(int64_t);
         return *this;
     }
-    DataDefinition& addInt64(int64_t StructType::* field, std::string simVar, std::string units) {
-        fields_.emplace_back(simVar, units, DataTypes::int64, 0.0f, unused,
+    DataDefinition& addInt64(int64_t StructType::* field, std::string simVar, std::string units, float epsilon = 0.0f) {
+        fields_.emplace_back(simVar, units, DataTypes::int64, epsilon, unused,
             [field](StructType& data, Data::DataBlockReader& reader) {
                 data.*field = reader.readInt64();
             },
@@ -814,10 +814,10 @@ public:
         size_ += sizeof(int64_t);
         return *this;
     }
-    DataDefinition& addInt64(float StructType::* field, std::string simVar, std::string units) {
+    DataDefinition& addInt64(float StructType::* field, std::string simVar, std::string units, float epsilon = 0.0f) {
         useMapping_ = false; // We cannot map this field directly, so we will not use the mapping.
 
-        fields_.emplace_back(simVar, units, DataTypes::int64, 0.0f, unused,
+        fields_.emplace_back(simVar, units, DataTypes::int64, epsilon, unused,
             [field](StructType& data, Data::DataBlockReader& reader) {
                 data.*field = static_cast<float>(reader.readInt64());
             },
@@ -827,10 +827,10 @@ public:
         size_ += sizeof(int64_t);
         return *this;
     }
-    DataDefinition& addInt64(double StructType::* field, std::string simVar, std::string units) {
+    DataDefinition& addInt64(double StructType::* field, std::string simVar, std::string units, float epsilon = 0.0f) {
         useMapping_ = false; // We cannot map this field directly, so we will not use the mapping.
 
-        fields_.emplace_back(simVar, units, DataTypes::int64, 0.0f, unused,
+        fields_.emplace_back(simVar, units, DataTypes::int64, epsilon, unused,
             [field](StructType& data, Data::DataBlockReader& reader) {
                 data.*field = static_cast<double>(reader.readInt64());
             },
@@ -840,10 +840,10 @@ public:
         size_ += sizeof(int64_t);
         return *this;
     }
-    DataDefinition& addInt64(bool StructType::* field, std::string simVar, std::string units) {
+    DataDefinition& addInt64(bool StructType::* field, std::string simVar, std::string units, float epsilon = 0.0f) {
         useMapping_ = false; // We cannot map this field directly, so we will not use the mapping.
 
-        fields_.emplace_back(simVar, units, DataTypes::int64, 0.0f, unused,
+        fields_.emplace_back(simVar, units, DataTypes::int64, epsilon, unused,
             [field](StructType& data, Data::DataBlockReader& reader) {
                 data.*field = reader.readInt64() != 0;
             },
@@ -853,10 +853,10 @@ public:
         size_ += sizeof(int64_t);
         return *this;
     }
-    DataDefinition& addInt64(std::string StructType::* field, std::string simVar, std::string units) {
+    DataDefinition& addInt64(std::string StructType::* field, std::string simVar, std::string units, float epsilon = 0.0f) {
         useMapping_ = false; // We cannot map this field directly, so we will not use the mapping.
 
-        fields_.emplace_back(simVar, units, DataTypes::int64, 0.0f, unused,
+        fields_.emplace_back(simVar, units, DataTypes::int64, epsilon, unused,
             [field](StructType& data, Data::DataBlockReader& reader) {
                 data.*field = std::format("{}", reader.readInt64());
             },
@@ -867,13 +867,13 @@ public:
         return *this;
     }
 
- 
-    // For DataTypes::float32:
+#pragma endregion
+#pragma region addFloat32
 
-    DataDefinition& addFloat32(std::string simVar, std::string units, std::function<void(float)> setter, std::function<float()> getter) {
+    DataDefinition& addFloat32(std::string simVar, std::string units, std::function<void(float)> setter, std::function<float()> getter, float epsilon = 0.0f) {
         useMapping_ = false; // We cannot map this field directly, so we will not use the mapping.
 
-        fields_.emplace_back(simVar, units, DataTypes::float32, 0.0f, unused,
+        fields_.emplace_back(simVar, units, DataTypes::float32, epsilon, unused,
             [setter](Data::DataBlockReader& reader) {
                 setter(reader.readFloat32());
             },
@@ -883,19 +883,19 @@ public:
         size_ += sizeof(float);
         return *this;
     }
-    DataDefinition& addFloat32(std::string simVar, std::string units, std::function<void(StructType& data, float value)> setter, std::function<float(const StructType& data)> getter) {
+    DataDefinition& addFloat32(std::string simVar, std::string units, std::function<void(StructType& data, float value)> setter, std::function<float(const StructType& data)> getter, float epsilon = 0.0f) {
         useMapping_ = false; // We cannot map this field directly, so we will not use the mapping.
 
-        fields_.emplace_back(simVar, units, DataTypes::float32, 0.0f, unused,
+        fields_.emplace_back(simVar, units, DataTypes::float32, epsilon, unused,
             [setter](StructType& data, Data::DataBlockReader& reader) { setter(data, reader.readFloat32()); },
             [getter](Data::DataBlockBuilder& builder, const StructType& data) { builder.addFloat32(getter(data)); });
         size_ += sizeof(float);
         return *this;
     }
-    DataDefinition& addFloat32(int32_t StructType::* field, std::string simVar, std::string units) {
+    DataDefinition& addFloat32(int32_t StructType::* field, std::string simVar, std::string units, float epsilon = 0.0f) {
         useMapping_ = false; // We cannot map this field directly, so we will not use the mapping.
 
-        fields_.emplace_back(simVar, units, DataTypes::float32, 0.0f, unused,
+        fields_.emplace_back(simVar, units, DataTypes::float32, epsilon, unused,
             [field](StructType& data, Data::DataBlockReader& reader) {
                 data.*field = static_cast<int32_t>(reader.readFloat32());
             },
@@ -905,10 +905,10 @@ public:
         size_ += sizeof(float);
         return *this;
     }
-    DataDefinition& addFloat32(int64_t StructType::* field, std::string simVar, std::string units) {
+    DataDefinition& addFloat32(int64_t StructType::* field, std::string simVar, std::string units, float epsilon = 0.0f) {
         useMapping_ = false; // We cannot map this field directly, so we will not use the mapping.
 
-        fields_.emplace_back(simVar, units, DataTypes::float32, 0.0f, unused,
+        fields_.emplace_back(simVar, units, DataTypes::float32, epsilon, unused,
             [field](StructType& data, Data::DataBlockReader& reader) {
                 data.*field = static_cast<int64_t>(reader.readFloat32());
             },
@@ -918,8 +918,8 @@ public:
         size_ += sizeof(float);
         return *this;
     }
-    DataDefinition& addFloat32(float StructType::* field, std::string simVar, std::string units) {
-        fields_.emplace_back(simVar, units, DataTypes::float32, 0.0f, unused,
+    DataDefinition& addFloat32(float StructType::* field, std::string simVar, std::string units, float epsilon = 0.0f) {
+        fields_.emplace_back(simVar, units, DataTypes::float32, epsilon, unused,
             [field](StructType& data, Data::DataBlockReader& reader) {
                 data.*field = reader.readFloat32();
             },
@@ -929,10 +929,10 @@ public:
         size_ += sizeof(float);
         return *this;
     }
-    DataDefinition& addFloat32(double StructType::* field, std::string simVar, std::string units) {
+    DataDefinition& addFloat32(double StructType::* field, std::string simVar, std::string units, float epsilon = 0.0f) {
         useMapping_ = false; // We cannot map this field directly, so we will not use the mapping.
 
-        fields_.emplace_back(simVar, units, DataTypes::float32, 0.0f, unused,
+        fields_.emplace_back(simVar, units, DataTypes::float32, epsilon, unused,
             [field](StructType& data, Data::DataBlockReader& reader) {
                 data.*field = reader.readFloat32();
             },
@@ -942,10 +942,10 @@ public:
         size_ += sizeof(float);
         return *this;
     }
-    DataDefinition& addFloat32(bool StructType::* field, std::string simVar, std::string units) {
+    DataDefinition& addFloat32(bool StructType::* field, std::string simVar, std::string units, float epsilon = 0.0f) {
         useMapping_ = false; // We cannot map this field directly, so we will not use the mapping.
 
-        fields_.emplace_back(simVar, units, DataTypes::float32, 0.0f, unused,
+        fields_.emplace_back(simVar, units, DataTypes::float32, epsilon, unused,
             [field](StructType& data, Data::DataBlockReader& reader) {
                 data.*field = reader.readFloat32() != 0.0f;
             },
@@ -955,10 +955,10 @@ public:
         size_ += sizeof(float);
         return *this;
     }
-    DataDefinition& addFloat32(std::string StructType::* field, std::string simVar, std::string units) {
+    DataDefinition& addFloat32(std::string StructType::* field, std::string simVar, std::string units, float epsilon = 0.0f) {
         useMapping_ = false; // We cannot map this field directly, so we will not use the mapping.
 
-        fields_.emplace_back(simVar, units, DataTypes::float32, 0.0f, unused,
+        fields_.emplace_back(simVar, units, DataTypes::float32, epsilon, unused,
             [field](StructType& data, Data::DataBlockReader& reader) {
                 data.*field = std::format("{}", reader.readFloat32());
             },
@@ -969,13 +969,13 @@ public:
         return *this;
     }
 
+#pragma endregion
+#pragma region addFloat64
 
-    // For DataTypes::float64:
-
-    DataDefinition& addFloat64(std::string simVar, std::string units, std::function<void(double)> setter, std::function<double()> getter) {
+    DataDefinition& addFloat64(std::string simVar, std::string units, std::function<void(double)> setter, std::function<double()> getter, float epsilon = 0.0f) {
         useMapping_ = false; // We cannot map this field directly, so we will not use the mapping.
 
-        fields_.emplace_back(simVar, units, DataTypes::float64, 0.0f, unused,
+        fields_.emplace_back(simVar, units, DataTypes::float64, epsilon, unused,
             [setter](Data::DataBlockReader& reader) {
                 setter(reader.readFloat64());
             },
@@ -985,19 +985,19 @@ public:
         size_ += sizeof(double);
         return *this;
     }
-    DataDefinition& addFloat64(std::string simVar, std::string units, std::function<void(StructType& data, double value)> setter, std::function<double(const StructType& data)> getter) {
+    DataDefinition& addFloat64(std::string simVar, std::string units, std::function<void(StructType& data, double value)> setter, std::function<double(const StructType& data)> getter, float epsilon = 0.0f) {
         useMapping_ = false; // We cannot map this field directly, so we will not use the mapping.
 
-        fields_.emplace_back(simVar, units, DataTypes::float64, 0.0f, unused,
+        fields_.emplace_back(simVar, units, DataTypes::float64, epsilon, unused,
             [setter](StructType& data, Data::DataBlockReader& reader) { setter(data, reader.readFloat64()); },
             [getter](Data::DataBlockBuilder& builder, const StructType& data) { builder.addFloat64(getter(data)); });
         size_ += sizeof(double);
         return *this;
     }
-    DataDefinition& addFloat64(int32_t StructType::* field, std::string simVar, std::string units) {
+    DataDefinition& addFloat64(int32_t StructType::* field, std::string simVar, std::string units, float epsilon = 0.0f) {
         useMapping_ = false; // We cannot map this field directly, so we will not use the mapping.
 
-        fields_.emplace_back(simVar, units, DataTypes::float64, 0.0f, unused,
+        fields_.emplace_back(simVar, units, DataTypes::float64, epsilon, unused,
             [field](StructType& data, Data::DataBlockReader& reader) {
                 data.*field = static_cast<int32_t>(reader.readFloat64());
             },
@@ -1007,10 +1007,10 @@ public:
         size_ += sizeof(double);
         return *this;
     }
-    DataDefinition& addFloat64(int64_t StructType::* field, std::string simVar, std::string units) {
+    DataDefinition& addFloat64(int64_t StructType::* field, std::string simVar, std::string units, float epsilon = 0.0f) {
         useMapping_ = false; // We cannot map this field directly, so we will not use the mapping.
 
-        fields_.emplace_back(simVar, units, DataTypes::float64, 0.0f, unused,
+        fields_.emplace_back(simVar, units, DataTypes::float64, epsilon, unused,
             [field](StructType& data, Data::DataBlockReader& reader) {
                 data.*field = static_cast<int64_t>(reader.readFloat64());
             },
@@ -1020,10 +1020,10 @@ public:
         size_ += sizeof(double);
         return *this;
     }
-    DataDefinition& addFloat64(float StructType::* field, std::string simVar, std::string units) {
+    DataDefinition& addFloat64(float StructType::* field, std::string simVar, std::string units, float epsilon = 0.0f) {
         useMapping_ = false; // We cannot map this field directly, so we will not use the mapping.
 
-        fields_.emplace_back(simVar, units, DataTypes::float64, 0.0f, unused,
+        fields_.emplace_back(simVar, units, DataTypes::float64, epsilon, unused,
             [field](StructType& data, Data::DataBlockReader& reader) {
                 data.*field = static_cast<float>(reader.readFloat64());
             },
@@ -1033,8 +1033,8 @@ public:
         size_ += sizeof(double);
         return *this;
     }
-    DataDefinition& addFloat64(double StructType::* field, std::string simVar, std::string units) {
-        fields_.emplace_back(simVar, units, DataTypes::float64, 0.0f, unused,
+    DataDefinition& addFloat64(double StructType::* field, std::string simVar, std::string units, float epsilon = 0.0f) {
+        fields_.emplace_back(simVar, units, DataTypes::float64, epsilon, unused,
             [field](StructType& data, Data::DataBlockReader& reader) {
                 data.*field = reader.readFloat64();
             },
@@ -1044,10 +1044,10 @@ public:
         size_ += sizeof(double);
         return *this;
     }
-    DataDefinition& addFloat64(bool StructType::* field, std::string simVar, std::string units) {
+    DataDefinition& addFloat64(bool StructType::* field, std::string simVar, std::string units, float epsilon = 0.0f) {
         useMapping_ = false; // We cannot map this field directly, so we will not use the mapping.
 
-        fields_.emplace_back(simVar, units, DataTypes::float64, 0.0f, unused,
+        fields_.emplace_back(simVar, units, DataTypes::float64, epsilon, unused,
             [field](StructType& data, Data::DataBlockReader& reader) {
                 data.*field = reader.readFloat64() != 0.0;
             },
@@ -1057,10 +1057,10 @@ public:
         size_ += sizeof(double);
         return *this;
     }
-    DataDefinition& addFloat64(std::string StructType::* field, std::string simVar, std::string units) {
+    DataDefinition& addFloat64(std::string StructType::* field, std::string simVar, std::string units, float epsilon = 0.0f) {
         useMapping_ = false; // We cannot map this field directly, so we will not use the mapping.
 
-        fields_.emplace_back(simVar, units, DataTypes::float64, 0.0f, unused,
+        fields_.emplace_back(simVar, units, DataTypes::float64, epsilon, unused,
             [field](StructType& data, Data::DataBlockReader& reader) {
                 data.*field = std::format("{}", reader.readFloat64());
             },
@@ -1071,9 +1071,9 @@ public:
         return *this;
     }
 
-
-    // For DataTypes::string*:
-    //TODO: character array fields...
+#pragma endregion
+#pragma region addStringX
+//TODO: character array fields...
 
     DataDefinition& addString8(std::string simVar, std::function<void(std::string)> setter, std::function<std::string()> getter) {
         useMapping_ = false; // We cannot map this field directly, so we will not use the mapping.
@@ -1321,8 +1321,8 @@ public:
         return *this;
     }
 
-
-    // For DataTypes::InitPosition:
+#pragma endregion
+#pragma region addInitPosition
 
     DataDefinition& addInitPosition(std::string simVar, std::string units, std::function<void(const DataTypes::InitPosition&)> setter, std::function<const DataTypes::InitPosition&()> getter) {
         useMapping_ = false; // We cannot map this field directly, so we will not use the mapping.
@@ -1358,8 +1358,8 @@ public:
         return *this;
     }
 
-
-    // For DataTypes::markerState:
+#pragma endregion
+#pragma region addMarkerState
 
     DataDefinition& addMarkerState(std::string simVar, std::string units, std::function<void(const DataTypes::MarkerState&)> setter, std::function<const DataTypes::MarkerState&()> getter) {
         useMapping_ = false; // We cannot map this field directly, so we will not use the mapping.
@@ -1395,8 +1395,8 @@ public:
         return *this;
     }
 
-
-    // For DataTypes::waypoint:
+#pragma endregion
+#pragma region addWaypoint
 
     DataDefinition& addWaypoint(std::string simVar, std::string units, std::function<void(const DataTypes::Waypoint&)> setter, std::function<const DataTypes::Waypoint&()> getter) {
         useMapping_ = false; // We cannot map this field directly, so we will not use the mapping.
@@ -1432,8 +1432,8 @@ public:
         return *this;
     }
 
-
-    // For DataTypes::latLonAlt:
+#pragma endregion
+#pragma region addLatLonAlt
 
     DataDefinition& addLatLonAlt(std::string simVar, std::string units, std::function<void(const DataTypes::LatLonAlt&)> setter, std::function<const DataTypes::LatLonAlt&()> getter) {
         useMapping_ = false; // We cannot map this field directly, so we will not use the mapping.
@@ -1469,8 +1469,8 @@ public:
         return *this;
     }
 
-
-    // For DataTypes::xyz:
+#pragma endregion
+#pragma region addXYZ
 
     DataDefinition& addXYZ(std::string simVar, std::string units, std::function<void(const DataTypes::XYZ&)> setter, std::function<const DataTypes::XYZ&()> getter) {
         useMapping_ = false; // We cannot map this field directly, so we will not use the mapping.
@@ -1506,8 +1506,9 @@ public:
         return *this;
     }
 
+#pragma endregion
 
-    // Marshalling and Unmarshalling:
+#pragma region Marshalling and Unmarshalling
 
     /**
      * Marshall the data into a DataBlockBuilder.
@@ -1605,6 +1606,8 @@ public:
 
         unmarshall(reader, data, ((msg.dwFlags & DataRequestFlags::tagged) != 0) ? msg.dwDefineCount : unTagged);
     }
+
+#pragma endregion
 };
 
 

@@ -78,5 +78,35 @@ public:
             }
         } while (deadline > std::chrono::steady_clock::now());
     }
+
+
+    /**
+     * Handles incoming SimConnect messages until the specified predicate returns true. Note handling will also stop if the connection is closed.
+     * 
+     * @param predicate The predicate to evaluate.
+     * @param checkInterval The interval to wait between checks of the predicate.
+     */
+    void dispatchUntil(std::function<bool()> predicate, std::chrono::milliseconds checkInterval = std::chrono::milliseconds(100)) {
+        while (this->connection().isOpen() && !predicate()) {
+            this->dispatchWaitingMessages();
+            std::this_thread::sleep_for(checkInterval);
+        }
+    }
+
+
+    /**
+     * Handles incoming SimConnect messages until the specified deadline is reached or the predicate returns true. Note handling will also stop if the connection is closed.
+     * 
+     * @param predicate The predicate to evaluate.
+     * @param duration The maximum duration to handle messages.
+     * @param checkInterval The interval to wait between checks of the predicate.
+     */
+    void dispatchUntil(std::function<bool()> predicate, std::chrono::milliseconds duration, std::chrono::milliseconds checkInterval = std::chrono::milliseconds(100)) {
+        const auto deadline = std::chrono::steady_clock::now() + duration;
+        while (this->connection().isOpen() && (std::chrono::steady_clock::now() < deadline) && !predicate()) {
+            this->dispatchWaitingMessages();
+            std::this_thread::sleep_for(checkInterval);
+        }
+    }
 };
 }

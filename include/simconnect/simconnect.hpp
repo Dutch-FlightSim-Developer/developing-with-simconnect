@@ -35,7 +35,9 @@ inline constexpr unsigned long unused{ SIMCONNECT_UNUSED };                     
 inline constexpr unsigned long noId{ 0 };
 
 using MessageId = unsigned long;                                                        ///< The type used for message IDs, SIMCONNECT_RECV_ID.
+
 using SendId = unsigned long;                                                           ///< The type used for Send IDs.
+inline constexpr SendId unknownSendId{ SIMCONNECT_RECV_EXCEPTION::UNKNOWN_SENDID };     ///< Constant representing an unknown Send ID.
 
 namespace Messages {
     using MsgBase = SIMCONNECT_RECV;
@@ -164,6 +166,9 @@ namespace Messages {
 using ExceptionCode = unsigned long;                                                    ///< The type used for exception codes.
 
 namespace Exceptions {
+    inline constexpr unsigned long unknownIndex{ SIMCONNECT_RECV_EXCEPTION::UNKNOWN_INDEX };  ///< Constant representing an unknown index.
+
+    /// Predefined exception codes.
     inline constexpr ExceptionCode none{ SIMCONNECT_EXCEPTION_NONE };
     inline constexpr ExceptionCode error{ SIMCONNECT_EXCEPTION_ERROR };
     inline constexpr ExceptionCode sizeMismatch{ SIMCONNECT_EXCEPTION_SIZE_MISMATCH };

@@ -79,6 +79,15 @@ public:
 
 
     /**
+     * Returns the SimConnect message handler.
+     */
+    [[nodiscard]]
+    simconnect_message_handler_type& simConnectMessageHandler() const noexcept {
+        return simConnectMessageHandler_;
+    }
+
+
+    /**
      * Returns the request ID from the message. This is specific to the Messages::SimObjectDataMsg and
 	 * Messages::SimObjectDataByTypeMsg messages. The latter type does not actually add fields, so we can
      * use the same method for both.

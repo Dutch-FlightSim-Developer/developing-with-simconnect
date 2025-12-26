@@ -50,11 +50,8 @@ TEST(TestEvents, MapEventTwice) {
     ASSERT_TRUE(connection.open());
 
     // Wait for open message
-    constexpr int maxWaitIterations = 20;
-    constexpr auto waitInterval = 100ms;
-    for (int i = 0; i < maxWaitIterations && !gotOpen; ++i) {
-        handler.dispatch(waitInterval);
-    }
+    static constexpr auto twoSeconds = 100ms;
+    handler.handleUntilOrTimeout([&gotOpen]() { return gotOpen.load(); }, twoSeconds);
     ASSERT_TRUE(gotOpen);
 
     // Get an event
@@ -72,9 +69,8 @@ TEST(TestEvents, MapEventTwice) {
     EXPECT_TRUE(brakeEvt.isMapped());
 
     // Process any potential messages
-    for (int i = 0; i < maxWaitIterations; ++i) {
-        handler.dispatch(waitInterval);
-    }
+    handler.handleFor(twoSeconds);
+    EXPECT_FALSE(gotException);
 
     // Map the same event again - should be silently skipped
     eventHandler.mapEvent(brakeEvt);
@@ -85,12 +81,7 @@ TEST(TestEvents, MapEventTwice) {
     EXPECT_TRUE(brakeEvt.isMapped());
 
     // Wait a bit longer to ensure no delayed exceptions
-    for (int i = 0; i < maxWaitIterations; ++i) {
-        handler.dispatch(waitInterval);
-        if (gotException) {
-            break;
-        }
-    }
+    handler.handleUntilOrTimeout([&gotException]() { return gotException.load(); }, twoSeconds);
 
     // Verify no exception was received
     EXPECT_FALSE(gotException) << "Mapping the same event twice should not cause an exception";
@@ -127,11 +118,8 @@ TEST(TestEvents, MapMultipleEventsTwice) {
     ASSERT_TRUE(connection.open());
 
     // Wait for open message
-    constexpr int maxWaitIterations = 20;
-    constexpr auto waitInterval = 100ms;
-    for (int i = 0; i < maxWaitIterations && !gotOpen; ++i) {
-        handler.dispatch(waitInterval);
-    }
+    static constexpr auto twoSeconds = 100ms;
+    handler.handleUntilOrTimeout([&gotOpen]() { return gotOpen.load(); }, twoSeconds);
     ASSERT_TRUE(gotOpen);
 
     // Create several events
@@ -161,9 +149,7 @@ TEST(TestEvents, MapMultipleEventsTwice) {
     EXPECT_TRUE(flapsDownEvt.isMapped());
 
     // Process messages
-    for (int i = 0; i < maxWaitIterations; ++i) {
-        handler.dispatch(waitInterval);
-    }
+    handler.handleUntilOrTimeout([&gotException]() { return gotException.load(); }, twoSeconds);
 
     EXPECT_FALSE(gotException) << "We shouldn't have received an exception after one mapping";
 
@@ -177,12 +163,7 @@ TEST(TestEvents, MapMultipleEventsTwice) {
     EXPECT_TRUE(connection.succeeded());
 
     // Wait for potential exceptions
-    for (int i = 0; i < maxWaitIterations; ++i) {
-        handler.dispatch(waitInterval);
-        if (gotException) {
-            break;
-        }
-    }
+    handler.handleUntilOrTimeout([&gotException]() { return gotException.load(); }, twoSeconds);
 
     // Verify no exceptions
     EXPECT_FALSE(gotException) << "Mapping multiple events twice should not cause exceptions. Got " 
@@ -208,11 +189,8 @@ TEST(TestEvents, MappedStatusAfterClose) {
     ASSERT_TRUE(connection.open());
 
     // Wait for open message
-    constexpr int maxWaitIterations = 20;
-    constexpr auto waitInterval = 100ms;
-    for (int i = 0; i < maxWaitIterations && !gotOpen; ++i) {
-        handler.dispatch(waitInterval);
-    }
+    static constexpr auto twoSeconds = 100ms;
+    handler.handleUntilOrTimeout([&gotOpen]() { return gotOpen.load(); }, twoSeconds);
     ASSERT_TRUE(gotOpen);
 
     // Create and map an event

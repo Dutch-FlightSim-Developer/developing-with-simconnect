@@ -41,7 +41,7 @@ TEST(TestEventHandler, ReceiveTimedEvent) {
 
     ASSERT_TRUE(connection.open());
 
-    auto oneSecondEvent = Events::oneSec();
+    const auto oneSecondEvent = Events::oneSec();
 
     eventHandler.registerEventHandler<SIMCONNECT_RECV_EVENT>(oneSecondEvent, [&]([[maybe_unused]] const SIMCONNECT_RECV_EVENT& msg) { // NOLINT(misc-include-cleaner)
         receivedEvent = true;
@@ -49,7 +49,7 @@ TEST(TestEventHandler, ReceiveTimedEvent) {
 	connection.subscribeToSystemEvent(oneSecondEvent);
 
     // Wait for event
-    handler.dispatch(fiveSeconds);
+    handler.handleUntilOrTimeout([&receivedEvent]() { return receivedEvent.load(); }, fiveSeconds);
 
     EXPECT_TRUE(receivedEvent) << "Did not receive event";
 
@@ -57,7 +57,7 @@ TEST(TestEventHandler, ReceiveTimedEvent) {
 	receivedEvent = false;
 
 	// Wait for event again
-	handler.dispatch(fiveSeconds);
+	handler.handleFor(fiveSeconds);
 
 	EXPECT_FALSE(receivedEvent) << "Received event after unsubscribing";
 
@@ -83,8 +83,10 @@ TEST(TestEventHandler, MultipleHandlersReceiveEvent) {
         receivedEvent2 = true;
     });
     connection.subscribeToSystemEvent(oneSecondEvent);
+
     // Wait for event
-    handler.dispatch(fiveSeconds);
+    handler.handleUntilOrTimeout([&receivedEvent1, &receivedEvent2]() { return receivedEvent1.load() && receivedEvent2.load(); }, fiveSeconds);
+
     EXPECT_TRUE(receivedEvent1) << "First handler did not receive event";
     EXPECT_TRUE(receivedEvent2) << "Second handler did not receive event";
     connection.unsubscribeFromSystemEvent(oneSecondEvent);

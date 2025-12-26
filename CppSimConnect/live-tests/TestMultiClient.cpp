@@ -75,17 +75,9 @@ TEST(TestMultiClient, MultipleIndependentConnections) {
     EXPECT_TRUE(connection2.isOpen()) << "Client 2 connection should be open";
 
     // Process messages for both handlers independently
-    constexpr int maxIterations = 20;
-    constexpr auto timeout = 100ms;
-
-    for (int i = 0; i < maxIterations && (!client1GotOpen || !client2GotOpen); ++i) {
-        if (!client1GotOpen) {
-            handler1.dispatch(timeout);
-        }
-        if (!client2GotOpen) {
-            handler2.dispatch(timeout);
-        }
-    }
+    static constexpr auto twoSeconds = 2s;
+    handler1.handleUntilOrTimeout([&client1GotOpen]() { return client1GotOpen.load(); }, twoSeconds);
+    handler2.handleUntilOrTimeout([&client2GotOpen]() { return client2GotOpen.load(); }, twoSeconds);
 
     // Verify both clients received open messages
     EXPECT_TRUE(client1GotOpen) << "Client 1 should receive OPEN message";
@@ -109,7 +101,7 @@ TEST(TestMultiClient, MultipleIndependentConnections) {
     constexpr auto dispatchTimeout = 50ms;
     bool client2StillResponsive = false;
     for (int i = 0; i < maxDispatchAttempts; ++i) {
-        handler2.dispatch(dispatchTimeout);
+        handler2.handleFor(dispatchTimeout);
         if (connection2.isOpen()) {
             client2StillResponsive = true;
             break;
@@ -172,12 +164,9 @@ TEST(TestMultiClient, IndependentSystemStateRequests) {
     });
 
     // Process messages
-    constexpr int maxIterations = 30;
-    constexpr auto waitInterval = 100ms;
-    for (int i = 0; i < maxIterations && (!client1GotAircraftLoaded || !client2GotAircraftLoaded); ++i) {
-        handler1.dispatch(waitInterval);
-        handler2.dispatch(waitInterval);
-    }
+    static constexpr auto threeSeconds = 3s;
+    handler1.handleUntilOrTimeout([&client1GotAircraftLoaded]() { return client1GotAircraftLoaded.load(); }, threeSeconds);
+    handler2.handleUntilOrTimeout([&client2GotAircraftLoaded]() { return client2GotAircraftLoaded.load(); }, threeSeconds);
 
     // Both clients should receive their responses
     EXPECT_TRUE(client1GotAircraftLoaded) << "Client 1 should receive AircraftLoaded response";
@@ -221,14 +210,9 @@ TEST(TestMultiClient, SimultaneousReconnection) {
     ASSERT_TRUE(connection2.open());
 
     // Wait for initial open messages
-    constexpr int maxWaitIterations = 20;
-    constexpr auto waitInterval = 100ms;
-    for (int i = 0; i < maxWaitIterations && client1OpenCount == 0; ++i) {
-        handler1.dispatch(waitInterval);
-    }
-    for (int i = 0; i < maxWaitIterations && client2OpenCount == 0; ++i) {
-        handler2.dispatch(waitInterval);
-    }
+    static constexpr auto twoSeconds = 2s;
+    handler1.handleUntilOrTimeout([&client1OpenCount]() { return client1OpenCount.load() > 0; }, twoSeconds);
+    handler2.handleUntilOrTimeout([&client2OpenCount]() { return client2OpenCount.load() > 0; }, twoSeconds);
 
     EXPECT_EQ(client1OpenCount.load(), 1) << "Client 1 should receive first OPEN";
     EXPECT_EQ(client2OpenCount.load(), 1) << "Client 2 should receive first OPEN";
@@ -242,9 +226,7 @@ TEST(TestMultiClient, SimultaneousReconnection) {
     ASSERT_TRUE(connection1.open());
 
     // Wait for second open message on client 1
-    for (int i = 0; i < maxWaitIterations && client1OpenCount < 2; ++i) {
-        handler1.dispatch(waitInterval);
-    }
+    handler1.handleUntilOrTimeout([&client1OpenCount]() { return client1OpenCount.load() >= 2; }, twoSeconds);
 
     // Client 1 should have received 2 open messages (initial + reconnect)
     EXPECT_EQ(client1OpenCount.load(), 2) << "Client 1 should receive OPEN after reconnection";

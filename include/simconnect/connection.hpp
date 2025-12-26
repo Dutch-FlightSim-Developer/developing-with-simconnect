@@ -33,6 +33,7 @@
 
 #include <span>
 #include <string>
+#include <string_view>
 
 #include <type_traits>
 #include <mutex>
@@ -75,7 +76,7 @@ class Connection : public StateFullObject
 {
 public:
 	using logger_type = L;
-    using mutex_type = std::conditional_t<ThreadSafe, std::mutex, NoMutex>;
+    using mutex_type = std::conditional_t<ThreadSafe, std::recursive_mutex, NoMutex>;
     using guard_type = std::conditional_t<ThreadSafe, std::lock_guard<mutex_type>, NoGuard>;
 
 
@@ -655,17 +656,29 @@ public:
 
 
     /**
-     * Maps an input event to a client event.
+     * Sets the state of an input group.
+     * 
+     * @param groupId The input group ID.
+     * @param enabled True to enable the group, false to disable it.
+     * @return The connection reference for chaining.
+     */
+    Derived& setInputGroupEnabled(InputGroupId groupId, bool enabled) {
+        return setInputGroupState(groupId, enabled ? Events::on : Events::off);
+    }
+
+
+    /**
+     * Maps an input event to a client event. The client Event will be sent when the input (key/button) goes DOWN.
      * 
      * @param evt The client event ID.
      * @param inputEvent The input event string (e.g., "VK_SPACE").
-     * @param groupId The input group ID (optional, defaults to unused).
+     * @param groupId The input group ID.
      * @return The connection reference for chaining.
      */
-    Derived& mapInputEventToClientEvent(event evt, std::string inputEvent, InputGroupId groupId = unused) {
+    Derived& mapInputEventToClientEvent(event evt, std::string_view inputEvent, InputGroupId groupId) {
         guard_type guard(mutex_);
 
-        state(SimConnect_MapInputEventToClientEvent_EX1(hSimConnect_, groupId, inputEvent.c_str(), evt.id()));
+        state(SimConnect_MapInputEventToClientEvent_EX1(hSimConnect_, groupId, inputEvent.data(), evt.id()));
         if (failed()) {
             logger_.error("SimConnect_MapInputEventToClientEvent_EX1 failed with error code 0x{:08X}.", state());
         } else {
@@ -677,22 +690,73 @@ public:
 
 
     /**
-     * Adds a client event to an input group.
+     * Maps an input event to a client event. The first client Event will be sent when the input (key/button)
+     * goes DOWN. The second client Event will be sent when the input goes UP.
      * 
+     * @param downEvent The client event ID for the DOWN event.
+     * @param upEvent The client event ID for the UP event.
+     * @param inputEvent The input event string (e.g., "VK_SPACE").
      * @param groupId The input group ID.
-     * @param evt The event to add.
-     * @param inputEvent The input event definition string.
      * @return The connection reference for chaining.
      */
-    Derived& addClientEventToInputGroup(InputGroupId groupId, event evt, std::string inputEvent) {
+    Derived& mapInputEventToClientEvent(event downEvent, event upEvent, std::string_view inputEvent, InputGroupId groupId) {
         guard_type guard(mutex_);
 
-        state(SimConnect_MapInputEventToClientEvent_EX1(hSimConnect_, groupId, inputEvent.c_str(), evt.id()));
+        state(SimConnect_MapInputEventToClientEvent_EX1(hSimConnect_, groupId, inputEvent.data(), downEvent.id(), 0, upEvent.id()));
         if (failed()) {
-            logger_.error("SimConnect_AddInputEvent failed with error code 0x{:08X}.", state());
+            logger_.error("SimConnect_MapInputEventToClientEvent_EX1 failed with error code 0x{:08X}.", state());
         } else {
-            logger_.debug("Added event '{}' (input: '{}') to input group {} (sendId={})",
-                evt.name(), inputEvent, groupId, fetchSendIdInternal());
+            logger_.debug("Mapped input event '{}' to client event {} for DOWN and {} for UP, in group {} (sendId={})",
+                inputEvent, downEvent.id(), upEvent.id(), groupId, fetchSendIdInternal());
+        }
+        return static_cast<Derived&>(*this);
+    }
+
+
+    /**
+     * Maps an input event to a client event. The client Event will be sent when the input (key/button) goes DOWN.
+     * 
+     * @param evt The client event ID.
+     * @param value The value to send with the event.
+     * @param inputEvent The input event string (e.g., "VK_SPACE").
+     * @param groupId The input group ID.
+     * @return The connection reference for chaining.
+     */
+    Derived& mapInputEventToClientEventWithValue(event evt, unsigned long value, std::string_view inputEvent, InputGroupId groupId) {
+        guard_type guard(mutex_);
+
+        state(SimConnect_MapInputEventToClientEvent_EX1(hSimConnect_, groupId, inputEvent.data(), evt.id(), value));
+        if (failed()) {
+            logger_.error("SimConnect_MapInputEventToClientEvent_EX1 failed with error code 0x{:08X}.", state());
+        } else {
+            logger_.debug("Mapped input event '{}' to client event {} with value {} in group {} (sendId={})",
+                inputEvent, evt.id(), value, groupId, fetchSendIdInternal());
+        }
+        return static_cast<Derived&>(*this);
+    }
+
+
+    /**
+     * Maps an input event to a client event. The first client Event will be sent when the input (key/button)
+     * goes DOWN. The second client Event will be sent when the input goes UP.
+     * 
+     * @param downEvent The client event ID.
+     * @param downValue The value to send with the event.
+     * @param upEvent The client event ID for the UP event.
+     * @param upValue The value to send with the UP event.
+     * @param inputEvent The input event string (e.g., "VK_SPACE").
+     * @param groupId The input group ID.
+     * @return The connection reference for chaining.
+     */
+    Derived& mapInputEventToClientEventWithValue(event downEvent, unsigned long downValue, event upEvent, unsigned long upValue, std::string_view inputEvent, InputGroupId groupId) {
+        guard_type guard(mutex_);
+
+        state(SimConnect_MapInputEventToClientEvent_EX1(hSimConnect_, groupId, inputEvent.data(), downEvent.id(), downValue, upEvent.id(), upValue));
+        if (failed()) {
+            logger_.error("SimConnect_MapInputEventToClientEvent_EX1 failed with error code 0x{:08X}.", state());
+        } else {
+            logger_.debug("Mapped input event '{}' to client event {} with value {} for DOWN and {} with value {} for UP, in group {} (sendId={})",
+                inputEvent, downEvent.id(), downValue, upEvent.id(), upValue, groupId, fetchSendIdInternal());
         }
         return static_cast<Derived&>(*this);
     }
@@ -893,7 +957,7 @@ public:
         if (failed()) {
             logger_.error("SimConnect_RequestDataOnSimObjectType failed with error code 0x{:08X}.", state());
         } else {
-            logger_.debug("Requested data by type (dataDef={}, requestId={}, radius={}, type={}, sendId={})", dataDef, requestId, radiusInMeters, objectType, fetchSendIdInternal());
+            logger_.debug("Requested data by type (dataDef={}, requestId={}, radius={}, type={}, sendId={})", dataDef, requestId, radiusInMeters, static_cast<std::underlying_type_t<SimObjectType>>(objectType), fetchSendIdInternal());
         }
         return static_cast<Derived&>(*this);
 	}

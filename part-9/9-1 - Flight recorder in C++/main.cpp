@@ -24,7 +24,6 @@
 #include <string_view>
 #include <array>
 #include <map>
-#include <utility>
 #include <functional>
 
 #include <cstdint>
@@ -358,9 +357,10 @@ class PositionDataWriter {
     Request dataRequest_;
 
 public:
-    PositionDataWriter(std::string filename, bool segmentedFiles)
-        : segmented{ segmentedFiles },
-          positionDataFilename{ std::move(filename) }
+    explicit PositionDataWriter(const std::map<std::string, std::string>& args)
+        : segmented{ args.contains("segment-files") },
+          positionDataFilenamePrefix{ args.contains("position-filename-prefix") ? args.at("position-filename-prefix") : "aircraft_position_" },
+          positionDataFilename{ args.contains("position-filename") ? args.at("position-filename") : "aircraft_position.yaml" }
     {
         defineAircraftPosition();
     }
@@ -541,24 +541,22 @@ public:
 /**
  * Set up keyboard input to toggle recording and exit the program.
  */
-template <typename EvtHandler>
-static bool setupKeys(EvtHandler& eventHandler, std::function<void()> onToggleRecording, std::function<void()> onExit) // NOLINT(bugprone-easily-swappable-parameters)
+template <typename EvtHandler, typename InputGroup>
+static bool setupKeys(EvtHandler &eventHandler, InputGroup &inputGroup, std::function<void()> onToggleRecording, std::function<void()> onExit) // NOLINT(bugprone-easily-swappable-parameters,performance-unnecessary-value-param)
 {
     std::cerr
         << "[Press the Play/Pause media key to toggle recording]\n"
         << "[Press the Stop key to exit the program]\n";
 
-    InputGroup inputGroup = eventHandler.createInputGroup().withHighestPriority();
-
     const event startStop = event::get("Toggle.Recording");
     inputGroup.addEvent(startStop, "VK_MEDIA_PLAY_PAUSE");
-    eventHandler.template registerEventHandler<Messages::EventMsg>(startStop, [&onToggleRecording]([[maybe_unused]] const Messages::EventMsg& evt) {
+    eventHandler.template registerEventHandler<Messages::EventMsg>(startStop, [onToggleRecording]([[maybe_unused]] const Messages::EventMsg& evt) {
         onToggleRecording();
     });
 
     const event exit = event::get("Exit.Program");
     inputGroup.addEvent(exit, "VK_MEDIA_STOP");
-    eventHandler.template registerEventHandler<Messages::EventMsg>(exit, [&onExit]([[maybe_unused]] const Messages::EventMsg& evt) {
+    eventHandler.template registerEventHandler<Messages::EventMsg>(exit, [onExit]([[maybe_unused]] const Messages::EventMsg& evt) {
         onExit();
     });
 
@@ -665,16 +663,15 @@ auto main(int argc, const char* argv[]) -> int // NOLINT(bugprone-exception-esca
 
 	gatherArgs(args, argc, argv);
 
-    std::chrono::seconds runDuration{ 0 }; // Default to 0, meaning don't record position data
-    constexpr auto defaultDuration{ 60s };
+    std::chrono::seconds runDuration{ 0 }; // Default to 0, meaning run until stopped with a key-press
 
     if (args.contains("duration")) {
         try {
             runDuration = std::chrono::seconds(std::stoi(args["duration"]));
         }
         catch (const std::exception&) {
-            std::cerr << std::format("[Invalid duration '{}', using default of 60 seconds]\n", args["duration"]);
-            runDuration = defaultDuration;
+            std::cerr << std::format("[Invalid duration '{}']\n", args["duration"]);
+            return 1;
         }
 	}
 
@@ -707,23 +704,17 @@ auto main(int argc, const char* argv[]) -> int // NOLINT(bugprone-exception-esca
         return 1;
     }
 
-    PositionDataWriter positionDataWriter(args.contains("position-filename") ? args["position-filename"] : "aircraft_position.yaml", args.contains("segment-files"));
-	// Gather filenames from arguments
-    if (args.contains("position-filename")) {
-        positionDataWriter.setPositionDataFilename(args["position-filename"]);
-    }
-    if (args.contains("position-filename-prefix")) {
-        positionDataWriter.setPositionDataFilenamePrefix(args["position-filename-prefix"]);
-    }
+    PositionDataWriter positionDataWriter(args);
+
+    const bool useKeyboard{ args.contains("keyboard") };
+    InputGroup inputGroup = eventHandler.createInputGroup().withHighestPriority();
 
     // Set up keyboard input if requested
-    if (args.contains("keyboard") && !setupKeys(eventHandler,
+    if (useKeyboard && !setupKeys(eventHandler, inputGroup, 
         [&positionDataWriter, &dataHandler]() {
-            std::cerr << "[Toggle recording requested from keyboard input]\n";
             positionDataWriter.toggleRecording(dataHandler);
         },
         [&connection, &positionDataWriter]() {
-            std::cerr << "[Exit requested from keyboard input]\n";
             positionDataWriter.stopPositionData();
             connection.close();
         }))
@@ -737,8 +728,13 @@ auto main(int argc, const char* argv[]) -> int // NOLINT(bugprone-exception-esca
         positionDataWriter.startPositionData(dataHandler);
     }
 
-
-	connectionHandler.handle(runDuration);
+    if (runDuration.count() == 0) {
+        // No defined runlength, so run indefinitely
+        connectionHandler.handleUntilClosed();
+    }
+    else {
+	    connectionHandler.handleFor(runDuration);
+    }
 
     positionDataWriter.stopPositionData();
     connection.close();

@@ -47,7 +47,7 @@ TEST(TestSystemEvents, ReceiveTimedEvent) {
 
     // Wait for event
     constexpr auto maxWait = 5s;
-    handler.dispatch(maxWait);
+    handler.handleFor(maxWait);
 
     EXPECT_TRUE(receivedEvent) << "Did not receive event";
 
@@ -55,7 +55,7 @@ TEST(TestSystemEvents, ReceiveTimedEvent) {
 	receivedEvent = false;
 
 	// Wait for event again
-	handler.dispatch(maxWait);
+	handler.handleFor(maxWait);
 
 	EXPECT_FALSE(receivedEvent) << "Received event after unsubscribing";
 

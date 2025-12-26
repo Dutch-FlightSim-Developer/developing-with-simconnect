@@ -69,7 +69,7 @@ public:
      * @param connection The connection to handle messages from.
      * @param duration The maximum amount of time to wait for a message, defaults to 0ms meaning don't wait.
      */
-    void dispatch(std::chrono::milliseconds duration = std::chrono::milliseconds(0)) {
+    void dispatchFor(std::chrono::milliseconds duration = noWait) {
         const auto deadline = std::chrono::steady_clock::now() + duration;
         do {
             this->dispatchWaitingMessages();
@@ -86,10 +86,21 @@ public:
      * @param predicate The predicate to evaluate.
      * @param checkInterval The interval to wait between checks of the predicate.
      */
-    void dispatchUntil(std::function<bool()> predicate, std::chrono::milliseconds checkInterval = std::chrono::milliseconds(100)) {
+    void dispatchUntil(std::function<bool()> predicate, std::chrono::milliseconds checkInterval = defaultDispatchInterval) {
         while (this->connection().isOpen() && !predicate()) {
             this->dispatchWaitingMessages();
             std::this_thread::sleep_for(checkInterval);
+        }
+    }
+
+
+    /**
+     * Handles incoming SimConnect messages until the connection is closed.
+     */
+    void dispatchUntilClosed() {
+        while (this->connection().isOpen()) {
+            this->dispatchWaitingMessages();
+            std::this_thread::sleep_for(sleep_duration_);
         }
     }
 
@@ -101,7 +112,7 @@ public:
      * @param duration The maximum duration to handle messages.
      * @param checkInterval The interval to wait between checks of the predicate.
      */
-    void dispatchUntil(std::function<bool()> predicate, std::chrono::milliseconds duration, std::chrono::milliseconds checkInterval = std::chrono::milliseconds(100)) {
+    void dispatchUntilOrTimeout(std::function<bool()> predicate, std::chrono::milliseconds duration, std::chrono::milliseconds checkInterval = defaultDispatchInterval) {
         const auto deadline = std::chrono::steady_clock::now() + duration;
         while (this->connection().isOpen() && (std::chrono::steady_clock::now() < deadline) && !predicate()) {
             this->dispatchWaitingMessages();

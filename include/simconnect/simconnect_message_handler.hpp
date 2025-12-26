@@ -32,6 +32,10 @@
 namespace SimConnect {
 
 
+inline constexpr std::chrono::milliseconds noWait{ 0 };
+inline constexpr std::chrono::milliseconds defaultDispatchInterval{ 10 };
+
+
 /**
  * SimConnect message handler base class. This class uses the Curiously Recurring Template Pattern (CRTP) to prevent
  * the need for a virtual function table.
@@ -242,12 +246,39 @@ public:
 
 
     /**
+     * Handles any waiting SimConnect messages. Note that dispatching will also stop if the connection is closed.
+     */
+    void handle() {
+        static_cast<M*>(this)->dispatchWaitingMessages();
+    }
+
+
+    /**
      * Handles incoming SimConnect messages. Note that dispatching will also stop if the connection is closed.
 	 * 
-	 * @param duration The maximum amount of time to wait for a message, defaults to 0ms meaning don't wait.
+	 * @param duration The maximum amount of time to wait for a message.
      */
-    void handle(std::chrono::milliseconds duration = std::chrono::milliseconds(0)) {
-        static_cast<M*>(this)->dispatch(duration);
+    void handleFor(std::chrono::milliseconds duration) {
+        static_cast<M*>(this)->dispatchFor(duration);
+    }
+
+
+    /**
+     * Handles any waiting messages until the specified predicate returns true. Note handling will also stop if the connection is closed.
+     * 
+     * @param predicate The predicate to evaluate.
+     * @param checkInterval The interval to check the predicate, defaults to 100ms.
+     */
+    void handleUntil(std::function<bool()> predicate, std::chrono::milliseconds checkInterval = defaultDispatchInterval) {
+        static_cast<M*>(this)->dispatchUntil(std::move(predicate), checkInterval);
+    }
+
+
+    /**
+     * Handles incoming SimConnect messages until the connection is closed.
+     */
+    void handleUntilClosed() {
+        static_cast<M*>(this)->dispatchUntilClosed();
     }
 
 
@@ -258,8 +289,8 @@ public:
      * @param duration The maximum duration to handle messages.
      * @param checkInterval The interval to check the predicate, defaults to 100ms.
      */
-    void handleUntil(std::function<bool()> predicate, std::chrono::milliseconds duration, std::chrono::milliseconds checkInterval = std::chrono::milliseconds(100)) {
-        static_cast<M*>(this)->dispatchUntil(std::move(predicate), duration, checkInterval);
+    void handleUntilOrTimeout(std::function<bool()> predicate, std::chrono::milliseconds duration, std::chrono::milliseconds checkInterval = defaultDispatchInterval) {
+        static_cast<M*>(this)->dispatchUntilOrTimeout(std::move(predicate), duration, checkInterval);
     }
 };
 

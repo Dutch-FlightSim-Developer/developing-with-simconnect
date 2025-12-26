@@ -49,11 +49,8 @@ TEST(TestSystemState, RequestAircraftLoaded) {
     });
 
     // Wait up to 2 seconds for the result
-    constexpr int maxAttempts = 20;
-    constexpr auto waitInterval = 100ms;
-    for (int i = 0; i < maxAttempts && !gotResult; ++i) {
-        handler.dispatch(waitInterval);
-    }
+    static constexpr auto twoSeconds = 2s;
+    handler.handleUntilOrTimeout([&gotResult]() { return gotResult.load(); }, twoSeconds);
     EXPECT_TRUE(gotResult) << "Did not receive AircraftLoaded system state";
     EXPECT_FALSE(result.empty()) << "AircraftLoaded system state should not be empty";
     connection.close();
@@ -78,11 +75,8 @@ TEST(TestSystemState, RequestDialogMode) {
     });
 
     // Wait up to 2 seconds for the result
-    constexpr int maxAttempts = 20;
-    constexpr auto waitInterval = 100ms;
-    for (int i = 0; i < maxAttempts && !gotResult; ++i) {
-        handler.dispatch(waitInterval);
-    }
+    static constexpr auto twoSeconds = 2s;
+    handler.handleUntilOrTimeout([&gotResult]() { return gotResult.load(); }, twoSeconds);
     EXPECT_TRUE(gotResult) << "Did not receive DialogMode system state";
     // No assert on dialogMode value, just that we got a result
     connection.close();
@@ -106,11 +100,8 @@ TEST(TestSystemState, ExceptionOnUnknownSystemState) {
     requestHandler.requestSystemState("UnknownState", std::function<void(std::string)>([](std::string){})); // NOLINT(performance-unnecessary-value-param)
 
     // Wait up to 2 seconds for the exception message
-    constexpr int maxAttempts = 20;
-    constexpr auto waitInterval = 100ms;
-    for (int i = 0; i < maxAttempts && !gotException; ++i) {
-        handler.dispatch(waitInterval);
-    }
+    static constexpr auto twoSeconds = 2s;
+    handler.handleUntilOrTimeout([&gotException]() { return gotException.load(); }, twoSeconds);
     EXPECT_TRUE(gotException) << "Did not receive exception for unknown system state";
     connection.close();
 }

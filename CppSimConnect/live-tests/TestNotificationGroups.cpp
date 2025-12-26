@@ -47,11 +47,8 @@ TEST(TestNotificationGroups, BasicGroupCreation) {
     ASSERT_TRUE(connection.open());
 
     // Wait for open message
-    constexpr int maxWaitIterations = 20;
-    constexpr auto waitInterval = 100ms;
-    for (int i = 0; i < maxWaitIterations && !gotOpen; ++i) {
-        handler.dispatch(waitInterval);
-    }
+    static constexpr auto twoSeconds = 2s;
+    handler.handleUntilOrTimeout([&gotOpen]() { return gotOpen.load(); }, twoSeconds);
     ASSERT_TRUE(gotOpen);
 
     // Create an event - no need to map it manually anymore!
@@ -88,11 +85,8 @@ TEST(TestNotificationGroups, FluentAPIUsage) {
     ASSERT_TRUE(connection.open());
 
     // Wait for open message
-    constexpr int maxWaitIterations = 20;
-    constexpr auto waitInterval = 100ms;
-    for (int i = 0; i < maxWaitIterations && !gotOpen; ++i) {
-        handler.dispatch(waitInterval);
-    }
+    static constexpr auto twoSeconds = 2s;
+    handler.handleUntilOrTimeout([&gotOpen]() { return gotOpen.load(); }, twoSeconds);
     ASSERT_TRUE(gotOpen);
 
     // Use factory method and fluent API to configure notification group
@@ -126,11 +120,8 @@ TEST(TestNotificationGroups, PriorityHandling) {
     ASSERT_TRUE(connection.open());
 
     // Wait for open message
-    constexpr int maxWaitIterations = 20;
-    constexpr auto waitInterval = 100ms;
-    for (int i = 0; i < maxWaitIterations && !gotOpen; ++i) {
-        handler.dispatch(waitInterval);
-    }
+    static constexpr auto twoSeconds = 2s;
+    handler.handleUntilOrTimeout([&gotOpen]() { return gotOpen.load(); }, twoSeconds);
     ASSERT_TRUE(gotOpen);
 
     // Create two groups with different priorities
@@ -168,11 +159,8 @@ TEST(TestNotificationGroups, MaskableEvents) {
     ASSERT_TRUE(connection.open());
 
     // Wait for open message
-    constexpr int maxWaitIterations = 20;
-    constexpr auto waitInterval = 100ms;
-    for (int i = 0; i < maxWaitIterations && !gotOpen; ++i) {
-        handler.dispatch(waitInterval);
-    }
+    static constexpr auto twoSeconds = 2s;
+    handler.handleUntilOrTimeout([&gotOpen]() { return gotOpen.load(); }, twoSeconds);
     ASSERT_TRUE(gotOpen);
 
     // Create group with both maskable and non-maskable events
@@ -205,11 +193,8 @@ TEST(TestNotificationGroups, MultipleGroupsPerClient) {
     ASSERT_TRUE(connection.open());
 
     // Wait for open message
-    constexpr int maxWaitIterations = 20;
-    constexpr auto waitInterval = 100ms;
-    for (int i = 0; i < maxWaitIterations && !gotOpen; ++i) {
-        handler.dispatch(waitInterval);
-    }
+    static constexpr auto twoSeconds = 2s;
+    handler.handleUntilOrTimeout([&gotOpen]() { return gotOpen.load(); }, twoSeconds);
     ASSERT_TRUE(gotOpen);
 
     // No need to map events since we're not transmitting them
@@ -260,11 +245,8 @@ TEST(TestNotificationGroups, RemoveAndClearEvents) {
     ASSERT_TRUE(connection.open());
 
     // Wait for open message
-    constexpr int maxWaitIterations = 20;
-    constexpr auto waitInterval = 100ms;
-    for (int i = 0; i < maxWaitIterations && !gotOpen; ++i) {
-        handler.dispatch(waitInterval);
-    }
+    static constexpr auto twoSeconds = 2s;
+    handler.handleUntilOrTimeout([&gotOpen]() { return gotOpen.load(); }, twoSeconds);
     ASSERT_TRUE(gotOpen);
 
     // Create group and add multiple events
@@ -305,11 +287,8 @@ TEST(TestNotificationGroups, AllPriorityLevels) {
     ASSERT_TRUE(connection.open());
 
     // Wait for open message
-    constexpr int maxWaitIterations = 20;
-    constexpr auto waitInterval = 100ms;
-    for (int i = 0; i < maxWaitIterations && !gotOpen; ++i) {
-        handler.dispatch(waitInterval);
-    }
+    static constexpr auto twoSeconds = 2s;
+    handler.handleUntilOrTimeout([&gotOpen]() { return gotOpen.load(); }, twoSeconds);
     ASSERT_TRUE(gotOpen);
 
     // Test all five priority levels
@@ -381,17 +360,10 @@ TEST(TestNotificationGroups, IndependentGroupsAcrossClients) {
     ASSERT_TRUE(connection1.open());
     ASSERT_TRUE(connection2.open());
 
-    // Wait for open messages
-    constexpr int maxWaitIterations = 20;
-    constexpr auto waitInterval = 100ms;
-
-    for (int i = 0; i < maxWaitIterations && !client1GotOpen; ++i) {
-        handler1.dispatch(waitInterval);
-    }
-    for (int i = 0; i < maxWaitIterations && !client2GotOpen; ++i) {
-        handler2.dispatch(waitInterval);
-    }
-
+    // Wait for open message
+    static constexpr auto twoSeconds = 2s;
+    handler1.handleUntilOrTimeout([&client1GotOpen]() { return client1GotOpen.load(); }, twoSeconds);
+    handler2.handleUntilOrTimeout([&client2GotOpen]() { return client2GotOpen.load(); }, twoSeconds);
     ASSERT_TRUE(client1GotOpen);
     ASSERT_TRUE(client2GotOpen);
 

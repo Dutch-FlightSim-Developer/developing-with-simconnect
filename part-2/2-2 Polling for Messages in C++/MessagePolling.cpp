@@ -86,7 +86,7 @@ auto main() -> int { // NOLINT(bugprone-exception-escape)
 		while (connection.isOpen()) {
 			std::cout << "Handling messages for 10 seconds using polling.\n";
             constexpr auto duration = 10s;
-			handler.handle(duration);
+			handler.handleFor(duration);
 		}
 	}
 	else {

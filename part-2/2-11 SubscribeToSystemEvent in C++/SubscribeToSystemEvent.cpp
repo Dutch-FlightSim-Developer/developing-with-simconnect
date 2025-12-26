@@ -284,7 +284,7 @@ auto main() -> int { // NOLINT(bugprone-exception-escape)
 
 		std::cout << "\n\nHandling messages for 30 seconds.\n";
         constexpr auto duration = 30s;
-		handler.handle(duration);
+		handler.handleFor(duration);
 	}
 	else {
 		std::cerr << "Failed to connect to simulator.\n";

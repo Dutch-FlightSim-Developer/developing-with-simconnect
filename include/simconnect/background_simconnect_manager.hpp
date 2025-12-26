@@ -763,7 +763,7 @@ private:
 
     VoidResult processMessages() noexcept {
         try {
-            handler_.handle(/*messageCheckInterval_*/);
+            handler_.handle();
             return {ErrorCode::None, {}};
         } catch (const std::exception& e) {
             return {ErrorCode::MessageProcessingFailed, std::string("Message processing error: ") + e.what()};

@@ -49,15 +49,13 @@ public:
 
     ~WindowsEventHandler() = default;
 
-
-	inline static constexpr std::chrono::milliseconds noWait{ 0 };
-
+    
     /**
      * Handles incoming SimConnect messages.
      * 
      * @param duration The maximum amount of time to wait for a message, defaults to 0ms meaning don't wait.
      */
-    void dispatch(std::chrono::milliseconds duration = noWait) {
+    void dispatchFor(std::chrono::milliseconds duration = noWait) {
         const auto deadline = std::chrono::steady_clock::now() + duration;
         do {
             if (this->isAutoClosing() && !this->connection_.isOpen()) {
@@ -76,12 +74,24 @@ public:
      * @param predicate The predicate to evaluate to determine when to stop dispatching messages.
      * @param checkInterval The interval to wait between checks of the predicate.
      */
-    void dispatchUntil(std::function<bool()> predicate, std::chrono::milliseconds checkInterval = std::chrono::milliseconds(100)) {
+    void dispatchUntil(std::function<bool()> predicate, std::chrono::milliseconds checkInterval = defaultDispatchInterval) {
         while (!predicate()) {
             if (this->isAutoClosing() && !this->connection_.isOpen()) {
                 break;
             }
             if (this->connection_.checkForMessage(checkInterval)) {
+                this->dispatchWaitingMessages();
+            }
+        }
+    }
+
+
+    /**
+     * Dispatches messages until the connection is closed.
+     */
+    void dispatchUntilClosed() {
+        while (this->connection_.isOpen()) {
+            if (this->connection_.checkForMessage(defaultDispatchInterval)) {
                 this->dispatchWaitingMessages();
             }
         }
@@ -95,7 +105,7 @@ public:
      * @param duration The maximum duration to dispatch messages.
      * @param checkInterval The interval to wait between checks of the predicate.
      */
-    void dispatchUntil(std::function<bool()> predicate, std::chrono::milliseconds duration, std::chrono::milliseconds checkInterval = std::chrono::milliseconds(100)) {
+    void dispatchUntilOrTimeout(std::function<bool()> predicate, std::chrono::milliseconds duration, std::chrono::milliseconds checkInterval = defaultDispatchInterval) {
         auto startTime = std::chrono::steady_clock::now();
         auto deadline = startTime + duration;
 

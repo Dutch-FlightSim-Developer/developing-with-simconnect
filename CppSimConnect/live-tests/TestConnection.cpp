@@ -42,12 +42,9 @@ TEST(TestConnection, ReceivesOpenMessage) {
     ASSERT_TRUE(connection.open());
 
     // Wait up to 2 seconds for the open message
-    constexpr auto waitInterval = 100ms;
-    constexpr int maxAttempts = 20;
+    static constexpr auto twoSeconds = 2000ms;
+    handler.handleUntilOrTimeout([&gotOpen]() { return gotOpen.load(); }, twoSeconds);
 
-    for (int i = 0; i < maxAttempts && !gotOpen; ++i) {
-        handler.dispatch(waitInterval);
-    }
     EXPECT_TRUE(gotOpen) << "Did not receive SIMCONNECT_RECV_ID_OPEN from CppSimConnect abstraction";
     connection.close();
 }
@@ -79,12 +76,9 @@ TEST(TestConnection, ExceptionOnUnknownSystemState) {
     requestHandler.requestSystemState("UnknownState", std::function<void(std::string)>([](std::string){})); // NOLINT(performance-unnecessary-value-param)
 
     // Wait up to 2 seconds for the exception message
-    constexpr auto waitInterval = 100ms;
-    constexpr int maxAttempts = 20;
-
-    for (int i = 0; i < maxAttempts && !gotException; ++i) {
-        handler.dispatch(waitInterval);
-    }
+    static constexpr auto twoSeconds = 2000ms;
+    handler.handleUntilOrTimeout([&gotException]() { return gotException.load(); }, twoSeconds);
+ 
     EXPECT_TRUE(gotException) << "Did not receive exception for unknown system state";
     connection.close();
 }

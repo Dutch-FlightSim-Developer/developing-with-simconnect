@@ -27,6 +27,8 @@
 
 #include <simconnect/connection.hpp>
 #include <simconnect/simple_handler.hpp>
+#include <simconnect/simconnect_message_handler.hpp>
+
 #include <simconnect/util/logger.hpp>
 
 using namespace SimConnect;
@@ -163,10 +165,11 @@ TEST(SimpleHandlerTests, DispatchEmptyConnection) {
     SimpleHandler<MockConnection> handler(connection);
     
     // Should not throw when no messages are available
-    EXPECT_NO_THROW(handler.dispatch());
+    EXPECT_NO_THROW(handler.handle());
     
     // Should complete immediately
-    EXPECT_NO_THROW(handler.dispatch(std::chrono::milliseconds(100)));
+    static constexpr auto waitDuration = 100ms;
+    EXPECT_NO_THROW(handler.handleFor(waitDuration));
 }
 
 // Scenario: Dispatching with default handler
@@ -190,7 +193,7 @@ TEST(SimpleHandlerTests, DispatchWithDefaultHandler) {
     connection.addMessage(SIMCONNECT_RECV_ID_EXCEPTION); // NOLINT(misc-include-cleaner)
     
     // Dispatch messages
-    handler.dispatch();
+    handler.handle();
     
     EXPECT_EQ(receivedIds.size(), 3);
     EXPECT_EQ(receivedIds[0], SIMCONNECT_RECV_ID_OPEN);
@@ -231,7 +234,7 @@ TEST(SimpleHandlerTests, DispatchWithSpecificHandlers) {
     connection.addMessage(SIMCONNECT_RECV_ID_OPEN);      // Second open
     
     // Dispatch messages
-    handler.dispatch();
+    handler.handle();
     
     EXPECT_EQ(openCount, 2);      // Two OPEN messages
     EXPECT_EQ(quitCount, 1);      // One QUIT message  
@@ -266,7 +269,7 @@ TEST(SimpleHandlerTests, DispatchWithTypedHandlers) {
     connection.addMessage(SIMCONNECT_RECV_ID_QUIT);
     
     // Dispatch messages
-    handler.dispatch();
+    handler.handle();
     
     EXPECT_EQ(receivedOpenId, static_cast<DWORD>(SIMCONNECT_RECV_ID_OPEN));
     EXPECT_EQ(receivedQuitId, static_cast<DWORD>(SIMCONNECT_RECV_ID_QUIT));
@@ -291,7 +294,7 @@ TEST(SimpleHandlerTests, AutoClosingOnQuit) {
     EXPECT_TRUE(connection.isOpen());
     
     // Dispatch the QUIT message
-    handler.dispatch();
+    handler.handle();
     
     // Connection should be closed after processing QUIT
     EXPECT_FALSE(connection.isOpen());
@@ -312,7 +315,7 @@ TEST(SimpleHandlerTests, NoAutoClosingWhenDisabled) {
     connection.addMessage(SIMCONNECT_RECV_ID_QUIT);
     
     // Dispatch the QUIT message
-    handler.dispatch();
+    handler.handle();
     
     // Connection should still be open
     EXPECT_TRUE(connection.isOpen());
@@ -345,7 +348,7 @@ TEST(SimpleHandlerTests, DispatchStopsWhenConnectionCloses) {
     connection.addMessage(SIMCONNECT_RECV_ID_EXCEPTION); // This should not be processed
     
     // Dispatch messages
-    handler.dispatch();
+    handler.handle();
     
     // Should have processed only the first two messages
     EXPECT_EQ(processedCount, 2);
@@ -399,7 +402,7 @@ TEST(SimpleHandlerTests, HandlerRetrieval) {
     connection.addMessage(SIMCONNECT_RECV_ID_OPEN);
     connection.addMessage(SIMCONNECT_RECV_ID_EXCEPTION); // Will use default
     
-    handler.dispatch();
+    handler.handle();
     
     EXPECT_TRUE(openHandlerCalled);
     EXPECT_TRUE(defaultHandlerCalled);
@@ -426,7 +429,7 @@ TEST(SimpleHandlerTests, MalformedMessageHandling) {
 	logs.clear();  // Clear previous logs
     
     // Should not throw despite size mismatch
-    EXPECT_NO_THROW(handler.dispatch());
+    EXPECT_NO_THROW(handler.handle());
 
     EXPECT_EQ(logs.size(), 1); // Should log a warning about size mismatch
     EXPECT_FALSE(handlerCalled);
@@ -442,9 +445,12 @@ TEST(SimpleHandlerTests, DispatchWithDuration) {
     SimpleHandler<MockConnection> handler(connection);
     
     // Should not throw with various duration values
-    EXPECT_NO_THROW(handler.dispatch(std::chrono::milliseconds(0)));
-    EXPECT_NO_THROW(handler.dispatch(std::chrono::milliseconds(100)));
-    EXPECT_NO_THROW(handler.dispatch(std::chrono::milliseconds(1000)));
+    static constexpr auto hundredMillis = 100ms;
+    static constexpr auto oneSecond = 1000ms;
+
+    EXPECT_NO_THROW(handler.handleFor(noWait));
+    EXPECT_NO_THROW(handler.handleFor(hundredMillis));
+    EXPECT_NO_THROW(handler.handleFor(oneSecond));
     
     // Test with messages
     connection.addMessage(SIMCONNECT_RECV_ID_OPEN);
@@ -455,6 +461,6 @@ TEST(SimpleHandlerTests, DispatchWithDuration) {
     });
     
     constexpr auto duration = 50ms;
-    handler.dispatch(duration);
+    handler.handleFor(duration);
     EXPECT_TRUE(handlerCalled);
 }

@@ -275,7 +275,7 @@ auto main() -> int { // NOLINT(bugprone-exception-escape)
 
 		std::cout << "Handling messages\n";
         constexpr auto duration = 10s;
-		handler.handle(duration);
+		handler.handleFor(duration);
 	}
 	else {
 		std::cerr << "Failed to open connection\n";

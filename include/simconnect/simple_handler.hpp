@@ -52,7 +52,7 @@ public:
      * 
      * @param duration The maximum amount of time to wait for a message, defaults to 0ms meaning don't wait.
      */
-    void dispatch([[maybe_unused]] std::chrono::milliseconds duration = std::chrono::milliseconds(0)) {
+    void dispatchFor([[maybe_unused]] std::chrono::milliseconds duration = noWait) {
         this->dispatchWaitingMessages();
     }
 
@@ -63,7 +63,16 @@ public:
      * @param predicate The predicate to evaluate.
      * @param checkInterval The interval to check the predicate, defaults to 100ms.
      */
-    void dispatchUntil([[maybe_unused]]std::function<bool()> predicate, [[maybe_unused]] std::chrono::milliseconds checkInterval = std::chrono::milliseconds(100)) {
+    void dispatchUntil([[maybe_unused]]std::function<bool()> predicate, [[maybe_unused]] std::chrono::milliseconds checkInterval = defaultDispatchInterval) {
+        dispatch();
+    }
+
+
+    /**
+     * Handles incoming SimConnect messages until the connection is closed. Note that for the SimpleHandler, this method performs the same as dispatch().
+     * If you actually want it to wait, use the PollingHandler instead.
+     */
+    void dispatchUntilClosed() {
         dispatch();
     }
 
@@ -75,7 +84,7 @@ public:
      * @param duration The maximum duration to handle messages.
      * @param checkInterval The interval to check the predicate, defaults to 100ms.
      */
-    void dispatchUntil([[maybe_unused]] std::function<bool()> predicate, [[maybe_unused]] std::chrono::milliseconds duration, [[maybe_unused]] std::chrono::milliseconds checkInterval = std::chrono::milliseconds(100)) {
+    void dispatchUntilOrTimeout([[maybe_unused]] std::function<bool()> predicate, [[maybe_unused]] std::chrono::milliseconds duration, [[maybe_unused]] std::chrono::milliseconds checkInterval = defaultDispatchInterval) {
         dispatch();
     }
 };

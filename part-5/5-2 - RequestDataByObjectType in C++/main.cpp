@@ -338,7 +338,7 @@ void testGetData() {
 
         std::cout << "\n\nHandling messages for 10 seconds.\n";
         constexpr auto duration = 10s;
-		handler.handle(duration);
+		handler.handleFor(duration);
 	}
 	else {
 		std::cerr << "Failed to connect to simulator.\n";

@@ -1055,6 +1055,29 @@ public:
 
 #pragma endregion
 
+#pragma region Titles and Liveries
+
+    /**
+     * Requests the list of available titles and liveries.
+     * 
+     * @param requestId The request ID.
+     * @param simObjectType The type of SimObject to request titles and liveries for.
+     * @return The connection reference for chaining.
+     */
+    Derived& enumerateSimObjectsAndLiveries(RequestId requestId, SimObjectType simObjectType) {
+        guard_type guard(mutex_);
+
+        state(SimConnect_EnumerateSimObjectsAndLiveries(hSimConnect_, requestId, simObjectType));
+        if (failed()) {
+            logger_.error("SimConnect_EnumerateSimObjectsAndLiveries failed with error code 0x{:08X}.", state());
+        } else {
+            logger_.debug("Requested enumeration of SimObject titles and liveries for type {} (requestId={}, sendId={})", static_cast<std::underlying_type_t<SimObjectType>>(simObjectType), requestId, fetchSendIdInternal());
+        }
+        return static_cast<Derived&>(*this);
+    }
+
+#pragma endregion
+
 #pragma region AI
 
     /**

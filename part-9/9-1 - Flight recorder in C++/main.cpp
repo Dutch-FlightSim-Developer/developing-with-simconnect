@@ -315,255 +315,6 @@ static bool writeAircraftInfo(const AircraftInfo& aircraftInfo, const std::strin
 }
 
 
-#pragma pack(push, 1) // Ensure no padding bytes are added to the structure
-struct AircraftPosition {
-    double planeLatitude;           // PLANE ALTITUDE (Degrees)
-	double planeLongitude;          // PLANE LONGITUDE (Degrees)
-	double planeAltitude;           // PLANE ALTITUDE (Feet)
-
-    float planePitch;               // PLANE PITCH DEGREES (Degrees)
-	float planeBank;                // PLANE BANK DEGREES (Degrees)
-	float planeHeading;             // PLANE HEADING DEGREES TRUE (Degrees)
-	
-    float planeAirspeed;            // AIRSPEED INDICATED (Knots)
-
-    float planeVelocityX;           // VELOCITY BODY X (Feet per second)
-	float planeVelocityY;           // VELOCITY BODY Y (Feet per second)
-	float planeVelocityZ;           // VELOCITY BODY Z (Feet per second)
-
-    float planeAccelerationX;       // ACCELERATION BODY X (Feet per second squared)
-	float planeAccelerationY;       // ACCELERATION BODY Y (Feet per second squared)
-	float planeAccelerationZ;       // ACCELERATION BODY Z (Feet per second squared)
-
-    float planeRotationVelocityX;   // ROTATION VELOCITY BODY X (Degrees per second)
-	float planeRotationVelocityY;   // ROTATION VELOCITY BODY Y (Degrees per second)
-	float planeRotationVelocityZ;   // ROTATION VELOCITY BODY Z (Degrees per second)
-
-    int32_t onGround;               // SIM ON GROUND / SIM SHOULD SET ON GROUND (Bool, defaulting to 32-bit int 0 or 1)
-};
-#pragma pack(pop) // Restore previous packing alignment
-
-
-class PositionDataWriter {
-    DataDefinition<AircraftPosition> aircraftPosition;
-
-    bool segmented{ false };
-    bool recordingActive{ false };
-    int recordingSegment{ 0 };
-    std::string positionDataFilenamePrefix{ "aircraft_position_" };
-    std::string positionDataFilename;
-    std::ofstream positionData;
-
-    Request dataRequest_;
-
-public:
-    explicit PositionDataWriter(const std::map<std::string, std::string>& args)
-        : segmented{ args.contains("segment-files") },
-          positionDataFilenamePrefix{ args.contains("position-filename-prefix") ? args.at("position-filename-prefix") : "aircraft_position_" },
-          positionDataFilename{ args.contains("position-filename") ? args.at("position-filename") : "aircraft_position.yaml" }
-    {
-        defineAircraftPosition();
-    }
-    PositionDataWriter(const PositionDataWriter&) = delete;
-    PositionDataWriter(PositionDataWriter&&) = delete;
-    PositionDataWriter& operator=(const PositionDataWriter&) = delete;
-    PositionDataWriter & operator=(PositionDataWriter&&) = delete;
-
-    ~PositionDataWriter() = default;
-
-
-    // Accessors
-
-    [[nodiscard]]
-    bool isSegmented() const noexcept {
-        return segmented;
-    }
-    void setSegmented(bool segmentedFiles) noexcept {
-        segmented = segmentedFiles;
-    }
-
-    [[nodiscard]]
-    bool isRecordingActive() const noexcept {
-        return recordingActive;
-    }
-    void setRecordingActive(bool active) noexcept {
-        recordingActive = active;
-    }
-
-    void setPositionDataFilename(std::string_view filename) {
-        positionDataFilename = filename;
-    }
-    void setPositionDataFilenamePrefix(std::string_view filenamePrefix) {
-        positionDataFilenamePrefix = filenamePrefix;
-    }
-
-    /**
-     * Build a filename if needed.
-     */
-    void makeFilename()
-    {
-        if (segmented) {
-            positionDataFilename = std::format("{}{:03}.yaml", positionDataFilenamePrefix, recordingSegment++);
-        }
-    }
-
-
-    /**
-     * Define the data structure for the aircraft position.
-     *
-     * @param def The data definition to define the aircraft position on.
-     */
-    void defineAircraftPosition() {
-        aircraftPosition
-            .addFloat64(&AircraftPosition::planeLatitude, "PLANE LATITUDE", "degrees", veryPrecise)
-            .addFloat64(&AircraftPosition::planeLongitude, "PLANE LONGITUDE", "degrees", veryPrecise)
-            .addFloat64(&AircraftPosition::planeAltitude, "PLANE ALTITUDE", "feet", veryPrecise)
-            .addFloat32(&AircraftPosition::planePitch, "PLANE PITCH DEGREES", "degrees", veryPrecise)
-            .addFloat32(&AircraftPosition::planeBank, "PLANE BANK DEGREES", "degrees", veryPrecise)
-            .addFloat32(&AircraftPosition::planeHeading, "PLANE HEADING DEGREES TRUE", "degrees", veryPrecise)
-            .addFloat32(&AircraftPosition::planeAirspeed, "AIRSPEED TRUE", "knots", littleBitPrecise)
-            .addFloat32(&AircraftPosition::planeVelocityX, "VELOCITY BODY X", "feet per second", morePrecise)
-            .addFloat32(&AircraftPosition::planeVelocityY, "VELOCITY BODY Y", "feet per second", morePrecise)
-            .addFloat32(&AircraftPosition::planeVelocityZ, "VELOCITY BODY Z", "feet per second", morePrecise)
-            .addFloat32(&AircraftPosition::planeAccelerationX, "ACCELERATION BODY X", "feet per second squared", morePrecise)
-            .addFloat32(&AircraftPosition::planeAccelerationY, "ACCELERATION BODY Y", "feet per second squared", morePrecise)
-            .addFloat32(&AircraftPosition::planeAccelerationZ, "ACCELERATION BODY Z", "feet per second squared", morePrecise)
-            .addFloat32(&AircraftPosition::planeRotationVelocityX, "ROTATION VELOCITY BODY X", "degrees per second", veryPrecise)
-            .addFloat32(&AircraftPosition::planeRotationVelocityY, "ROTATION VELOCITY BODY Y", "degrees per second", veryPrecise)
-            .addFloat32(&AircraftPosition::planeRotationVelocityZ, "ROTATION VELOCITY BODY Z", "degrees per second", veryPrecise)
-            .addInt32(&AircraftPosition::onGround, "SIM ON GROUND", "bool");
-    }
-
-
-    /**
-     * Start recording position data to the specified file.
-     *
-     * @return true if recording started successfully, false otherwise.
-     */
-    template <typename DataHandler>
-    bool startPositionData(DataHandler& dataHandler)
-    {
-        if (positionData.is_open()) {
-            positionData.close();
-        }
-        makeFilename();
-        positionData.open(positionDataFilename);
-        positionData.imbue(std::locale::classic());
-        positionData
-            << "kind: AircraftPosition\n"
-            << "metadata:\n"
-            << "  start-time: " << std::format("{:%FT%TZ}", std::chrono::floor<std::chrono::seconds>(std::chrono::system_clock::now())) << "\n"
-            << "  simulator: \"MSFS2024\"\n"
-            << "positions:\n";
-        if (!positionData) {
-            std::cerr << "[Failed to open 'aircraft_position.yaml' for writing, skipping position updates]\n";
-            positionData.setstate(std::ios::badbit);
-            return false;
-        }
-
-        dataRequest_ = dataHandler.template requestData<AircraftPosition>(aircraftPosition, [&](const AircraftPosition& pos){ write(pos); },
-            DataFrequency::every().second(), PeriodLimits::none(), SimObject::userCurrent, onlyWhenChanged);
-        std::cerr << "[Position data recording started]\n";
-        recordingActive = true;
-
-        return true;
-    }
-
-
-    /**
-     * Stop recording position data.
-     */
-    void stopPositionData()
-    {
-        if (recordingActive) {
-            if (positionData.is_open()) {
-                positionData.close();
-                std::cerr << "[Position data file closed]\n";
-            }
-
-            dataRequest_.stop();
-            dataRequest_ = Request{};
-            std::cerr << "[Position data stream stopped]\n";
-            recordingActive = false;
-        }
-    }
-
-
-    /**
-     * Toggle recording position data.
-     */
-    template <typename DataHandler>
-    void toggleRecording(DataHandler& dataHandler)
-    {
-        if (recordingActive) {
-            stopPositionData();
-        } else {
-            startPositionData(dataHandler);
-        }
-    }
-
-
-    /**
-     * Write the aircraft position to the YAML file.
-     *
-     * @param pos The aircraft position to write.
-     */
-    void write(const AircraftPosition& pos)
-    {
-        if (!positionData) {
-            return;
-        }
-        positionData
-            << "- msecs: " << std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now().time_since_epoch()).count() << "\n"
-            << std::setprecision(std::numeric_limits<double>::digits10)
-            << "  latitude: " << pos.planeLatitude << "\n"
-            << "  longitude: " << pos.planeLongitude << "\n"
-            << "  altitude: " << pos.planeAltitude << "\n"
-            << std::setprecision(std::numeric_limits<float>::digits10)
-            << "  pitch: " << pos.planePitch << "\n"
-            << "  bank: " << pos.planeBank << "\n"
-            << "  heading: " << pos.planeHeading << "\n"
-            << "  airspeed: " << pos.planeAirspeed << "\n"
-            << "  velocity-x: " << pos.planeVelocityX << "\n"
-            << "  velocity-y: " << pos.planeVelocityY << "\n"
-            << "  velocity-z: " << pos.planeVelocityZ << "\n"
-            << "  acceleration-x: " << pos.planeAccelerationX << "\n"
-            << "  acceleration-y: " << pos.planeAccelerationY << "\n"
-            << "  acceleration-z: " << pos.planeAccelerationZ << "\n"
-            << "  rotation-velocity-x: " << pos.planeRotationVelocityX << "\n"
-            << "  rotation-velocity-y: " << pos.planeRotationVelocityY << "\n"
-            << "  rotation-velocity-z: " << pos.planeRotationVelocityZ << "\n"
-            << "  on-ground: " << ((pos.onGround != 0) ? "true" : "false") << "\n";
-    }
-};
-
-
-/**
- * Set up keyboard input to toggle recording and exit the program.
- */
-template <typename EvtHandler, typename InputGroup>
-static bool setupKeys(EvtHandler &eventHandler, InputGroup &inputGroup, std::function<void()> onToggleRecording, std::function<void()> onExit) // NOLINT(bugprone-easily-swappable-parameters,performance-unnecessary-value-param)
-{
-    std::cerr
-        << "[Press the Play/Pause media key to toggle recording]\n"
-        << "[Press the Stop key to exit the program]\n";
-
-    const event startStop = event::get("Toggle.Recording");
-    inputGroup.addEvent(startStop, "VK_MEDIA_PLAY_PAUSE");
-    eventHandler.template registerEventHandler<Messages::EventMsg>(startStop, [onToggleRecording]([[maybe_unused]] const Messages::EventMsg& evt) {
-        onToggleRecording();
-    });
-
-    const event exit = event::get("Exit.Program");
-    inputGroup.addEvent(exit, "VK_MEDIA_STOP");
-    eventHandler.template registerEventHandler<Messages::EventMsg>(exit, [onExit]([[maybe_unused]] const Messages::EventMsg& evt) {
-        onExit();
-    });
-
-    return inputGroup.enable();
-}
-
-
 /**
  * Define the data structure for the aircraft info.
  *
@@ -616,6 +367,258 @@ static bool loadAircraftInfo(DataHandler& dataHandler, std::chrono::milliseconds
 }
 
 
+#pragma pack(push, 1) // Ensure no padding bytes are added to the structure
+struct AircraftPosition {
+    double planeLatitude;           // PLANE ALTITUDE (Degrees)
+	double planeLongitude;          // PLANE LONGITUDE (Degrees)
+	double planeAltitude;           // PLANE ALTITUDE (Feet)
+
+    float planePitch;               // PLANE PITCH DEGREES (Degrees)
+	float planeBank;                // PLANE BANK DEGREES (Degrees)
+	float planeHeading;             // PLANE HEADING DEGREES TRUE (Degrees)
+	
+    float planeAirspeed;            // AIRSPEED INDICATED (Knots)
+
+    float planeVelocityX;           // VELOCITY BODY X (Feet per second)
+	float planeVelocityY;           // VELOCITY BODY Y (Feet per second)
+	float planeVelocityZ;           // VELOCITY BODY Z (Feet per second)
+
+    float planeAccelerationX;       // ACCELERATION BODY X (Feet per second squared)
+	float planeAccelerationY;       // ACCELERATION BODY Y (Feet per second squared)
+	float planeAccelerationZ;       // ACCELERATION BODY Z (Feet per second squared)
+
+    float planeRotationVelocityX;   // ROTATION VELOCITY BODY X (Degrees per second)
+	float planeRotationVelocityY;   // ROTATION VELOCITY BODY Y (Degrees per second)
+	float planeRotationVelocityZ;   // ROTATION VELOCITY BODY Z (Degrees per second)
+
+    int32_t onGround;               // SIM ON GROUND / SIM SHOULD SET ON GROUND (Bool, defaulting to 32-bit int 0 or 1)
+};
+#pragma pack(pop) // Restore previous packing alignment
+
+
+/**
+ * Class to handle writing position data to a YAML file.
+ */
+class PositionDataWriter {
+    DataDefinition<AircraftPosition> aircraftPosition_;
+
+    bool segmented_{ false };
+    bool recordingActive_{ false };
+    int recordingSegment_{ 0 };
+    std::string positionDataFilenamePrefix_{ "aircraft_position_" };
+    std::string positionDataFilename_;
+    std::ofstream positionData_;
+
+    Request dataRequest_;
+
+public:
+    explicit PositionDataWriter(const std::map<std::string, std::string>& args)
+        : segmented_{ args.contains("segment-files") },
+          positionDataFilenamePrefix_{ args.contains("position-filename-prefix") ? args.at("position-filename-prefix") : "aircraft_position_" },
+          positionDataFilename_{ args.contains("position-filename") ? args.at("position-filename") : "aircraft_position.yaml" }
+    {
+        defineAircraftPosition();
+    }
+    PositionDataWriter(const PositionDataWriter&) = delete;
+    PositionDataWriter(PositionDataWriter&&) = delete;
+    PositionDataWriter& operator=(const PositionDataWriter&) = delete;
+    PositionDataWriter & operator=(PositionDataWriter&&) = delete;
+
+    ~PositionDataWriter() = default;
+
+
+    // Accessors
+
+    [[nodiscard]]
+    bool isSegmented() const noexcept {
+        return segmented_;
+    }
+    void setSegmented(bool segmentedFiles) noexcept {
+        segmented_ = segmentedFiles;
+    }
+
+    [[nodiscard]]
+    bool isRecordingActive() const noexcept {
+        return recordingActive_;
+    }
+    void setRecordingActive(bool active) noexcept {
+        recordingActive_ = active;
+    }
+
+    void setPositionDataFilename(std::string_view filename) {
+        positionDataFilename_ = filename;
+    }
+    void setPositionDataFilenamePrefix(std::string_view filenamePrefix) {
+        positionDataFilenamePrefix_ = filenamePrefix;
+    }
+
+    /**
+     * Build a filename if needed.
+     */
+    void makeFilename()
+    {
+        if (segmented_) {
+            positionDataFilename_ = std::format("{}{:03}.yaml", positionDataFilenamePrefix_, recordingSegment_++);
+        }
+    }
+
+
+    /**
+     * Define the data structure for the aircraft position.
+     *
+     * @param def The data definition to define the aircraft position on.
+     */
+    void defineAircraftPosition() {
+        aircraftPosition_
+            .addFloat64(&AircraftPosition::planeLatitude, "PLANE LATITUDE", "degrees", veryPrecise)
+            .addFloat64(&AircraftPosition::planeLongitude, "PLANE LONGITUDE", "degrees", veryPrecise)
+            .addFloat64(&AircraftPosition::planeAltitude, "PLANE ALTITUDE", "feet", veryPrecise)
+            .addFloat32(&AircraftPosition::planePitch, "PLANE PITCH DEGREES", "degrees", veryPrecise)
+            .addFloat32(&AircraftPosition::planeBank, "PLANE BANK DEGREES", "degrees", veryPrecise)
+            .addFloat32(&AircraftPosition::planeHeading, "PLANE HEADING DEGREES TRUE", "degrees", veryPrecise)
+            .addFloat32(&AircraftPosition::planeAirspeed, "AIRSPEED TRUE", "knots", littleBitPrecise)
+            .addFloat32(&AircraftPosition::planeVelocityX, "VELOCITY BODY X", "feet per second", morePrecise)
+            .addFloat32(&AircraftPosition::planeVelocityY, "VELOCITY BODY Y", "feet per second", morePrecise)
+            .addFloat32(&AircraftPosition::planeVelocityZ, "VELOCITY BODY Z", "feet per second", morePrecise)
+            .addFloat32(&AircraftPosition::planeAccelerationX, "ACCELERATION BODY X", "feet per second squared", morePrecise)
+            .addFloat32(&AircraftPosition::planeAccelerationY, "ACCELERATION BODY Y", "feet per second squared", morePrecise)
+            .addFloat32(&AircraftPosition::planeAccelerationZ, "ACCELERATION BODY Z", "feet per second squared", morePrecise)
+            .addFloat32(&AircraftPosition::planeRotationVelocityX, "ROTATION VELOCITY BODY X", "degrees per second", veryPrecise)
+            .addFloat32(&AircraftPosition::planeRotationVelocityY, "ROTATION VELOCITY BODY Y", "degrees per second", veryPrecise)
+            .addFloat32(&AircraftPosition::planeRotationVelocityZ, "ROTATION VELOCITY BODY Z", "degrees per second", veryPrecise)
+            .addInt32(&AircraftPosition::onGround, "SIM ON GROUND", "bool");
+    }
+
+
+    /**
+     * Start recording position data to the specified file.
+     *
+     * @return true if recording started successfully, false otherwise.
+     */
+    template <typename DataHandler>
+    bool startPositionData(DataHandler& dataHandler)
+    {
+        if (positionData_.is_open()) {
+            positionData_.close();
+        }
+        makeFilename();
+        positionData_.open(positionDataFilename_);
+        positionData_.imbue(std::locale::classic());
+        positionData_
+            << "kind: AircraftPosition\n"
+            << "metadata:\n"
+            << "  start-time: " << std::format("{:%FT%TZ}", std::chrono::floor<std::chrono::seconds>(std::chrono::system_clock::now())) << "\n"
+            << "  simulator: \"MSFS2024\"\n"
+            << "positions:\n";
+        if (!positionData_) {
+            std::cerr << "[Failed to open 'aircraft_position.yaml' for writing, skipping position updates]\n";
+            positionData_.setstate(std::ios::badbit);
+            return false;
+        }
+
+        dataRequest_ = dataHandler.template requestData<AircraftPosition>(aircraftPosition_, [&](const AircraftPosition& pos){ write(pos); },
+            DataFrequency::every().second(), PeriodLimits::none(), SimObject::userCurrent, onlyWhenChanged);
+        std::cerr << "[Position data recording started]\n";
+        recordingActive_ = true;
+
+        return true;
+    }
+
+
+    /**
+     * Stop recording position data.
+     */
+    void stopPositionData()
+    {
+        if (recordingActive_) {
+            if (positionData_.is_open()) {
+                positionData_.close();
+                std::cerr << "[Position data file closed]\n";
+            }
+
+            dataRequest_.stop();
+            dataRequest_ = Request{};
+            std::cerr << "[Position data stream stopped]\n";
+            recordingActive_ = false;
+        }
+    }
+
+
+    /**
+     * Toggle recording position data.
+     */
+    template <typename DataHandler>
+    void toggleRecording(DataHandler& dataHandler)
+    {
+        if (recordingActive_) {
+            stopPositionData();
+        } else {
+            startPositionData(dataHandler);
+        }
+    }
+
+
+    /**
+     * Write the aircraft position to the YAML file.
+     *
+     * @param pos The aircraft position to write.
+     */
+    void write(const AircraftPosition& pos)
+    {
+        if (!positionData_) {
+            return;
+        }
+        positionData_
+            << "- msecs: " << std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now().time_since_epoch()).count() << "\n"
+            << std::setprecision(std::numeric_limits<double>::digits10)
+            << "  latitude: " << pos.planeLatitude << "\n"
+            << "  longitude: " << pos.planeLongitude << "\n"
+            << "  altitude: " << pos.planeAltitude << "\n"
+            << std::setprecision(std::numeric_limits<float>::digits10)
+            << "  pitch: " << pos.planePitch << "\n"
+            << "  bank: " << pos.planeBank << "\n"
+            << "  heading: " << pos.planeHeading << "\n"
+            << "  airspeed: " << pos.planeAirspeed << "\n"
+            << "  velocity-x: " << pos.planeVelocityX << "\n"
+            << "  velocity-y: " << pos.planeVelocityY << "\n"
+            << "  velocity-z: " << pos.planeVelocityZ << "\n"
+            << "  acceleration-x: " << pos.planeAccelerationX << "\n"
+            << "  acceleration-y: " << pos.planeAccelerationY << "\n"
+            << "  acceleration-z: " << pos.planeAccelerationZ << "\n"
+            << "  rotation-velocity-x: " << pos.planeRotationVelocityX << "\n"
+            << "  rotation-velocity-y: " << pos.planeRotationVelocityY << "\n"
+            << "  rotation-velocity-z: " << pos.planeRotationVelocityZ << "\n"
+            << "  on-ground: " << ((pos.onGround != 0) ? "true" : "false") << "\n";
+    }
+};
+
+
+/**
+ * Set up keyboard input to toggle recording and exit the program.
+ */
+template <typename EvtHandler, typename InputGroup>
+static bool setupKeys(EvtHandler &eventHandler, InputGroup &inputGroup, std::function<void()> onToggleRecording, std::function<void()> onExit) // NOLINT(bugprone-easily-swappable-parameters,performance-unnecessary-value-param)
+{
+    std::cerr
+        << "[Press the Play/Pause media key to toggle recording]\n"
+        << "[Press the Stop key to exit the program]\n";
+
+    const event startStop = event::get("Toggle.Recording");
+    inputGroup.addEvent(startStop, "VK_MEDIA_PLAY_PAUSE");
+    eventHandler.template registerEventHandler<Messages::EventMsg>(startStop, [onToggleRecording]([[maybe_unused]] const Messages::EventMsg& evt) {
+        onToggleRecording();
+    });
+
+    const event exit = event::get("Exit.Program");
+    inputGroup.addEvent(exit, "VK_MEDIA_STOP");
+    eventHandler.template registerEventHandler<Messages::EventMsg>(exit, [onExit]([[maybe_unused]] const Messages::EventMsg& evt) {
+        onExit();
+    });
+
+    return inputGroup.enable();
+}
+
+
 /**
  * Gather command-line arguments into the args map.
  * 
@@ -627,9 +630,9 @@ static bool loadAircraftInfo(DataHandler& dataHandler, std::chrono::milliseconds
  * @param argc The number of command-line arguments.
  * @param argv The array of command-line argument strings.
  */
-static void gatherArgs(std::map<std::string, std::string>& args, int argc, const char* argv[]) // NOLINT(cppcoreguidelines-avoid-c-arrays,hicpp-avoid-c-arrays,modernize-avoid-c-arrays)
+static std::map<std::string, std::string> gatherArgs(int argc, const char* argv[]) // NOLINT(cppcoreguidelines-avoid-c-arrays,hicpp-avoid-c-arrays,modernize-avoid-c-arrays)
 {
-    args.clear();
+    std::map<std::string, std::string> args;
     int fixedArg{ 0 };
 
     args["Arg" + std::to_string(fixedArg++)] = argv[0]; // NOLINT(cppcoreguidelines-pro-bounds-pointer-arithmetic)
@@ -651,6 +654,7 @@ static void gatherArgs(std::map<std::string, std::string>& args, int argc, const
             args["Arg" + std::to_string(fixedArg++)] = arg;
         }
     }
+    return args;
 }
 
 
@@ -659,9 +663,7 @@ auto main(int argc, const char* argv[]) -> int // NOLINT(bugprone-exception-esca
 
     static constexpr const char* appName = "List parkings";
 
-    std::map<std::string, std::string> args;
-
-	gatherArgs(args, argc, argv);
+    auto args = gatherArgs(argc, argv);
 
     std::chrono::seconds runDuration{ 0 }; // Default to 0, meaning run until stopped with a key-press
 
@@ -684,7 +686,6 @@ auto main(int argc, const char* argv[]) -> int // NOLINT(bugprone-exception-esca
     WindowsEventConnection<true, ConsoleLogger> connection(appName);
     connection.logger().level(LogLevel::Debug);
     WindowsEventHandler<true, ConsoleLogger> connectionHandler(connection);
-    EventHandler<WindowsEventHandler<true, ConsoleLogger>> eventHandler(connectionHandler);
 
     connectionHandler.registerHandler<Messages::OpenMsg>(Messages::open, handleOpen);
 	connectionHandler.registerHandler<Messages::QuitMsg>(Messages::quit, handleClose);
@@ -697,13 +698,13 @@ auto main(int argc, const char* argv[]) -> int // NOLINT(bugprone-exception-esca
 
     SimObjectDataHandler dataHandler(connectionHandler);
 
-
     constexpr auto maxDuration = 5s;
     if (!loadAircraftInfo(dataHandler, maxDuration, args)) {
         std::cerr << "[ABORTING: Did not receive aircraft info in time]\n";
         return 1;
     }
 
+    EventHandler<WindowsEventHandler<true, ConsoleLogger>> eventHandler(connectionHandler);
     PositionDataWriter positionDataWriter(args);
 
     const bool useKeyboard{ args.contains("keyboard") };
@@ -723,17 +724,15 @@ auto main(int argc, const char* argv[]) -> int // NOLINT(bugprone-exception-esca
         return 1;
     }
 
-    if (runDuration.count() > 0) {
-		// We have a defined runlength, so assume a single recording session
-        positionDataWriter.startPositionData(dataHandler);
-    }
-
     if (runDuration.count() == 0) {
         // No defined runlength, so run indefinitely
         connectionHandler.handleUntilClosed();
     }
     else {
-	    connectionHandler.handleFor(runDuration);
+		// We have a defined runlength, so assume a single recording session
+        positionDataWriter.startPositionData(dataHandler);
+
+        connectionHandler.handleFor(runDuration);
     }
 
     positionDataWriter.stopPositionData();

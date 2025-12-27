@@ -18,6 +18,7 @@
 #include <simconnect/simconnect.hpp>
 #include <simconnect/events/events.hpp>
 #include <simconnect/events/event_handler.hpp>
+#include <simconnect/events/event_group.hpp>
 #include <simconnect/util/statefull_object.hpp>
 
 #include <optional>
@@ -29,10 +30,12 @@ namespace SimConnect {
 /**
  * A notification group is a group of events that can be enabled or disabled together.
  * 
+ * **NOTE** Because Notification Groups manage their own state, they should not be copied.
+ * 
  * @tparam M The type of the SimConnect message handler.
  */
 template <class M>
-class NotificationGroup : public StateFullObject {
+class NotificationGroup : public StateFullObject, public EventGroup {
 public:
     using handler_type = EventHandler<M>;
     using connection_type = typename M::connection_type;
@@ -42,18 +45,21 @@ public:
 
 
 private:
-    EventHandler<M>& handler_;
-    NotificationGroupId id_;
-    std::optional<Events::Priority> priority_;
+    EventHandler<M>& handler_;                  ///< The event handler associated with this notification group.
+    NotificationGroupId id_;                    ///< The ID of this notification group.
+    std::optional<Events::Priority> priority_;  ///< The priority of this notification group.
 
     mutex_type mutex_;
     bool created_{ false };
 
-    inline static std::atomic<NotificationGroupId> nextId_{ 0 };
-
 
     /**
-     * Create the notification group in SimConnect. This method is internal and assumes the mutex is already locked.
+     * Create the notification group in SimConnect by setting its priority.
+     * This method is internal and assumes the mutex is already locked.
+     * 
+     * **NOTE** SimConnect will consider the group unknown until events have been added to it.
+     * 
+     * @returns True if the notification group was created successfully or already exists.
      */
     bool createInternal() {
         if (created_) {
@@ -72,10 +78,24 @@ private:
 
 
 public:
-    NotificationGroup(EventHandler<M>& handler) : handler_(handler), id_(++nextId_), priority_(std::nullopt)
+    /**
+     * Construct a new Notification Group instance.
+     * 
+     * @param handler The event handler to associate with this notification group.
+     */
+    NotificationGroup(EventHandler<M>& handler) : handler_(handler), id_(nextId()), priority_(std::nullopt)
     {
     }
+
+    /**
+     * No copies allowed.
+     */
     NotificationGroup(const NotificationGroup&) = delete;
+    NotificationGroup& operator=(const NotificationGroup&) = delete;
+
+    /**
+     * Custom move constructor to solve the unmovability of the mutex.
+     */
     NotificationGroup(NotificationGroup&& other) noexcept
         : handler_(other.handler_),
           id_(other.id_),
@@ -84,7 +104,10 @@ public:
     {
         // mutex_ is default-constructed; cannot be moved
     }
-    NotificationGroup& operator=(const NotificationGroup&) = delete;
+
+    /**
+     * Custom move assignment operator to solve the unmovability of the mutex.
+     */
     NotificationGroup& operator=(NotificationGroup&& other) noexcept {
         if (this != &other) {
             guard_type lock1(mutex_, std::defer_lock);
@@ -98,8 +121,10 @@ public:
         }
         return *this;
     }
+
     ~NotificationGroup() = default;
 
+#pragma region Accessors
 
     /**
      * Get the ID of this notification group.
@@ -151,6 +176,9 @@ public:
         return created_;
     }
 
+#pragma endregion
+
+#pragma region Priority Setters
 
     /**
      * Set the priority of this notification group.
@@ -166,6 +194,8 @@ public:
         priority_ = priority;
         return std::move(*this);
     }
+
+
     /**
      * Set the priority of this notification group to highest.
      * 
@@ -177,6 +207,8 @@ public:
     NotificationGroup&& withHighestPriority() && {
         return std::move(*this).withPriority(Events::highestPriority);
     }
+
+
     /**
      * Set the priority of this notification group to highest maskable.
      * 
@@ -188,6 +220,8 @@ public:
     NotificationGroup&& withMaskablePriority() && {
         return std::move(*this).withPriority(Events::highestMaskablePriority);
     }
+
+
     /**
      * Set the priority of this notification group to standard.
      * 
@@ -199,6 +233,8 @@ public:
     NotificationGroup&& withStandardPriority() && {
         return std::move(*this).withPriority(Events::standardPriority);
     }
+
+
     /**
      * Set the priority of this notification group to default.
      * 
@@ -210,6 +246,8 @@ public:
     NotificationGroup&& withDefaultPriority() && {
         return std::move(*this).withPriority(Events::defaultPriority);
     }
+
+
     /**
      * Set the priority of this notification group to lowest.
      * 
@@ -222,6 +260,9 @@ public:
         return std::move(*this).withPriority(Events::lowestPriority);
     }
 
+#pragma endregion
+
+#pragma region Adding Events
 
     /**
      * Add an event to this notification group.
@@ -234,9 +275,6 @@ public:
     NotificationGroup& addEvent(event evt) & {
         guard_type lock(mutex_);
 
-        if (!priority_.has_value()) {
-            withDefaultPriority();
-        }
         // Automatically map the event if not already mapped
         handler_.mapEvent(evt);
         state(handler_.connection().addClientEventToNotificationGroup(id_, evt));
@@ -248,88 +286,7 @@ public:
     NotificationGroup&& addEvent(event evt) && {
         guard_type lock(mutex_);
 
-        if (!priority_.has_value()) {
-            withDefaultPriority();
-        }
         // Automatically map the event if not already mapped
-        handler_.mapEvent(evt);
-        state(handler_.connection().addClientEventToNotificationGroup(id_, evt));
-        if (succeeded()) {
-            createInternal();
-        }
-        return std::move(*this);
-    }
-
-
-    /**
-     * Add an event to this notification group.
-     * 
-     * Note: if the priority of this notification group is not set yet, it will be set to default.
-     * 
-     * @param evtId The ID of the event to add.
-     * @returns A reference to this notification group.
-     * @throws UnknownEvent if the event does not exist.
-     */
-    NotificationGroup& addEvent(EventId evtId) & {
-        guard_type lock(mutex_);
-
-        if (!priority_.has_value()) {
-            withDefaultPriority();
-        }
-        auto evt = event::get(evtId);
-        handler_.mapEvent(evt);
-        state(handler_.connection().addClientEventToNotificationGroup(id_, evtId));
-        if (succeeded()) {
-            createInternal();
-        }
-        return *this;
-    }
-    NotificationGroup&& addEvent(EventId evtId) && {
-        guard_type lock(mutex_);
-
-        if (!priority_.has_value()) {
-            withDefaultPriority();
-        }
-        auto evt = event::get(evtId);
-        handler_.mapEvent(evt);
-        state(handler_.connection().addClientEventToNotificationGroup(id_, evtId));
-        if (succeeded()) {
-            createInternal();
-        }
-        return std::move(*this);
-    }
-
-
-    /**
-     * Add an event to this notification group.
-     * 
-     * Note: if the priority of this notification group is not set yet, it will be set to default.
-     * 
-     * @param evtName The name of the event to add.
-     * @returns A reference to this notification group.
-     * @throws UnknownEvent if the event does not exist.
-     */
-    NotificationGroup& addEvent(std::string evtName) & {
-        guard_type lock(mutex_);
-
-        if (!priority_.has_value()) {
-            withDefaultPriority();
-        }
-        auto evt = event::get(evtName);
-        handler_.mapEvent(evt);
-        state(handler_.connection().addClientEventToNotificationGroup(id_, evt));
-        if (succeeded()) {
-            createInternal();
-        }
-        return *this;
-    }
-    NotificationGroup&& addEvent(std::string evtName) && {
-        guard_type lock(mutex_);
-
-        if (!priority_.has_value()) {
-            withDefaultPriority();
-        }
-        auto evt = event::get(evtName);
         handler_.mapEvent(evt);
         state(handler_.connection().addClientEventToNotificationGroup(id_, evt));
         if (succeeded()) {
@@ -350,9 +307,6 @@ public:
     NotificationGroup& addMaskableEvent(event evt) & {
         guard_type lock(mutex_);
 
-        if (!priority_.has_value()) {
-            withDefaultPriority();
-        }
         // Automatically map the event if not already mapped
         handler_.mapEvent(evt);
         state(handler_.connection().addClientEventToNotificationGroup(id_, evt, true));
@@ -364,9 +318,6 @@ public:
     NotificationGroup&& addMaskableEvent(event evt) && {
         guard_type lock(mutex_);
 
-        if (!priority_.has_value()) {
-            withDefaultPriority();
-        }
         // Automatically map the event if not already mapped
         handler_.mapEvent(evt);
         state(handler_.connection().addClientEventToNotificationGroup(id_, evt, true));
@@ -376,82 +327,9 @@ public:
         return std::move(*this);
     }
 
+#pragma endregion
 
-    /**
-     * Add a maskable event to this notification group.
-     * 
-     * Note: if the priority of this notification group is not set yet, it will be set to default.
-     * 
-     * @param evtId The ID of the event to add.
-     * @returns A reference to this notification group.
-     */
-    NotificationGroup& addMaskableEvent(EventId evtId) & {
-        guard_type lock(mutex_);
-
-        if (!priority_.has_value()) {
-            withDefaultPriority();
-        }
-        auto evt = event::get(evtId);
-        handler_.mapEvent(evt);
-        state(handler_.connection().addClientEventToNotificationGroup(id_, evtId, true));
-        if (succeeded()) {
-            createInternal();
-        }
-        return *this;
-    }
-    NotificationGroup&& addMaskableEvent(EventId evtId) && {
-        guard_type lock(mutex_);
-
-        if (!priority_.has_value()) {
-            withDefaultPriority();
-        }
-        auto evt = event::get(evtId);
-        handler_.mapEvent(evt);
-        state(handler_.connection().addClientEventToNotificationGroup(id_, evtId, true));
-        if (succeeded()) {
-            createInternal();
-        }
-        return std::move(*this);
-    }
-
-
-    /**
-     * Add a maskable event to this notification group.
-     * 
-     * Note: if the priority of this notification group is not set yet, it will be set to default.
-     * 
-     * @param evtName The name of the event to add.
-     * @returns A reference to this notification group.
-     */
-    NotificationGroup& addMaskableEvent(std::string evtName) & {
-        guard_type lock(mutex_);
-
-        if (!priority_.has_value()) {
-            withDefaultPriority();
-        }
-        auto evt = event::get(evtName);
-        handler_.mapEvent(evt);
-        state(handler_.connection().addClientEventToNotificationGroup(id_, evt, true));
-        if (succeeded()) {
-            createInternal();
-        }
-        return *this;
-    }
-    NotificationGroup&& addMaskableEvent(std::string evtName) && {
-        guard_type lock(mutex_);
-
-        if (!priority_.has_value()) {
-            withDefaultPriority();
-        }
-        auto evt = event::get(evtName);
-        handler_.mapEvent(evt);
-        state(handler_.connection().addClientEventToNotificationGroup(id_, evt, true));
-        if (succeeded()) {
-            createInternal();
-        }
-        return std::move(*this);
-    }
-
+#pragma region Removing Events
 
     /**
      * Remove an event from this notification group.
@@ -466,40 +344,6 @@ public:
     }
     NotificationGroup&& removeEvent(event evt) && {
         state(handler_.connection().removeClientEventFromNotificationGroup(id_, evt));
-
-        return std::move(*this);
-    }
-
-
-    /**
-     * Remove an event from this notification group.
-     * 
-     * @param evtName The name of the event to remove.
-     * @returns A reference to this notification group.
-     */
-    NotificationGroup& removeEvent(EventId evtId) & {
-        state(handler_.connection().removeClientEventFromNotificationGroup(id_, evtId));
-
-        return *this;
-    }
-    NotificationGroup&& removeEvent(EventId evtId) && {
-        state(handler_.connection().removeClientEventFromNotificationGroup(id_, evtId));
-
-        return std::move(*this);
-    }
-    /**
-     * Remove an event from this notification group.
-     * 
-     * @param evtName The name of the event to remove.
-     * @returns A reference to this notification group.
-     */
-    NotificationGroup& removeEvent(std::string evtName) & {
-        state(handler_.connection().removeClientEventFromNotificationGroup(id_, event::get(evtName)));
-
-        return *this;
-    }
-    NotificationGroup&& removeEvent(std::string evtName) && {
-        state(handler_.connection().removeClientEventFromNotificationGroup(id_, event::get(evtName)));
 
         return std::move(*this);
     }
@@ -521,6 +365,9 @@ public:
         return std::move(*this);
     }
 
+#pragma endregion
+
+#pragma region Requesting Events
 
     /**
      * Request this notification group to be active.
@@ -548,6 +395,9 @@ public:
         return std::move(*this);
     }
 
+#pragma endregion
+
+#pragma region Sending Events
 
     /**
      * Send an event to this notification group.
@@ -665,7 +515,9 @@ public:
 
         return std::move(*this);
     }
-    
+
+#pragma endregion
+
 };
 
 

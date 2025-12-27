@@ -38,13 +38,13 @@ class event {
 private:
     EventId id_;
 
-    inline static std::atomic<EventId> nextId_{ 0 };                  ///< The next ID to assign to an event.
+    inline static std::atomic<EventId> nextId_{ 0 };                 ///< The next ID to assign to an event.
 
     inline static std::map<std::string, EventId> eventsByName_{};    ///< A static map of the events by name.
     inline static std::map<EventId, std::string> eventsById_{};      ///< A static map of the events by ID.
     inline static std::set<EventId> mappedEvents_{};                 ///< Set of event IDs that have been mapped to SimConnect.
     
-    inline static std::mutex registryMutex_;                                ///< Mutex for thread-safe access to static collections.
+    inline static std::mutex registryMutex_;                         ///< Mutex for thread-safe access to static collections.
 
 
     /**

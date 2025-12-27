@@ -673,12 +673,13 @@ public:
      * @param evt The client event ID.
      * @param inputEvent The input event string (e.g., "VK_SPACE").
      * @param groupId The input group ID.
+     * @param maskable Whether this event is maskable by higher priority groups.
      * @return The connection reference for chaining.
      */
-    Derived& mapInputEventToClientEvent(event evt, std::string_view inputEvent, InputGroupId groupId) {
+    Derived& mapInputEventToClientEvent(event evt, std::string_view inputEvent, InputGroupId groupId, bool maskable = false) {
         guard_type guard(mutex_);
 
-        state(SimConnect_MapInputEventToClientEvent_EX1(hSimConnect_, groupId, inputEvent.data(), evt.id()));
+        state(SimConnect_MapInputEventToClientEvent_EX1(hSimConnect_, groupId, inputEvent.data(), evt.id(), SIMCONNECT_UNUSED, SIMCONNECT_UNUSED, SIMCONNECT_UNUSED, maskable));
         if (failed()) {
             logger_.error("SimConnect_MapInputEventToClientEvent_EX1 failed with error code 0x{:08X}.", state());
         } else {
@@ -697,12 +698,13 @@ public:
      * @param upEvent The client event ID for the UP event.
      * @param inputEvent The input event string (e.g., "VK_SPACE").
      * @param groupId The input group ID.
+     * @param maskable Whether this event is maskable by higher priority groups.
      * @return The connection reference for chaining.
      */
-    Derived& mapInputEventToClientEvent(event downEvent, event upEvent, std::string_view inputEvent, InputGroupId groupId) {
+    Derived& mapInputEventToClientEvent(event downEvent, event upEvent, std::string_view inputEvent, InputGroupId groupId, bool maskable = false) {
         guard_type guard(mutex_);
 
-        state(SimConnect_MapInputEventToClientEvent_EX1(hSimConnect_, groupId, inputEvent.data(), downEvent.id(), 0, upEvent.id()));
+        state(SimConnect_MapInputEventToClientEvent_EX1(hSimConnect_, groupId, inputEvent.data(), downEvent.id(), 0, upEvent.id(), SIMCONNECT_UNUSED, maskable));
         if (failed()) {
             logger_.error("SimConnect_MapInputEventToClientEvent_EX1 failed with error code 0x{:08X}.", state());
         } else {
@@ -720,12 +722,13 @@ public:
      * @param value The value to send with the event.
      * @param inputEvent The input event string (e.g., "VK_SPACE").
      * @param groupId The input group ID.
+     * @param maskable Whether this event is maskable by higher priority groups.
      * @return The connection reference for chaining.
      */
-    Derived& mapInputEventToClientEventWithValue(event evt, unsigned long value, std::string_view inputEvent, InputGroupId groupId) {
+    Derived& mapInputEventToClientEventWithValue(event evt, unsigned long value, std::string_view inputEvent, InputGroupId groupId, bool maskable = false) {
         guard_type guard(mutex_);
 
-        state(SimConnect_MapInputEventToClientEvent_EX1(hSimConnect_, groupId, inputEvent.data(), evt.id(), value));
+        state(SimConnect_MapInputEventToClientEvent_EX1(hSimConnect_, groupId, inputEvent.data(), evt.id(), value, SIMCONNECT_UNUSED, SIMCONNECT_UNUSED, maskable));
         if (failed()) {
             logger_.error("SimConnect_MapInputEventToClientEvent_EX1 failed with error code 0x{:08X}.", state());
         } else {
@@ -746,12 +749,13 @@ public:
      * @param upValue The value to send with the UP event.
      * @param inputEvent The input event string (e.g., "VK_SPACE").
      * @param groupId The input group ID.
+     * @param maskable Whether this event is maskable by higher priority groups.
      * @return The connection reference for chaining.
      */
-    Derived& mapInputEventToClientEventWithValue(event downEvent, unsigned long downValue, event upEvent, unsigned long upValue, std::string_view inputEvent, InputGroupId groupId) {
+    Derived& mapInputEventToClientEventWithValue(event downEvent, unsigned long downValue, event upEvent, unsigned long upValue, std::string_view inputEvent, InputGroupId groupId, bool maskable = false) {
         guard_type guard(mutex_);
 
-        state(SimConnect_MapInputEventToClientEvent_EX1(hSimConnect_, groupId, inputEvent.data(), downEvent.id(), downValue, upEvent.id(), upValue));
+        state(SimConnect_MapInputEventToClientEvent_EX1(hSimConnect_, groupId, inputEvent.data(), downEvent.id(), downValue, upEvent.id(), upValue, maskable));
         if (failed()) {
             logger_.error("SimConnect_MapInputEventToClientEvent_EX1 failed with error code 0x{:08X}.", state());
         } else {
@@ -769,10 +773,10 @@ public:
      * @param inputEvent The input event definition string.
      * @return The connection reference for chaining.
      */
-    Derived& removeInputEvent(InputGroupId groupId, std::string inputEvent) {
+    Derived& removeInputEvent(InputGroupId groupId, std::string_view inputEvent) {
         guard_type guard(mutex_);
 
-        state(SimConnect_RemoveInputEvent(hSimConnect_, groupId, inputEvent.c_str()));
+        state(SimConnect_RemoveInputEvent(hSimConnect_, groupId, inputEvent.data()));
         if (failed()) {
             logger_.error("SimConnect_RemoveInputEvent failed with error code 0x{:08X}.", state());
         } else {

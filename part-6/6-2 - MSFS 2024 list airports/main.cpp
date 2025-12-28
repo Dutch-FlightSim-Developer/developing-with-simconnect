@@ -491,13 +491,13 @@ auto main(int argc, const char* argv[]) -> int
 
     HRESULT hr{ 0 };
     switch (queryType) {
-        case QueryType::All:
+    case QueryType::All:
         hr = SimConnect_RequestAllFacilities(hSimConnect, objType, REQUEST_ID);
 		break;
-        case QueryType::Bubble:
+    case QueryType::Bubble:
         hr = SimConnect_RequestFacilitiesList_EX1(hSimConnect, objType, REQUEST_ID);
         break;
-        case QueryType::Cache:
+    case QueryType::Cache:
         hr = SimConnect_RequestFacilitiesList(hSimConnect, objType, REQUEST_ID);
 		break;
     }

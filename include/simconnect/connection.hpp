@@ -1078,6 +1078,44 @@ public:
 
 #pragma endregion
 
+#pragma region Facilities
+
+    Derived& listFacilities(RequestId requestId, FacilitiesListScope scope, FacilityListType type) {
+        guard_type guard(mutex_);
+
+        switch (scope) {
+        case FacilitiesListScope::allFacilities:
+            state(SimConnect_RequestAllFacilities(hSimConnect_, type, requestId));
+            if (failed()) {
+                logger_.error("SimConnect_RequestAllFacilities failed with error code 0x{:08X}.", state());
+            } else {
+                logger_.debug("Requested listing of all facilities (type={}, requestId={}, sendId={})", static_cast<std::underlying_type_t<FacilityListType>>(type), requestId, fetchSendIdInternal());
+            }
+            break;
+
+        case FacilitiesListScope::cacheOnly:
+            state(SimConnect_RequestFacilitiesList(hSimConnect_, type, requestId));
+            if (failed()) {
+                logger_.error("SimConnect_RequestFacilitiesList failed with error code 0x{:08X}.", state());
+            } else {
+                logger_.debug("Requested listing of all facilities in cache (type={}, requestId={}, sendId={})", static_cast<std::underlying_type_t<FacilityListType>>(type), requestId, fetchSendIdInternal());
+            }
+            break;
+
+        case FacilitiesListScope::bubbleOnly:
+            state(SimConnect_RequestFacilitiesList_EX1(hSimConnect_, type, requestId));
+            if (failed()) {
+                logger_.error("SimConnect_RequestFacilitiesList_EX1 failed with error code 0x{:08X}.", state());
+            } else {
+                logger_.debug("Requested listing of all facilities in bubble (type={}, requestId={}, sendId={})", static_cast<std::underlying_type_t<FacilityListType>>(type), requestId, fetchSendIdInternal());
+            }
+            break;
+        }
+        return static_cast<Derived&>(*this);
+    }
+
+#pragma endregion
+
 #pragma region AI
 
     /**

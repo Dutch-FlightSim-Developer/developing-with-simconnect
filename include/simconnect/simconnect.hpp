@@ -244,6 +244,8 @@ namespace SimObjectTypes {
 
 using RequestId = unsigned long;                ///< The type used for request IDs.
 
+inline constexpr RequestId noRequest{ 0 };    ///< Constant representing no request ID.
+
 using DataPeriod = SIMCONNECT_PERIOD;           ///< The type used for data request periods.
 
 namespace DataPeriods {
@@ -306,6 +308,21 @@ namespace DataSetFlags {
     inline constexpr DataSetFlag defaultFlag{ SIMCONNECT_DATA_SET_FLAG_DEFAULT };    ///< Default data set flag.
     inline constexpr DataSetFlag tagged{ SIMCONNECT_DATA_SET_FLAG_TAGGED };        ///< Tagged data set flag.
 }
+
+using FacilityListType = SIMCONNECT_FACILITY_LIST_TYPE;
+
+namespace FacilityListTypes {
+    inline constexpr FacilityListType airport{ SIMCONNECT_FACILITY_LIST_TYPE_AIRPORT };    ///< Airport facility list type.
+    inline constexpr FacilityListType waypoint{ SIMCONNECT_FACILITY_LIST_TYPE_WAYPOINT };  ///< Waypoint facility list type.
+    inline constexpr FacilityListType ndb{ SIMCONNECT_FACILITY_LIST_TYPE_NDB };            ///< NDB facility list type.
+    inline constexpr FacilityListType vor{ SIMCONNECT_FACILITY_LIST_TYPE_VOR };            ///< VOR facility list type.
+}
+
+enum FacilitiesListScope {
+    allFacilities = 0,
+    cacheOnly = 1,
+    bubbleOnly = 2
+};
 
 using EventId = unsigned long;                  ///< The type used for event IDs.
 using NotificationGroupId = unsigned long;      ///< The type used for notification group IDs.

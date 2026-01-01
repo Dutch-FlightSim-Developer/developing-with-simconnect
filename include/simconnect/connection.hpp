@@ -1080,6 +1080,14 @@ public:
 
 #pragma region Facilities
 
+    /**
+     * Requests a listing of facilities. This can request all known facilities, only those in the cache, or only those in the 'reality bubble'.
+     * 
+     * @param requestId The request ID.
+     * @param scope The scope of the facilities to list.
+     * @param type The type of facilities to list.
+     * @return The connection reference for chaining.
+     */
     Derived& listFacilities(RequestId requestId, FacilitiesListScope scope, FacilityListType type) {
         guard_type guard(mutex_);
 
@@ -1110,6 +1118,173 @@ public:
                 logger_.debug("Requested listing of all facilities in bubble (type={}, requestId={}, sendId={})", static_cast<std::underlying_type_t<FacilityListType>>(type), requestId, fetchSendIdInternal());
             }
             break;
+        }
+        return static_cast<Derived&>(*this);
+    }
+
+    /**
+     * Adds a field to a facility definition.
+     * 
+     * @param facilityDefId The facility definition ID.
+     * @param fieldName The name of the field to add.
+     * @return The connection reference for chaining.
+     */
+    Derived& addToFacilityDefinition(FacilityDefinitionId facilityDefId, std::string_view fieldName) {
+        guard_type guard(mutex_);
+
+        state(SimConnect_AddToFacilityDefinition(hSimConnect_, facilityDefId, fieldName.data()));
+        if (failed()) {
+            logger_.error("SimConnect_AddToFacilityDefinition failed with error code 0x{:08X}.", state());
+        } else {
+            logger_.debug("Added field '{}' to facility definition {} (sendId={})", fieldName, facilityDefId, fetchSendIdInternal());
+        }
+        return static_cast<Derived&>(*this);
+    }
+
+
+    /**
+     * Adds a filter to a facility definition.
+     * 
+     * @param facilityDefId The facility definition ID.
+     * @param filterPath The path of the filter to add.
+     * @param filterData The filter data.
+     * @return The connection reference for chaining.
+     */
+    Derived& addFacilityDataDefinitionFilter(FacilityDefinitionId facilityDefId, std::string_view filterPath, std::span<const uint8_t> filterData) {
+        guard_type guard(mutex_);
+
+        state(SimConnect_AddFacilityDataDefinitionFilter(hSimConnect_, facilityDefId, filterPath.data(), static_cast<unsigned long>(filterData.size()), const_cast<uint8_t*>(filterData.data())));
+        if (failed()) {
+            logger_.error("SimConnect_AddFacilityDataDefinitionFilter failed with error code 0x{:08X}.", state());
+        } else {
+            logger_.debug("Added filter '{}' to facility definition {} (sendId={})", filterPath, facilityDefId, fetchSendIdInternal());
+        }
+        return static_cast<Derived&>(*this);
+    }
+
+
+    /**
+     * Removes a filter from a facility definition.
+     * 
+     * @param facilityDefId The facility definition ID.
+     * @param filterPath The path of the filter to remove.
+     * @return The connection reference for chaining.
+     */
+    Derived& removeFacilityDataDefinitionFilter(FacilityDefinitionId facilityDefId, std::string_view filterPath) {
+        guard_type guard(mutex_);
+
+        state(SimConnect_AddFacilityDataDefinitionFilter(hSimConnect_, facilityDefId, filterPath.data(), 0, nullptr));
+        if (failed()) {
+            logger_.error("SimConnect_AddFacilityDataDefinitionFilter failed with error code 0x{:08X}.", state());
+        } else {
+            logger_.debug("Removed filter '{}' from facility definition {} (sendId={})", filterPath, facilityDefId, fetchSendIdInternal());
+        }
+        return static_cast<Derived&>(*this);
+    }
+
+
+    /**
+     * Clears all filters from a facility definition.
+     * 
+     * @param facilityDefId The facility definition ID.
+     * @return The connection reference for chaining.
+     */
+    Derived& clearFacilityDataDefinitionFilters(FacilityDefinitionId facilityDefId) {
+        guard_type guard(mutex_);
+
+        state(SimConnect_ClearAllFacilityDataDefinitionFilters(hSimConnect_, facilityDefId));
+        if (failed()) {
+            logger_.error("SimConnect_ClearFacilityDataDefinitionFilters failed with error code 0x{:08X}.", state());
+        } else {
+            logger_.debug("Cleared filters from facility definition {} (sendId={})", facilityDefId, fetchSendIdInternal());
+        }
+        return static_cast<Derived&>(*this);
+    }
+
+
+    /**
+     * Requests facility data. The returned top-level data will be about airports, navaids, and waypoints, that match the ICAO code and optional region provided.
+     * 
+     * @param requestId The request ID.
+     * @param facilityDefId The facility definition ID.
+     * @param icaoCode The ICAO code of the facility to request.
+     * @param region The region of the facility to request. Defaults to "".
+     * @return The connection reference for chaining.
+     */
+    Derived& requestFacilityData(RequestId requestId, FacilityDefinitionId facilityDefId, std::string_view icaoCode, std::string_view region = "") {
+        guard_type guard(mutex_);
+
+        state(SimConnect_RequestFacilityData(hSimConnect_, facilityDefId, requestId, icaoCode.data(), region.data()));
+        if (failed()) {
+            logger_.error("SimConnect_RequestFacilityData failed with error code 0x{:08X}.", state());
+        } else {
+            logger_.debug("Requested facility data for definition {} (requestId={}, sendId={})", facilityDefId, requestId, fetchSendIdInternal());
+        }
+        return static_cast<Derived&>(*this);
+    }
+
+
+    /**
+     * Requests VOR data. The returned top-level data will be about VOR navaids that match the ICAO code and optional region provided.
+     * 
+     * @param requestId The request ID.
+     * @param facilityDefId The facility definition ID.
+     * @param icaoCode The ICAO code of the facility to request.
+     * @param region The region of the facility to request. Defaults to "".
+     * @return The connection reference for chaining.
+     */
+    Derived& requestVORData(RequestId requestId, FacilityDefinitionId facilityDefId, std::string_view icaoCode, std::string_view region = "") {
+        guard_type guard(mutex_);
+
+        state(SimConnect_RequestFacilityData_EX1(hSimConnect_, facilityDefId, requestId, icaoCode.data(), region.data(), 'V'));
+        if (failed()) {
+            logger_.error("SimConnect_RequestFacilityData failed with error code 0x{:08X}.", state());
+        } else {
+            logger_.debug("Requested VOR data for definition {} (requestId={}, sendId={})", facilityDefId, requestId, fetchSendIdInternal());
+        }
+        return static_cast<Derived&>(*this);
+    }
+
+
+    /**
+     * Requests NDB data. The returned top-level data will be about NDB navaids that match the ICAO code and optional region provided.
+     * 
+     * @param requestId The request ID.
+     * @param facilityDefId The facility definition ID.
+     * @param icaoCode The ICAO code of the facility to request.
+     * @param region The region of the facility to request. Defaults to "".
+     * @return The connection reference for chaining.
+     */
+    Derived& requestNDBData(RequestId requestId, FacilityDefinitionId facilityDefId, std::string_view icaoCode, std::string_view region = "") {
+        guard_type guard(mutex_);
+
+        state(SimConnect_RequestFacilityData_EX1(hSimConnect_, facilityDefId, requestId, icaoCode.data(), region.data(), 'N'));
+        if (failed()) {
+            logger_.error("SimConnect_RequestFacilityData failed with error code 0x{:08X}.", state());
+        } else {
+            logger_.debug("Requested NDB data for definition {} (requestId={}, sendId={})", facilityDefId, requestId, fetchSendIdInternal());
+        }
+        return static_cast<Derived&>(*this);
+    }
+
+
+    /**
+     * Requests Waypoints data. The returned top-level data will be about Waypoints that match the ICAO code and optional region provided.
+     * 
+     * @param requestId The request ID.
+     * @param facilityDefId The facility definition ID.
+     * @param icaoCode The ICAO code of the facility to request.
+     * @param region The region of the facility to request. Defaults to "".
+     * @return The connection reference for chaining.
+     */
+    Derived& requestWaypointsData(RequestId requestId, FacilityDefinitionId facilityDefId, std::string_view icaoCode, std::string_view region = "") {
+        guard_type guard(mutex_);
+
+        state(SimConnect_RequestFacilityData_EX1(hSimConnect_, facilityDefId, requestId, icaoCode.data(), region.data(), 'W'));
+        if (failed()) {
+            logger_.error("SimConnect_RequestFacilityData failed with error code 0x{:08X}.", state());
+        } else {
+            logger_.debug("Requested Waypoints data for definition {} (requestId={}, sendId={})", facilityDefId, requestId, fetchSendIdInternal());
         }
         return static_cast<Derived&>(*this);
     }

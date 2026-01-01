@@ -24,7 +24,25 @@
 #pragma warning(pop)
 
 
+#include <array>
+#include <string_view>
+#include <algorithm>
+
+
 namespace SimConnect {
+
+
+/**
+ * Return a std::string_view for a null-terminated char array.
+ * 
+ * @param a The char array.
+ * @returns A std::string_view representing the char array up to the first null character.
+ */
+template <std::size_t N>
+std::string_view toString(const std::array<char, N>& a) {
+    auto it = std::find(a.begin(), a.end(), '\0');
+    return {a.data(), static_cast<std::size_t>(it - a.begin())};
+}
 
 
 inline constexpr unsigned long unused{ SIMCONNECT_UNUSED };                             ///< Constant representing an unused value.
@@ -318,11 +336,47 @@ namespace FacilityListTypes {
     inline constexpr FacilityListType vor{ SIMCONNECT_FACILITY_LIST_TYPE_VOR };            ///< VOR facility list type.
 }
 
+using FacilityDataType = SIMCONNECT_FACILITY_DATA_TYPE;
+
+namespace FacilityDataTypes {
+    inline constexpr FacilityDataType airport{ SIMCONNECT_FACILITY_DATA_AIRPORT };                          ///< Airport facility data type.
+    inline constexpr FacilityDataType runway{ SIMCONNECT_FACILITY_DATA_RUNWAY };                            ///< Runway facility data type.
+    inline constexpr FacilityDataType start{ SIMCONNECT_FACILITY_DATA_START };                              ///< Start facility data type.
+    inline constexpr FacilityDataType frequency{ SIMCONNECT_FACILITY_DATA_FREQUENCY };                      ///< Frequency facility data type.
+    inline constexpr FacilityDataType helipad{ SIMCONNECT_FACILITY_DATA_HELIPAD };                          ///< Helipad facility data type.
+    inline constexpr FacilityDataType approach{ SIMCONNECT_FACILITY_DATA_APPROACH };                        ///< Approach facility data type.
+    inline constexpr FacilityDataType approachTransition{ SIMCONNECT_FACILITY_DATA_APPROACH_TRANSITION };   ///< Approach transition facility data type.
+    inline constexpr FacilityDataType approachLeg{ SIMCONNECT_FACILITY_DATA_APPROACH_LEG };                 ///< Approach leg facility data type.
+    inline constexpr FacilityDataType finalApproachLeg{ SIMCONNECT_FACILITY_DATA_FINAL_APPROACH_LEG };      ///< Final approach leg facility data type.
+    inline constexpr FacilityDataType missedApproachLeg{ SIMCONNECT_FACILITY_DATA_MISSED_APPROACH_LEG };    ///< Missed approach leg facility data type.
+    inline constexpr FacilityDataType departure{ SIMCONNECT_FACILITY_DATA_DEPARTURE };                      ///< Departure facility data type.
+    inline constexpr FacilityDataType arrival{ SIMCONNECT_FACILITY_DATA_ARRIVAL };                          ///< Arrival facility data type.
+    inline constexpr FacilityDataType runwayTransition{ SIMCONNECT_FACILITY_DATA_RUNWAY_TRANSITION };       ///< Runway transition facility data type.
+    inline constexpr FacilityDataType enrouteTransition{ SIMCONNECT_FACILITY_DATA_ENROUTE_TRANSITION };     ///< Enroute transition facility data type.
+    inline constexpr FacilityDataType taxiPoint{ SIMCONNECT_FACILITY_DATA_TAXI_POINT };                     ///< Taxi point facility data type.
+    inline constexpr FacilityDataType taxiParking{ SIMCONNECT_FACILITY_DATA_TAXI_PARKING };                 ///< Taxi parking facility data type.
+    inline constexpr FacilityDataType taxiPath{ SIMCONNECT_FACILITY_DATA_TAXI_PATH };                       ///< Taxi path facility data type.
+    inline constexpr FacilityDataType taxiName{ SIMCONNECT_FACILITY_DATA_TAXI_NAME };                       ///< Taxi name facility data type.
+    inline constexpr FacilityDataType jetway{ SIMCONNECT_FACILITY_DATA_JETWAY };                            ///< Jetway facility data type.
+    inline constexpr FacilityDataType vor{ SIMCONNECT_FACILITY_DATA_VOR };                                  ///< VOR facility data type.
+    inline constexpr FacilityDataType ndb{ SIMCONNECT_FACILITY_DATA_NDB };                                  ///< NDB facility data type.
+    inline constexpr FacilityDataType waypoint{ SIMCONNECT_FACILITY_DATA_WAYPOINT };                        ///< Waypoint facility data type.
+    inline constexpr FacilityDataType route{ SIMCONNECT_FACILITY_DATA_ROUTE };                              ///< Route facility data type.
+    inline constexpr FacilityDataType pavement{ SIMCONNECT_FACILITY_DATA_PAVEMENT };                        ///< Pavement facility data type.
+    inline constexpr FacilityDataType approachLights{ SIMCONNECT_FACILITY_DATA_APPROACH_LIGHTS };           ///< Approach lights facility data type.
+    inline constexpr FacilityDataType vasi{ SIMCONNECT_FACILITY_DATA_VASI };                                ///< VASI facility data type.
+    inline constexpr FacilityDataType vdgs{ SIMCONNECT_FACILITY_DATA_VDGS };                                ///< VDGS facility data type.
+    inline constexpr FacilityDataType holdingPattern{ SIMCONNECT_FACILITY_DATA_HOLDING_PATTERN };           ///< Holding pattern facility data type.
+    inline constexpr FacilityDataType taxiParkingAirline{ SIMCONNECT_FACILITY_DATA_TAXI_PARKING_AIRLINE };  ///< Taxi parking airline facility data type.
+}
+
 enum FacilitiesListScope {
     allFacilities = 0,
     cacheOnly = 1,
     bubbleOnly = 2
 };
+
+using FacilityDefinitionId = unsigned long;   ///< The type used for facility definition IDs.
 
 using EventId = unsigned long;                  ///< The type used for event IDs.
 using NotificationGroupId = unsigned long;      ///< The type used for notification group IDs.

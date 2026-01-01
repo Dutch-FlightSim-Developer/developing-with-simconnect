@@ -21,8 +21,8 @@
   <PropertyGroup Label="Globals">
     <VCProjectVersion>17.0</VCProjectVersion>
     <Keyword>Win32Proj</Keyword>
-    <ProjectGuid>{7cc4f94f-3bef-436b-90c6-84e1a968e384}</ProjectGuid>
-    <RootNamespace>_9_3___MSFS2024_List_Airports_in_C__</RootNamespace>
+    <ProjectGuid>{da7f4bdf-1cf5-4c71-bc60-f88f91463705}</ProjectGuid>
+    <RootNamespace>_9_4___MSFS_2024_List_airport_parkings</RootNamespace>
     <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
@@ -53,11 +53,11 @@
     <Import Project="$(MSFS2024_SDK)\SimConnect SDK\VS\SimConnectClient-static.props" />
   </ImportGroup>
   <PropertyGroup Label="UserMacros" />
-  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
-    <TargetName>list-airports</TargetName>
-  </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
-    <TargetName>list-airports</TargetName>
+    <TargetName>list-parkings</TargetName>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <TargetName>list-parkings</TargetName>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <ClCompile>

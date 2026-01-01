@@ -82,6 +82,11 @@ string(
 
 target_compile_features(cmake_cpp_simconnect_options INTERFACE cxx_std_${CMAKE_CXX_STANDARD})
 
+# Suppress Microsoft CRT security warnings (clang-tidy will catch genuinely unsafe code)
+if(MSVC OR MSVC_IDE)
+  target_compile_definitions(cmake_cpp_simconnect_options INTERFACE _CRT_SECURE_NO_WARNINGS)
+endif()
+
 add_library(cmake_cpp_simconnect::cmake_cpp_simconnect_options ALIAS cmake_cpp_simconnect_options)
 add_library(cmake_cpp_simconnect::cmake_cpp_simconnect_warnings ALIAS cmake_cpp_simconnect_warnings)
 

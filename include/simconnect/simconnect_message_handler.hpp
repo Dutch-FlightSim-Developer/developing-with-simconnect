@@ -157,6 +157,7 @@ public:
             return;
         }
 
+        this->logger().debug("Dispatching message with ID {}", static_cast<int>(msg->dwID));
         dispatch(static_cast<MessageId>(msg->dwID), *msg);
     }
 

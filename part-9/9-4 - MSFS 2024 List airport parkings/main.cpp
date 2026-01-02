@@ -618,7 +618,7 @@ static void listVORDetails(auto& connectionHandler, const std::string& ident, co
  * @param icaoPattern Regex pattern to filter airports by ICAO/ident.
  * @param regionFilter Exact region code to filter airports by (optional).
  */
-static void listAirports(ThisSimConnectHandler& connectionHandler, std::string_view icaoPattern, std::string_view regionFilter)
+static void listAirports(ThisSimConnectHandler& connectionHandler, std::string_view icaoPattern, std::string_view regionFilter, FacilitiesListScope scope = FacilitiesListScope::allFacilities)
 {
     FacilityListHandler<ThisSimConnectHandler> facilityListHandler(connectionHandler);
 
@@ -644,7 +644,7 @@ static void listAirports(ThisSimConnectHandler& connectionHandler, std::string_v
     std::cout << ":\n";
 
     bool listingDone{ false };
-    auto request = facilityListHandler.listAirports(FacilitiesListScope::allFacilities,
+    auto request = facilityListHandler.listAirports(scope,
         [&icaoRegex, useRegex, regionFilter](std::string_view ident, std::string_view region, const AirportDetails& details) {
             // Filter by region if specified
             if (!regionFilter.empty() && region != regionFilter) {
@@ -677,7 +677,7 @@ static void listAirports(ThisSimConnectHandler& connectionHandler, std::string_v
  * @param identPattern Regex pattern to filter VORs by ident.
  * @param regionFilter Exact region code to filter VORs by (optional).
  */
-static void listVORs(ThisSimConnectHandler& connectionHandler, std::string_view identPattern, std::string_view regionFilter)
+static void listVORs(ThisSimConnectHandler& connectionHandler, std::string_view identPattern, std::string_view regionFilter, FacilitiesListScope scope = FacilitiesListScope::allFacilities)
 {
     FacilityListHandler<ThisSimConnectHandler> facilityListHandler(connectionHandler);
 
@@ -703,7 +703,7 @@ static void listVORs(ThisSimConnectHandler& connectionHandler, std::string_view 
     std::cout << ":\n";
 
     bool listingDone{ false };
-    auto request = facilityListHandler.listVORs(FacilitiesListScope::allFacilities,
+    auto request = facilityListHandler.listVORs(scope,
         [&identRegex, useRegex, regionFilter]([[maybe_unused]] std::string_view ident, [[maybe_unused]] std::string_view region, [[maybe_unused]] const VorDetails& details) { // NOLINT(bugprone-easily-swappable-parameters)
             // Filter by region if specified
             if (!regionFilter.empty() && region != regionFilter) {
@@ -742,7 +742,7 @@ static void listVORs(ThisSimConnectHandler& connectionHandler, std::string_view 
  * @param identPattern Regex pattern to filter NDBs by ident.
  * @param regionFilter Exact region code to filter NDBs by (optional).
  */
-static void listNDBs(ThisSimConnectHandler& connectionHandler, std::string_view identPattern, std::string_view regionFilter)
+static void listNDBs(ThisSimConnectHandler& connectionHandler, std::string_view identPattern, std::string_view regionFilter, FacilitiesListScope scope = FacilitiesListScope::allFacilities)
 {
     FacilityListHandler<ThisSimConnectHandler> facilityListHandler(connectionHandler);
 
@@ -768,7 +768,7 @@ static void listNDBs(ThisSimConnectHandler& connectionHandler, std::string_view 
     std::cout << ":\n";
 
     bool listingDone{ false };
-    auto request = facilityListHandler.listNDBs(FacilitiesListScope::allFacilities,
+    auto request = facilityListHandler.listNDBs(scope,
         [&identRegex, useRegex, regionFilter](std::string_view ident, std::string_view region, const NdbDetails& details) {
             // Filter by region if specified
             if (!regionFilter.empty() && region != regionFilter) {
@@ -803,7 +803,7 @@ static void listNDBs(ThisSimConnectHandler& connectionHandler, std::string_view 
  * @param identPattern Regex pattern to filter waypoints by ident.
  * @param regionFilter Exact region code to filter waypoints by (optional).
  */
-static void listWaypoints(ThisSimConnectHandler& connectionHandler, std::string_view identPattern, std::string_view regionFilter)
+static void listWaypoints(ThisSimConnectHandler& connectionHandler, std::string_view identPattern, std::string_view regionFilter, FacilitiesListScope scope = FacilitiesListScope::allFacilities)
 {
     FacilityListHandler<ThisSimConnectHandler> facilityListHandler(connectionHandler);
 
@@ -829,7 +829,7 @@ static void listWaypoints(ThisSimConnectHandler& connectionHandler, std::string_
     std::cout << ":\n";
 
     bool listingDone{ false };
-    auto request = facilityListHandler.listWaypoints(FacilitiesListScope::allFacilities,
+    auto request = facilityListHandler.listWaypoints(scope,
         [&identRegex, useRegex, regionFilter](std::string_view ident, std::string_view region, const WaypointDetails& details) {
             // Filter by region if specified
             if (!regionFilter.empty() && region != regionFilter) {
@@ -867,6 +867,20 @@ auto main(int argc, const char *argv[]) -> int// NOLINT(bugprone-exception-escap
     const std::string region = args.contains("region") ? args["region"] : "";
     const std::string type = args.contains("type") ? args["type"] : "airport";
     const std::string filter = args.contains("filter") ? args["filter"] : "";
+    FacilitiesListScope scope = FacilitiesListScope::allFacilities;
+    if (args.contains("scope")) {
+        const std::string scopeStr = args["scope"];
+        if (scopeStr == "cache") {
+            scope = FacilitiesListScope::cacheOnly;
+        } else if (scopeStr == "bubble") {
+            scope = FacilitiesListScope::bubbleOnly;
+        } else if (scopeStr == "all") {
+            scope = FacilitiesListScope::allFacilities;
+        } else {
+            std::cerr << std::format("Unknown scope '{}' specified. Supported scopes are 'loaded', 'nearby', and 'all'.\n", scopeStr);
+            return 1;
+        }
+    }
 
     const LogLevel logLevel = args.contains("debug") ? LogLevel::Debug : LogLevel::Info;
 
@@ -889,18 +903,18 @@ auto main(int argc, const char *argv[]) -> int// NOLINT(bugprone-exception-escap
         if (!icao.empty()) {
             listAirportDetails(connectionHandler, icao, region);
         } else {
-            listAirports(connectionHandler, filter, region);
+            listAirports(connectionHandler, filter, region, scope);
         }
     } else if (type == "vor") {
         if (!icao.empty()) {
             listVORDetails(connectionHandler, icao, region);
         } else {
-            listVORs(connectionHandler, filter, region);
+            listVORs(connectionHandler, filter, region, scope);
         }
     } else if (type == "ndb") {
-        listNDBs(connectionHandler, filter, region);
+        listNDBs(connectionHandler, filter, region, scope);
     } else if (type == "waypoint") {
-        listWaypoints(connectionHandler, filter, region);
+        listWaypoints(connectionHandler, filter, region, scope);
     } else {
         std::cerr << std::format("Unknown type '{}' specified. Supported types are 'airport', 'vor', 'ndb', and 'waypoint'.\n", type);
     }

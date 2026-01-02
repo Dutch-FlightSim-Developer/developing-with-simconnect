@@ -39,7 +39,7 @@ namespace SimConnect {
  * @returns A std::string_view representing the char array up to the first null character.
  */
 template <std::size_t N>
-std::string_view toString(const std::array<char, N>& a) {
+constexpr std::string_view toString(const std::array<char, N>& a) {
     auto it = std::find(a.begin(), a.end(), '\0');
     return {a.data(), static_cast<std::size_t>(it - a.begin())};
 }

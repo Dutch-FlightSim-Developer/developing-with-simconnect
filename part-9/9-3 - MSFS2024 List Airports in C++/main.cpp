@@ -261,7 +261,7 @@ static void handleException(const Messages::ExceptionMsg &msg)
 static void printAirport(std::string_view ident, std::string_view region, const AirportDetails& details)
 {
   std::cout << std::format("Airport ID: '{}', Region: '{}', LatLonAlt: {:.2f}/{:.2f}/{:.2f}m\n",
-    ident, region, details.position.Latitude, details.position.Longitude, details.position.Altitude);
+    ident, region, details.latitude, details.longitude, details.altitude);
 }
 
 
@@ -275,7 +275,7 @@ static void printAirport(std::string_view ident, std::string_view region, const 
 static void printWaypoint(std::string_view ident, std::string_view region, const WaypointDetails& details)
 {
   std::cout << std::format("Waypoint ID: '{}', Region: '{}', LatLonAlt: {:.2f}/{:.2f}/{:.2f}m, Magnetic variation: {:.2f}\n",
-    ident, region, details.position.Latitude, details.position.Longitude, details.position.Altitude, details.magVar);
+    ident, region, details.latitude, details.longitude, details.altitude, details.magVar);
 }
 
 
@@ -290,7 +290,7 @@ static void printNdb(std::string_view ident, std::string_view region, const NdbD
 {
   static constexpr double kHzFactor = 1.0;
   std::cout << std::format("NDB ID: '{}', Region: '{}', Frequency: {:06.2f} kHz, LatLonAlt: {:.2f}/{:.2f}/{:.2f}m, Magnetic variation: {:.2f}\n",
-    ident, region, details.frequency / kHzFactor, details.position.Latitude, details.position.Longitude, details.position.Altitude, details.magVar);
+    ident, region, details.frequency / kHzFactor, details.latitude, details.longitude, details.altitude, details.magVar);
 }
 
 
@@ -305,7 +305,7 @@ static void printVor(std::string_view ident, std::string_view region, const VorD
 {
   static constexpr double MHzFactor = 1.0;
   std::cout << std::format("VOR ID: '{}', Region: '{}', Frequency: {:06.2f} MHz, LatLonAlt: {:.2f}/{:.2f}/{:.2f}m, Magnetic variation: {:.2f}",
-    ident, region, details.frequency / MHzFactor, details.position.Latitude, details.position.Longitude, details.position.Altitude, details.magVar);
+    ident, region, details.frequency / MHzFactor, details.latitude, details.longitude, details.altitude, details.magVar);
   
   std::cout << ", Capabilities: [";
   if (details.hasNavSignal()) {
@@ -317,7 +317,7 @@ static void printVor(std::string_view ident, std::string_view region, const VorD
   if (details.hasLocalizer()) {
     std::cout << (details.hasNavSignal() || details.hasDME() ? "+" : "") << "LOC";
     std::cout << std::format(" (course: {:.2f}°, pos: {:.2f}/{:.2f}/{:.2f}m)", 
-      details.localizerCourse, details.localizerPosition.Latitude, details.localizerPosition.Longitude, details.localizerPosition.Altitude);
+      details.localizerCourse, details.latitude, details.longitude, details.altitude);
   }
   if (details.hasGlideSlope()) {
     std::cout << std::format("+GS (angle: {:.2f}°)", details.glideSlopeAngle);

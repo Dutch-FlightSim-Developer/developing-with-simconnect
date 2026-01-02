@@ -21,9 +21,8 @@
 #include <string_view>
 #include <functional>
 
-#include <cmath>
-
 #include <simconnect/simconnect.hpp>
+#include <simconnect/simconnect_datatypes.hpp>
 #include <simconnect/message_handler.hpp>
 
 #include <simconnect/requests/facilities/facility_definition.hpp>
@@ -32,159 +31,15 @@
 namespace SimConnect {
 
 
-#pragma pack(push, 1)
-struct AirportDetails {
-    DataTypes::LatLonAlt position;
-
-    constexpr double latitude() const noexcept {
-        return position.Latitude;
-    }
-    constexpr double latitudeNormalized() const noexcept {
-        return std::fabs(position.Latitude);
-    }
-    constexpr char latitudeDirection() const noexcept {
-        if (position.Latitude == 0.0) {
-            return ' ';
-        }
-        return (position.Latitude > 0.0) ? 'N' : 'S';
-    }
-
-    constexpr double longitude() const noexcept {
-        return position.Longitude;
-    }
-    constexpr double longitudeNormalized() const noexcept {
-        return std::fabs(position.Longitude);
-    }
-    constexpr char longitudeDirection() const noexcept {
-        if (position.Longitude == 0.0) {
-            return ' ';
-        }
-        return (position.Longitude > 0.0) ? 'E' : 'W';
-    }
-
-    constexpr double altitude() const noexcept {
-        return position.Altitude;
-    }
-    constexpr double altitudeMeters() const noexcept {
-        return position.Altitude;
-    }
-    constexpr long altitudeFeet() const noexcept {
-        constexpr double feetPerMeter = 3.28084;
-        return static_cast<long>(position.Altitude * feetPerMeter);
-    }
-};
-#pragma pack(pop)
-
+using AirportDetails = LatLonAlt;
 using AirportHandler = std::function<void(std::string_view ident, std::string_view region, const AirportDetails& position)>;
 
-#pragma pack(push, 1)
-struct WaypointDetails {
-    DataTypes::LatLonAlt position;
-    float magVar;
-
-    constexpr double latitude() const noexcept {
-        return position.Latitude;
-    }
-    double latitudeNormalized() const noexcept {
-        return std::fabs(position.Latitude);
-    }
-    constexpr char latitudeDirection() const noexcept {
-        if (position.Latitude == 0.0) {
-            return ' ';
-        }
-        return (position.Latitude > 0.0) ? 'N' : 'S';
-    }
-
-    constexpr double longitude() const noexcept {
-        return position.Longitude;
-    }
-    double longitudeNormalized() const noexcept {
-        return std::fabs(position.Longitude);
-    }
-    constexpr char longitudeDirection() const noexcept {
-        if (position.Longitude == 0.0) {
-            return ' ';
-        }
-        return (position.Longitude > 0.0) ? 'E' : 'W';
-    }
-
-    constexpr double altitude() const noexcept {
-        return position.Altitude;
-    }
-    constexpr double altitudeMeters() const noexcept {
-        return position.Altitude;
-    }
-    constexpr long altitudeFeet() const noexcept {
-        constexpr double feetPerMeter = 3.28084;
-        return static_cast<long>(position.Altitude * feetPerMeter);
-    }
-
-    constexpr float MagVarNormalized() const noexcept {
-        return (magVar > 180.0F) ? (360.0 - magVar) : magVar;
-    }
-    constexpr char magVarDirection() const noexcept {
-        if ((magVar == 0.0F) || (magVar == 180.0F)) {
-            return ' ';
-        }
-        return (magVar < 180.0F) ? 'E' : 'W';
-    }
-};
-#pragma pack(pop)
-
+using WaypointDetails = LatLonAltMagVar;
 using WaypointHandler = std::function<void(std::string_view ident, std::string_view region, const WaypointDetails& details)>;
 
 #pragma pack(push, 1)
-struct NdbDetails {
-    DataTypes::LatLonAlt position;
-    float magVar;
+struct NdbDetails : public SimConnect::LatLonAltMagVar {
     float frequency;
-
-    constexpr double latitude() const noexcept {
-        return position.Latitude;
-    }
-    double latitudeNormalized() const noexcept {
-        return std::fabs(position.Latitude);
-    }
-    constexpr char latitudeDirection() const noexcept {
-        if (position.Latitude == 0.0) {
-            return ' ';
-        }
-        return (position.Latitude > 0.0) ? 'N' : 'S';
-    }
-
-    constexpr double longitude() const noexcept {
-        return position.Longitude;
-    }
-    double longitudeNormalized() const noexcept {
-        return std::fabs(position.Longitude);
-    }
-    constexpr char longitudeDirection() const noexcept {
-        if (position.Longitude == 0.0) {
-            return ' ';
-        }
-        return (position.Longitude > 0.0) ? 'E' : 'W';
-    }
-
-    constexpr double altitude() const noexcept {
-        return position.Altitude;
-    }
-    constexpr double altitudeMeters() const noexcept {
-        return position.Altitude;
-    }
-    constexpr long altitudeFeet() const noexcept {
-        constexpr double feetPerMeter = 3.28084;
-        return static_cast<long>(position.Altitude * feetPerMeter);
-    }
-
-    constexpr float MagVarNormalized() const noexcept {
-        return (magVar > 180.0F) ? (360.0 - magVar) : magVar;
-    }
-    constexpr char magVarDirection() const noexcept {
-        if ((magVar == 0.0F) || (magVar == 180.0F)) {
-            return ' ';
-        }
-        return (magVar < 180.0F) ? 'E' : 'W';
-    }
 
     inline float frequencyKHz() const noexcept {
         constexpr float kHzFactor = 1'000.0F;
@@ -196,59 +51,16 @@ struct NdbDetails {
 using NdbHandler = std::function<void(std::string_view ident, std::string_view region, const NdbDetails& details)>;
 
 #pragma pack(push, 1)
-struct VorDetails {
-    DataTypes::LatLonAlt position;
-    float magVar;
+struct VorDetails : public SimConnect::LatLonAltMagVar {
     float frequency;
     unsigned long flags;
     float localizerCourse;
-    DataTypes::LatLonAlt localizerPosition;
+    LatLonAlt glideslopePosition;
     float glideSlopeAngle;
 
-    constexpr double latitude() const noexcept {
-        return position.Latitude;
-    }
-    double latitudeNormalized() const noexcept {
-        return std::fabs(position.Latitude);
-    }
-    constexpr char latitudeDirection() const noexcept {
-        if (position.Latitude == 0.0) {
-            return ' ';
-        }
-        return (position.Latitude > 0.0) ? 'N' : 'S';
-    }
-
-    constexpr double longitude() const noexcept {
-        return position.Longitude;
-    }
-    double longitudeNormalized() const noexcept {
-        return std::fabs(position.Longitude);
-    }
-    constexpr char longitudeDirection() const noexcept {
-        if (position.Longitude == 0.0) {
-            return ' ';
-        }
-        return (position.Longitude > 0.0) ? 'E' : 'W';
-    }
-
-    constexpr double altitude() const noexcept {
-        return position.Altitude;
-    }
-    constexpr double altitudeMeters() const noexcept {
-        return position.Altitude;
-    }
-    constexpr long altitudeFeet() const noexcept {
-        return static_cast<long>(position.Altitude * Facilities::MetersToFeetFactor);
-    }
-
-    constexpr float MagVarNormalized() const noexcept {
-        return (magVar > 180.0F) ? (360.0F - magVar) : magVar;
-    }
-    constexpr char magVarDirection() const noexcept {
-        if ((magVar == 0.0F) || (magVar == 180.0F)) {
-            return ' ';
-        }
-        return (magVar < 180.0F) ? 'E' : 'W';
+    inline float frequencyMHz() const noexcept {
+        constexpr float MHzFactor = 1'000'000.0F;
+        return frequency / MHzFactor;
     }
 
     inline bool hasNavSignal() const noexcept {
@@ -262,48 +74,6 @@ struct VorDetails {
     }
     inline bool hasDME() const noexcept {
         return (flags & SIMCONNECT_RECV_ID_VOR_LIST_HAS_DME) != 0;
-    }
-
-    inline float frequencyMHz() const noexcept {
-        constexpr float MHzFactor = 1'000'000.0F;
-        return frequency / MHzFactor;
-    }
-
-    constexpr double localizerLatitude() const noexcept {
-        return localizerPosition.Latitude;
-    }
-    double localizerLatitudeNormalized() const noexcept {
-        return std::fabs(localizerPosition.Latitude);
-    }
-    constexpr char localizerLatitudeDirection() const noexcept {
-        if (localizerPosition.Latitude == 0.0) {
-            return ' ';
-        }
-        return (localizerPosition.Latitude > 0.0) ? 'N' : 'S';
-    }
-
-    constexpr double localizerLongitude() const noexcept {
-        return localizerPosition.Longitude;
-    }
-    double localizerLongitudeNormalized() const noexcept {
-        return std::fabs(localizerPosition.Longitude);
-    }
-    constexpr char localizerLongitudeDirection() const noexcept {
-        if (localizerPosition.Longitude == 0.0) {
-            return ' ';
-        }
-        return (localizerPosition.Longitude > 0.0) ? 'E' : 'W';
-    }
-
-    constexpr double localizerAltitude() const noexcept {
-        return localizerPosition.Altitude;
-    }
-    constexpr double localizerAltitudeMeters() const noexcept {
-        return localizerPosition.Altitude;
-    }
-    constexpr long localizerAltitudeFeet() const noexcept {
-        constexpr double feetPerMeter = 3.28084;
-        return static_cast<long>(localizerPosition.Altitude * feetPerMeter);
     }
 
 };

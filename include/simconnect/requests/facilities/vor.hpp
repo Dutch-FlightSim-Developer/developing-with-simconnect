@@ -17,6 +17,8 @@
 
 
 #include <simconnect/simconnect.hpp>
+#include <simconnect/simconnect_datatypes.hpp>
+
 #include <simconnect/requests/facilities/facility_definition.hpp>
 #include <simconnect/requests/facilities/facility_definition_builder.hpp>
 
@@ -39,22 +41,11 @@ namespace SimConnect::Facilities {
 /**
  * Represents the data structure for a VOR beacon, as returned by SimConnect.
  */
-class VORData {
-    double vorLatitude_;                    // VOR_LATITUDE
-    double vorLongitude_;                   // VOR_LONGITUDE
-    double vorAltitude_;                    // VOR_ALTITUDE
-
-    double dmeLatitude_;                    // DME_LATITUDE
-    double dmeLongitude_;                   // DME_LONGITUDE
-    double dmeAltitude_;                    // DME_ALTITUDE
-
-    double gsLatitude_;                     // GS_LATITUDE
-    double gsLongitude_;                    // GS_LONGITUDE
-    double gsAltitude_;                     // GS_ALTITUDE
-
-    double tacanLatitude_;                  // TACAN_LATITUDE
-    double tacanLongitude_;                 // TACAN_LONGITUDE
-    double tacanAltitude_;                  // TACAN_ALTITUDE
+struct VORData {
+    LatLonAltMagVar vorPosition;
+    LatLonAlt dmePosition;
+    LatLonAlt gsPosition;
+    LatLonAlt tacanPosition;
 
     std::int32_t isNav_;                    // IS_NAV
     std::int32_t isDme_;                    // IS_DME
@@ -67,7 +58,6 @@ class VORData {
     std::uint32_t frequency_;               // FREQUENCY
     VORType type_;                          // TYPE
     float navRange_;                        // NAV_RANGE
-    float magVar_;                          // MAGVAR
     float localizer_;                       // LOCALIZER
     float localizerWidth_;                  // LOCALIZER_WIDTH
     float glideSlope_;                      // GLIDE_SLOPE
@@ -85,42 +75,16 @@ public:
     }
 
     constexpr bool isNav() const noexcept { return isNav_ != 0; }
-    constexpr double vorLatitude() const noexcept { return vorLatitude_; }
-    constexpr double vorLatitudeNormalized() const noexcept { return std::fabs(vorLatitude_); }
-    constexpr char vorLatitudeDirection() const noexcept { if (vorLatitude_ == 0) { return ' '; } return (vorLatitude_ > 0) ? 'N' : 'S'; }
-    constexpr double vorLongitude() const noexcept { return vorLongitude_; }
-    constexpr double vorLongitudeNormalized() const noexcept { return std::fabs(vorLongitude_); }
-    constexpr char vorLongitudeDirection() const noexcept { if (vorLongitude_ == 0) { return ' '; } return (vorLongitude_ > 0) ? 'E' : 'W'; }
-    constexpr double vorAltitude() const noexcept { return vorAltitude_; }
-    constexpr double vorAltitudeMeters() const noexcept { return vorAltitude_; }
-    constexpr double vorAltitudeFeet() const noexcept { return vorAltitude_ * MetersToFeetFactor; }
-    constexpr float magVar() const noexcept { return magVar_; }
 
     constexpr bool isDme() const noexcept { return isDme_ != 0; }
     constexpr bool dmeAtNav() const noexcept { return dmeAtNav_ != 0; }
     constexpr bool dmeAtGlideSlope() const noexcept { return dmeAtGlideSlope_ != 0; }
-    constexpr double dmeLatitude() const noexcept { return dmeLatitude_; }
-    constexpr double dmeLongitude() const noexcept { return dmeLongitude_; }
-    constexpr double dmeAltitude() const noexcept { return dmeAltitude_; }
-    constexpr double dmeAltitudeMeters() const noexcept { return dmeAltitude_; }
-    constexpr double dmeAltitudeFeet() const noexcept { return dmeAltitude_ * MetersToFeetFactor; }
     constexpr float dmeBias() const noexcept { return dmeBias_; }
 
     constexpr bool hasGlideSlope() const noexcept { return hasGlideSlope_ != 0; }
-    constexpr double gsLatitude() const noexcept { return gsLatitude_; }
-    constexpr double gsLongitude() const noexcept { return gsLongitude_; }
-    constexpr double gsAltitude() const noexcept { return gsAltitude_; }
-    constexpr double gsAltitudeMeters() const noexcept { return gsAltitude_; }
-    constexpr double gsAltitudeFeet() const noexcept { return gsAltitude_ * MetersToFeetFactor; }
-    constexpr float glideSlopeDegrees() const noexcept { return glideSlope_; }
+    constexpr float glideSlope() const noexcept { return glideSlope_; }
 
     constexpr bool isTacan() const noexcept { return isTacan_ != 0; }
-    constexpr double tacanLatitude() const noexcept { return tacanLatitude_; }
-    constexpr double tacanLongitude() const noexcept { return tacanLongitude_; }
-    constexpr double tacanAltitude() const noexcept { return tacanAltitude_; }
-    constexpr double tacanAltitudeMeters() const noexcept { return tacanAltitude_; }
-    constexpr double tacanAltitudeFeet() const noexcept { return tacanAltitude_ * MetersToFeetFactor; }
-
 
     constexpr std::uint32_t frequency() const noexcept { return frequency_; }
     constexpr double frequencyMHz() const noexcept { return frequency_ * FrequencyToMHzFactor; }
@@ -129,6 +93,7 @@ public:
     inline std::string_view name() const noexcept { return SimConnect::toString(name_); }
 
     constexpr float navRange() const noexcept { return navRange_; }
+    constexpr double navRangeNM() const noexcept { return static_cast<double>(navRange_ / 1852.0); }
     constexpr float localizerHeading() const noexcept { return localizer_; }
     constexpr float localizerWidth() const noexcept { return localizerWidth_; }
     constexpr bool hasBackCourse() const noexcept { return hasBackCourse_ != 0; }
@@ -253,6 +218,7 @@ struct VORBuilder
                 .push(FacilityField::vorVorLatitude)
                 .push(FacilityField::vorVorLongitude)
                 .push(FacilityField::vorVorAltitude)
+                .push(FacilityField::vorMagvar)
                 .push(FacilityField::vorDmeLatitude)
                 .push(FacilityField::vorDmeLongitude)
                 .push(FacilityField::vorDmeAltitude)
@@ -272,7 +238,6 @@ struct VORBuilder
                 .push(FacilityField::vorFrequency)
                 .push(FacilityField::vorType)
                 .push(FacilityField::vorNavRange)
-                .push(FacilityField::vorMagvar)
                 .push(FacilityField::vorLocalizer)
                 .push(FacilityField::vorLocalizerWidth)
                 .push(FacilityField::vorGlideSlope)

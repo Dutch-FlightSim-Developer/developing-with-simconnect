@@ -49,7 +49,7 @@ using namespace SimConnect;
 using namespace std::chrono_literals;
 
 
-static constexpr std::string_view degreeSymbol = "\xF8";
+static constexpr char degreeSymbol = '\xF8';
 
 /**
  * Return a pretty formatted version string.
@@ -360,11 +360,19 @@ static void printVOR(const Facilities::VORData& vor)
         break;
     }
     std::cout << std::format("  Capabilities: {}\n", flagsStr);
-    std::cout << std::format("  VOR Position: {:.6f}{}, {:.6f}{}, Alt {:f}ft\n", vor.vorLatitude(), degreeSymbol, vor.vorLongitude(), degreeSymbol, vor.vorAltitudeFeet());
+    std::cout << std::format("  VOR Position: {:.6f}{}{}, {:.6f}{}{}, Alt {}ft\n",
+        vor.vorPosition.latitudeNormalized(), degreeSymbol, vor.vorPosition.latitudeDirection(),
+        vor.vorPosition.longitudeNormalized(), degreeSymbol, vor.vorPosition.longitudeDirection(),
+        vor.vorPosition.altitudeFeet());
+    std::cout << std::format("  Magnetic Variation: {:.2f}{}{}\n",
+        vor.vorPosition.magVarNormalized(), degreeSymbol, vor.vorPosition.magVarDirection());
     
     if (vor.isDme()) {
         if ((vor.isNav() && !vor.dmeAtNav()) || (vor.hasGlideSlope() && !vor.dmeAtGlideSlope())) {
-            std::cout << std::format("  DME Position: {:.6f}{}, {:.6f}{}, Alt {:f}ft\n", vor.dmeLatitude(), degreeSymbol, vor.dmeLongitude(), degreeSymbol, vor.dmeAltitudeFeet());
+            std::cout << std::format("  DME Position: {:.6f}{}{}, {:.6f}{}{}, Alt {}ft\n",
+                vor.dmePosition.latitudeNormalized(), degreeSymbol, vor.dmePosition.latitudeDirection(),
+                vor.dmePosition.longitudeNormalized(), degreeSymbol, vor.dmePosition.longitudeDirection(),
+                vor.dmePosition.altitudeFeet());
         }
         if (vor.dmeAtNav()) {
             std::cout << "  DME co-located with NAV\n";
@@ -376,8 +384,11 @@ static void printVOR(const Facilities::VORData& vor)
     }
     
     if (vor.hasGlideSlope()) {
-        std::cout << std::format("  Glide Slope: {:.2f}{}\n", vor.glideSlopeDegrees(), degreeSymbol);
-        std::cout << std::format("  GS Position: {:.6f}{}, {:.6f}{}, Alt {:f}ft\n", vor.gsLatitude(), degreeSymbol, vor.gsLongitude(), degreeSymbol, vor.gsAltitudeFeet());
+        std::cout << std::format("  Glide Slope: {:.2f}{}\n", vor.glideSlope(), degreeSymbol);
+        std::cout << std::format("  GS Position: {:.6f}{}{}, {:.6f}{}{}, Alt {}ft\n",
+            vor.gsPosition.latitudeNormalized(), degreeSymbol, vor.gsPosition.latitudeDirection(),
+            vor.gsPosition.longitudeNormalized(), degreeSymbol, vor.gsPosition.longitudeDirection(),
+            vor.gsPosition.altitudeFeet());
     }
     
     if (vor.isNav() && vor.localizerHeading() != 0) {
@@ -391,11 +402,13 @@ static void printVOR(const Facilities::VORData& vor)
     }
     
     if (vor.isTacan()) {
-        std::cout << std::format("  TACAN Position: {:.6f}{}, {:.6f}{}, Alt {:f}ft\n", vor.tacanLatitude(), degreeSymbol, vor.tacanLongitude(), degreeSymbol, vor.tacanAltitudeFeet());
+        std::cout << std::format("  TACAN Position: {:.6f}{}{}, {:.6f}{}{}, Alt {}ft\n",
+            vor.tacanPosition.latitudeNormalized(), degreeSymbol, vor.tacanPosition.latitudeDirection(),
+            vor.tacanPosition.longitudeNormalized(), degreeSymbol, vor.tacanPosition.longitudeDirection(),
+            vor.tacanPosition.altitudeFeet());
     }
     
-    std::cout << std::format("  Nav Range: {:.1f} NM\n", vor.navRange());
-    std::cout << std::format("  Magnetic Variation: {:.2f}{}\n", vor.magVar(), degreeSymbol);
+    std::cout << std::format("  Nav Range: {:.1f} NM\n", vor.navRangeNM());
     std::cout << std::format("  Reference: {}\n", vor.isTrueReferenced() ? "True" : "Magnetic");
 }
 
@@ -701,11 +714,11 @@ static void listVORs(ThisSimConnectHandler& connectionHandler, std::string_view 
                 return;
             }
 
-            std::cout << std::format("- {:5}: {:8.3f}{}{}, {:7.3f}{}{}, MagVar {:6.2f}{}{}, Alt {:6}ft, {:7.3f} MHz [{:3} {:3} {:3} {:3}] (Region {})\n",
+            std::cout << std::format("- {:5}: {:8.3f}{}{}, {:7.3f}{}{}, MagVar {:6.2f}{}{}, Alt {:6}ft, {:7.3f} MHz [{:3} {:3} {:3} {:2}] (Region {})\n",
                 ident,
                 details.latitudeNormalized(), degreeSymbol, details.latitudeDirection(),
                 details.longitudeNormalized(), degreeSymbol, details.longitudeDirection(),
-                details.MagVarNormalized(), degreeSymbol, details.magVarDirection(),
+                details.magVarNormalized(), degreeSymbol, details.magVarDirection(),
                 details.altitudeFeet(),
                 details.frequencyMHz(),
                 details.hasNavSignal()  ? "NAV" : "",
@@ -770,7 +783,7 @@ static void listNDBs(ThisSimConnectHandler& connectionHandler, std::string_view 
                 ident,
                 details.latitudeNormalized(), degreeSymbol, details.latitudeDirection(),
                 details.longitudeNormalized(), degreeSymbol, details.longitudeDirection(),
-                details.MagVarNormalized(), degreeSymbol, details.magVarDirection(),
+                details.magVarNormalized(), degreeSymbol, details.magVarDirection(),
                 details.altitudeFeet(),
                 details.frequencyKHz(),
                 region);
@@ -831,7 +844,7 @@ static void listWaypoints(ThisSimConnectHandler& connectionHandler, std::string_
                 ident,
                 details.latitudeNormalized(), degreeSymbol, details.latitudeDirection(),
                 details.longitudeNormalized(), degreeSymbol, details.longitudeDirection(),
-                details.MagVarNormalized(), degreeSymbol, details.magVarDirection(),
+                details.magVarNormalized(), degreeSymbol, details.magVarDirection(),
                 details.altitudeFeet(),
                 region);
         },

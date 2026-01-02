@@ -44,6 +44,9 @@ using ThisSimConnectHandler = SimConnect::WindowsEventHandler<true, SimConnect::
 #include <simconnect/requests/facilities/frequency.hpp>
 #include <simconnect/requests/facilities/taxi_parking.hpp>
 #include <simconnect/requests/facilities/vor.hpp>
+#include <simconnect/requests/facilities/ndb.hpp>
+#include <simconnect/requests/facilities/waypoint.hpp>
+
 
 using namespace SimConnect;
 using namespace std::chrono_literals;
@@ -304,116 +307,6 @@ static void printTaxiParking(const std::string& parkingName, const Facilities::T
 
 
 /**
- * Get VOR capability flags.
- */
-static std::set<std::string> vorFlags(const Facilities::VORData& vor)
-{
-    std::set<std::string> flags;
-
-    if (vor.isNav()) { flags.insert("NAV"); }
-    if (vor.isDme()) { flags.insert("DME"); }
-    if (vor.isTacan()) { flags.insert("TACAN"); }
-    if (vor.hasGlideSlope()) { flags.insert("GS"); }
-    if (vor.hasBackCourse()) { flags.insert("BC"); }
-    
-    return flags;
-}
-
-
-/**
- * Print VOR details.
- */
-static void printVOR(const Facilities::VORData& vor)
-{
-    const auto flags = vorFlags(vor);
-    std::string flagsStr{};
-    for (const auto& flag : flags) {
-        if (!flagsStr.empty()) {
-            flagsStr += ",";
-        }
-        flagsStr += flag;
-    }
-    if (flagsStr.empty()) {
-        flagsStr = "None";
-    }
-
-    std::cout << std::format("VOR '{}':\n", vor.name());
-    std::cout << std::format("  Frequency: {:.3f} MHz\n", vor.frequencyMHz());
-    switch (vor.type()) {
-    case Facilities::VORType::VOR_Unknown:
-        std::cout << "  Type: Unknown\n";
-        break;
-    case Facilities::VORType::VOR_Terminal:
-        std::cout << "  Type: Terminal\n";
-        break;
-    case Facilities::VORType::VOR_LowAltitude:
-        std::cout << "  Type: Low Altitude\n";
-        break;
-    case Facilities::VORType::VOR_HighAltitude:
-        std::cout << "  Type: High Altitude\n";
-        break;
-    case Facilities::VORType::VOR_ILS:
-        std::cout << "  Type: ILS\n";
-        break;
-    case Facilities::VORType::VOR_VOT:
-        std::cout << "  Type: VOT\n";
-        break;
-    }
-    std::cout << std::format("  Capabilities: {}\n", flagsStr);
-    std::cout << std::format("  VOR Position: {:.6f}{}{}, {:.6f}{}{}, Alt {}ft\n",
-        vor.vorPosition.latitudeNormalized(), degreeSymbol, vor.vorPosition.latitudeDirection(),
-        vor.vorPosition.longitudeNormalized(), degreeSymbol, vor.vorPosition.longitudeDirection(),
-        vor.vorPosition.altitudeFeet());
-    std::cout << std::format("  Magnetic Variation: {:.2f}{}{}\n",
-        vor.vorPosition.magVarNormalized(), degreeSymbol, vor.vorPosition.magVarDirection());
-    
-    if (vor.isDme()) {
-        if ((vor.isNav() && !vor.dmeAtNav()) || (vor.hasGlideSlope() && !vor.dmeAtGlideSlope())) {
-            std::cout << std::format("  DME Position: {:.6f}{}{}, {:.6f}{}{}, Alt {}ft\n",
-                vor.dmePosition.latitudeNormalized(), degreeSymbol, vor.dmePosition.latitudeDirection(),
-                vor.dmePosition.longitudeNormalized(), degreeSymbol, vor.dmePosition.longitudeDirection(),
-                vor.dmePosition.altitudeFeet());
-        }
-        if (vor.dmeAtNav()) {
-            std::cout << "  DME co-located with NAV\n";
-        }
-        if (vor.dmeAtGlideSlope()) {
-            std::cout << "  DME co-located with Glide Slope\n";
-        }
-        std::cout << std::format("  DME Bias: {:.2f} NM\n", vor.dmeBias());
-    }
-    
-    if (vor.hasGlideSlope()) {
-        std::cout << std::format("  Glide Slope: {:.2f}{}\n", vor.glideSlope(), degreeSymbol);
-        std::cout << std::format("  GS Position: {:.6f}{}{}, {:.6f}{}{}, Alt {}ft\n",
-            vor.gsPosition.latitudeNormalized(), degreeSymbol, vor.gsPosition.latitudeDirection(),
-            vor.gsPosition.longitudeNormalized(), degreeSymbol, vor.gsPosition.longitudeDirection(),
-            vor.gsPosition.altitudeFeet());
-    }
-    
-    if (vor.isNav() && vor.localizerHeading() != 0) {
-        std::cout << std::format("  Localizer: {:.2f}{}, Width {:.2f}{}\n",
-            vor.localizerHeading(), degreeSymbol,
-            vor.localizerWidth(), degreeSymbol);
-        std::cout << std::format("  ILS Category: {}\n", static_cast<int>(vor.lsCategory()));
-        if (vor.hasBackCourse()) {
-            std::cout << "  Has Back Course\n";
-        }
-    }
-    
-    if (vor.isTacan()) {
-        std::cout << std::format("  TACAN Position: {:.6f}{}{}, {:.6f}{}{}, Alt {}ft\n",
-            vor.tacanPosition.latitudeNormalized(), degreeSymbol, vor.tacanPosition.latitudeDirection(),
-            vor.tacanPosition.longitudeNormalized(), degreeSymbol, vor.tacanPosition.longitudeDirection(),
-            vor.tacanPosition.altitudeFeet());
-    }
-    
-    std::cout << std::format("  Nav Range: {:.1f} NM\n", vor.navRangeNM());
-    std::cout << std::format("  Reference: {}\n", vor.isTrueReferenced() ? "True" : "Magnetic");
-}
-
-
-/**
  * Print a single frequency entry.
  * 
  * @param frequency The frequency to print.
@@ -561,57 +454,6 @@ static void listAirportDetails(auto& connectionHandler, const std::string& icao,
 
 
 /**
- * List detailed information about a specific VOR.
- * 
- * @param connectionHandler The connection handler to use for communication.
- * @param ident The identifier of the VOR to list.
- * @param region The region code of the VOR to list.
- */
-static void listVORDetails(auto& connectionHandler, const std::string& ident, const std::string& region)
-{
-    bool listingDone{ false };
-
-    // Build a definition of what we want to receive
-    static constexpr std::size_t BuilderSize = 128;
-    auto builder = Facilities::Builder<BuilderSize>()
-        .vor()
-            .allFields()
-        .end();
-    FacilityHandler<WindowsEventHandler<true, ConsoleLogger>> facilityHandler(connectionHandler);
-    const FacilityDefinitionId defId = facilityHandler.buildDefinition(builder);
-    Facilities::VORData vor{};
-    bool vorReceived{ false };
-
-    auto request = facilityHandler.requestFacilityData(defId, ident, region,
-        [&vor, &vorReceived](const Messages::FacilityDataMsg& msg) {
-            if (Facilities::VORData::isVORData(msg)) {
-                vor = Facilities::VORData::from(msg);
-                vorReceived = true;
-            }
-        },
-        [&listingDone]() {
-            std::cout << "Finished listing VOR details.\n";
-            listingDone = true;
-        },
-        [&listingDone](const Messages::FacilityMinimalListMsg& msg) {
-            std::cerr << std::format("Received minimal facility list with {} items.\n", msg.dwArraySize);
-            listingDone = true;
-        }
-    );
-    static constexpr auto timeout = 30s;
-    std::cout << std::format("Listing VOR, will timeout after {} seconds...\n", timeout.count());
-    connectionHandler.handleUntilOrTimeout([&listingDone]() { return listingDone; }, timeout);
-    request.stop();
-    
-    if (vorReceived) {
-        printVOR(vor);
-    } else {
-        std::cerr << std::format("VOR '{}' not found.\n", ident);
-    }
-}
-
-
-/**
  * List airports matching the given filters.
  * 
  * @param connectionHandler The connection handler to use for communication.
@@ -736,6 +578,164 @@ static void listVORs(ThisSimConnectHandler& connectionHandler, std::string_view 
 
 
 /**
+ * Get VOR capability flags.
+ */
+static std::set<std::string> vorFlags(const Facilities::VORData& vor)
+{
+    std::set<std::string> flags;
+
+    if (vor.isNav()) { flags.insert("NAV"); }
+    if (vor.isDme()) { flags.insert("DME"); }
+    if (vor.isTacan()) { flags.insert("TACAN"); }
+    if (vor.hasGlideSlope()) { flags.insert("GS"); }
+    if (vor.hasBackCourse()) { flags.insert("BC"); }
+    
+    return flags;
+}
+
+
+/**
+ * Print the VOR data.
+ */
+static void printVORData(const Facilities::VORData& vor)
+{
+    const auto flags = vorFlags(vor);
+    std::string flagsStr{};
+    for (const auto& flag : flags) {
+        if (!flagsStr.empty()) {
+            flagsStr += ",";
+        }
+        flagsStr += flag;
+    }
+    if (flagsStr.empty()) {
+        flagsStr = "None";
+    }
+
+    std::cout << std::format("VOR '{}':\n", vor.name());
+    std::cout << std::format("  Frequency         : {:.3f} MHz\n", vor.frequencyMHz());
+    switch (vor.type()) {
+    case Facilities::VORType::VOR_Unknown:
+        std::cout << "  Type              : Unknown\n";
+        break;
+    case Facilities::VORType::VOR_Terminal:
+        std::cout << "  Type              : Terminal\n";
+        break;
+    case Facilities::VORType::VOR_LowAltitude:
+        std::cout << "  Type              : Low Altitude\n";
+        break;
+    case Facilities::VORType::VOR_HighAltitude:
+        std::cout << "  Type              : High Altitude\n";
+        break;
+    case Facilities::VORType::VOR_ILS:
+        std::cout << "  Type              : ILS\n";
+        break;
+    case Facilities::VORType::VOR_VOT:
+        std::cout << "  Type              : VOT\n";
+        break;
+    }
+    std::cout << std::format("  Capabilities      : {}\n", flagsStr);
+    std::cout << std::format("  VOR Position      : {:.6f}{}{}, {:.6f}{}{}, Alt {}ft\n",
+        vor.vorPosition.latitudeNormalized(), degreeSymbol, vor.vorPosition.latitudeDirection(),
+        vor.vorPosition.longitudeNormalized(), degreeSymbol, vor.vorPosition.longitudeDirection(),
+        vor.vorPosition.altitudeFeet());
+    std::cout << std::format("  Magnetic Variation: {:.2f}{}{}\n",
+        vor.vorPosition.magVarNormalized(), degreeSymbol, vor.vorPosition.magVarDirection());
+    
+    if (vor.isDme()) {
+        if ((vor.isNav() && !vor.dmeAtNav()) || (vor.hasGlideSlope() && !vor.dmeAtGlideSlope())) {
+            std::cout << std::format("  DME Position      : {:.6f}{}{}, {:.6f}{}{}, Alt {}ft\n",
+                vor.dmePosition.latitudeNormalized(), degreeSymbol, vor.dmePosition.latitudeDirection(),
+                vor.dmePosition.longitudeNormalized(), degreeSymbol, vor.dmePosition.longitudeDirection(),
+                vor.dmePosition.altitudeFeet());
+        }
+        if (vor.dmeAtNav()) {
+            std::cout << "                      DME co-located with NAV\n";
+        }
+        if (vor.dmeAtGlideSlope()) {
+            std::cout << "                      DME co-located with Glide Slope\n";
+        }
+        std::cout << std::format("  DME Bias          : {:.2f} NM\n", vor.dmeBias());
+    }
+    
+    if (vor.hasGlideSlope()) {
+        std::cout << std::format("  Glide Slope       : {:.2f}{}\n", vor.glideSlope(), degreeSymbol);
+        std::cout << std::format("  GS Position       : {:.6f}{}{}, {:.6f}{}{}, Alt {}ft\n",
+            vor.gsPosition.latitudeNormalized(), degreeSymbol, vor.gsPosition.latitudeDirection(),
+            vor.gsPosition.longitudeNormalized(), degreeSymbol, vor.gsPosition.longitudeDirection(),
+            vor.gsPosition.altitudeFeet());
+    }
+    
+    if (vor.isNav() && vor.localizerHeading() != 0) {
+        std::cout << std::format("  Localizer         : {:.2f}{}, Width {:.2f}{}\n",
+            vor.localizerHeading(), degreeSymbol,
+            vor.localizerWidth(), degreeSymbol);
+        std::cout << std::format("  ILS Category      : {}\n", static_cast<int>(vor.lsCategory()));
+        if (vor.hasBackCourse()) {
+            std::cout << "                      Has Back Course\n";
+        }
+    }
+    
+    if (vor.isTacan()) {
+        std::cout << std::format("  TACAN Position    : {:.6f}{}{}, {:.6f}{}{}, Alt {}ft\n",
+            vor.tacanPosition.latitudeNormalized(), degreeSymbol, vor.tacanPosition.latitudeDirection(),
+            vor.tacanPosition.longitudeNormalized(), degreeSymbol, vor.tacanPosition.longitudeDirection(),
+            vor.tacanPosition.altitudeFeet());
+    }
+    
+    std::cout << std::format("  Nav Range         : {:.1f} NM\n", vor.navRangeNM());
+    std::cout << std::format("  Reference         : {}\n", vor.isTrueReferenced() ? "True" : "Magnetic");
+}
+
+
+/**
+ * List detailed information about a specific VOR.
+ * 
+ * @param connectionHandler The connection handler to use for communication.
+ * @param ident The identifier of the VOR to list.
+ * @param region The region code of the VOR to list.
+ */
+static void printVORDetails(auto& connectionHandler, const std::string& ident, const std::string& region)
+{
+    bool listingDone{ false };
+
+    // Build a definition of what we want to receive
+    static constexpr std::size_t BuilderSize = 128;
+    auto builder = Facilities::Builder<BuilderSize>()
+        .vor()
+            .allFields()
+        .end();
+    FacilityHandler<WindowsEventHandler<true, ConsoleLogger>> facilityHandler(connectionHandler);
+    const FacilityDefinitionId defId = facilityHandler.buildDefinition(builder);
+    Facilities::VORData vor{};
+    bool vorReceived{ false };
+
+    auto request = facilityHandler.requestFacilityData(defId, ident, region,
+        [&vor, &vorReceived](const Messages::FacilityDataMsg& msg) {
+            if (Facilities::VORData::isVORData(msg)) {
+                vor = Facilities::VORData::from(msg);
+                vorReceived = true;
+            }
+        },
+        [&listingDone]() { listingDone = true; },
+        [&listingDone](const Messages::FacilityMinimalListMsg& msg) {
+            std::cerr << std::format("Received minimal facility list with {} items.\n", msg.dwArraySize);
+            listingDone = true;
+        }
+    );
+    static constexpr auto timeout = 30s;
+
+    connectionHandler.handleUntilOrTimeout([&listingDone]() { return listingDone; }, timeout);
+    request.stop();
+    
+    if (vorReceived) {
+        printVORData(vor);
+    } else {
+        std::cerr << std::format("VOR '{}' not found.\n", ident);
+    }
+}
+
+
+/**
  * List NDBs matching the given filters.
  * 
  * @param connectionHandler The connection handler to use for communication.
@@ -793,6 +793,94 @@ static void listNDBs(ThisSimConnectHandler& connectionHandler, std::string_view 
     static constexpr auto timeout = 30s;
     connectionHandler.handleUntilOrTimeout([&listingDone]() { return listingDone; }, timeout);
     request.stop();
+}
+
+
+/**
+ * Print the NDB data.
+ */
+static void printNDBData(const Facilities::NDBData& ndb)
+{
+    std::cout << std::format("NDB '{}':\n", ndb.name());
+    std::cout << std::format("  Frequency         : {:.2f} kHz\n", ndb.frequencyKHz());
+    switch (ndb.type()) {
+    case Facilities::NDBType::Compass_Locator:
+        std::cout << "  Type              : Compass Locator\n";
+        break;
+    case Facilities::NDBType::Medium_Homing:
+        std::cout << "  Type              : Medium Homing\n";
+        break;
+    case Facilities::NDBType::Homing:
+        std::cout << "  Type              : Homing\n";
+        break;
+    case Facilities::NDBType::High_Homing:
+        std::cout << "  Type              : High Homing\n";
+        break;
+    }
+    std::cout << std::format("  Position          : {:.6f}{}{}, {:.6f}{}{}, Alt {}ft\n",
+        ndb.latitudeNormalized(), degreeSymbol, ndb.latitudeDirection(),
+        ndb.longitudeNormalized(), degreeSymbol, ndb.longitudeDirection(),
+        ndb.altitudeFeet())
+     << std::format("  Magnetic Variation: {:.2f}{}{}\n", ndb.magVarNormalized(), degreeSymbol, ndb.magVarDirection())
+     << std::format("  Range             : {:.1f} NM\n", ndb.rangeNM());
+    if (ndb.isTerminalNDB()) {
+        std::cout << "  Designation       : Terminal NDB\n";
+    }
+    else {
+        std::cout << "  Designation       : Enroute NDB\n";
+    }
+    if (ndb.bfoRequired()) {
+        std::cout << "  BFO Required      : Yes\n";
+    } else {
+        std::cout << "  BFO Required      : No\n";
+    }
+}
+
+/**
+ * List detailed information about a specific NDB.
+ * 
+ * @param connectionHandler The connection handler to use for communication.
+ * @param ident The identifier of the NDB to list.
+ * @param region The region code of the NDB to list.
+ */
+static void printNDBDetails(auto& connectionHandler, const std::string& ident, const std::string& region)
+{
+    bool listingDone{ false };
+
+    // Build a definition of what we want to receive
+    static constexpr std::size_t BuilderSize = 128;
+    auto builder = Facilities::Builder<BuilderSize>()
+        .ndb()
+            .allFields()
+        .end();
+    FacilityHandler<WindowsEventHandler<true, ConsoleLogger>> facilityHandler(connectionHandler);
+    const FacilityDefinitionId defId = facilityHandler.buildDefinition(builder);
+    Facilities::NDBData ndb{};
+    bool ndbReceived{ false };
+
+    auto request = facilityHandler.requestFacilityData(defId, ident, region,
+        [&ndb, &ndbReceived](const Messages::FacilityDataMsg& msg) {
+            if (Facilities::NDBData::isNDBData(msg)) {
+                ndb = Facilities::NDBData::from(msg);
+                ndbReceived = true;
+            }
+        },
+        [&listingDone]() { listingDone = true; },
+        [&listingDone](const Messages::FacilityMinimalListMsg& msg) {
+            std::cerr << std::format("Received minimal facility list with {} items.\n", msg.dwArraySize);
+            listingDone = true;
+        }
+    );
+    static constexpr auto timeout = 30s;
+
+    connectionHandler.handleUntilOrTimeout([&listingDone]() { return listingDone; }, timeout);
+    request.stop();
+    
+    if (ndbReceived) {
+        printNDBData(ndb);
+    } else {
+        std::cerr << std::format("NDB '{}' not found.\n", ident);
+    }
 }
 
 
@@ -856,6 +944,135 @@ static void listWaypoints(ThisSimConnectHandler& connectionHandler, std::string_
 }
 
 
+/**
+ * Print the Waypoint data.
+ */
+static void printWaypointData(const Facilities::WaypointFacility& waypointFacility)
+{
+    const auto& waypoint = waypointFacility.data;
+    std::cout << std::format("Waypoint '{}':\n", waypoint.icao());
+    std::cout << std::format("  Position          : {:.6f}{}{}, {:.6f}{}{}, Alt {}ft\n",
+        waypoint.latitudeNormalized(), degreeSymbol, waypoint.latitudeDirection(),
+        waypoint.longitudeNormalized(), degreeSymbol, waypoint.longitudeDirection(),
+        waypoint.altitudeFeet())
+     << std::format("  Magnetic Variation: {:.2f}{}{}\n", waypoint.magVarNormalized(), degreeSymbol, waypoint.magVarDirection());
+    switch (waypoint.type()) {
+    case Facilities::WaypointType::None:
+        std::cout << "  Type              : None\n";
+        break;
+    case Facilities::WaypointType::Named:
+        std::cout << "  Type              : Named\n";
+        break;
+    case Facilities::WaypointType::Unnamed:
+        std::cout << "  Type              : Unnamed\n";
+        break;
+    case Facilities::WaypointType::VOR:
+        std::cout << "  Type              : VOR\n";
+        break;
+    case Facilities::WaypointType::NDB:
+        std::cout << "  Type              : NDB\n";
+        break;
+    case Facilities::WaypointType::OffRoute:
+        std::cout << "  Type              : Off-Route\n";
+        break;
+    case Facilities::WaypointType::IAF:
+        std::cout << "  Type              : IAF\n";
+        break;
+    case Facilities::WaypointType::FAF:
+        std::cout << "  Type              : FAF\n";
+        break;
+    case Facilities::WaypointType::RNAV:
+        std::cout << "  Type              : RNAV\n";
+        break;
+    case Facilities::WaypointType::VFR:
+        std::cout << "  Type              : VFR\n";
+        break;
+    }
+    if (waypoint.isTerminalWaypoint()) {
+        std::cout << "  Designation       : Terminal Waypoint\n";
+    }
+    else {
+        std::cout << "  Designation       : Enroute Waypoint\n";
+    }
+    std::cout << std::format("  Number of routes  : {}\n", waypoint.nRoutes());
+    if (waypointFacility.haveRoutes()) {
+        for (const auto& route : waypointFacility.routes) {
+            std::string nextType{};
+            switch (route.type()) {
+            case Facilities::RouteType::None:
+                nextType = "None";
+                break;
+            case Facilities::RouteType::Victor:
+                nextType = "Victor";
+                break;
+            case Facilities::RouteType::Jet:
+                nextType = "Jet";
+                break;
+            case Facilities::RouteType::Both:
+                nextType = "Both";
+                break;
+            }
+            std::cout << std::format("    Route to '{}', Type: {}\n", route.nextIcao(), nextType);
+        }
+    }
+}
+
+
+/**
+ * List detailed information about a specific Waypoint.
+ * 
+ * @param connectionHandler The connection handler to use for communication.
+ * @param ident The identifier of the Waypoint to list.
+ * @param region The region code of the Waypoint to list.
+ */
+static void printWaypointDetails(auto& connectionHandler, const std::string& ident, const std::string& region)
+{
+    bool listingDone{ false };
+
+    // Build a definition of what we want to receive
+    static constexpr std::size_t BuilderSize = 128;
+    auto builder = Facilities::Builder<BuilderSize>()
+        .waypoint()
+            .allFields()
+            .route()
+                .allFields()
+            .end()
+        .end();
+    FacilityHandler<WindowsEventHandler<true, ConsoleLogger>> facilityHandler(connectionHandler);
+    const FacilityDefinitionId defId = facilityHandler.buildDefinition(builder);
+    Facilities::WaypointFacility waypoint{};
+    bool waypointReceived{ false };
+
+    auto request = facilityHandler.requestFacilityData(defId, ident, region,
+        [&waypoint, &waypointReceived](const Messages::FacilityDataMsg& msg) {
+            if (Facilities::WaypointData::isWaypointData(msg)) {
+                waypoint.data = Facilities::WaypointData::from(msg);
+                waypointReceived = true;
+            }
+            else if (Facilities::RouteData::isRouteData(msg)) {
+                const auto& route = Facilities::RouteData::from(msg);
+                waypoint.routes.push_back(route);
+            }
+        },
+        [&listingDone]() { listingDone = true; },
+        [&listingDone](const Messages::FacilityMinimalListMsg& msg) {
+            std::cerr << std::format("Received minimal facility list with {} items.\n", msg.dwArraySize);
+            listingDone = true;
+        }
+    );
+    static constexpr auto timeout = 30s;
+
+    connectionHandler.handleUntilOrTimeout([&listingDone]() { return listingDone; }, timeout);
+    request.stop();
+    
+    if (waypointReceived) {
+        printWaypointData(waypoint);
+    } else {
+        std::cerr << std::format("Waypoint '{}' not found.\n", ident);
+    }
+}
+
+
 auto main(int argc, const char *argv[]) -> int// NOLINT(bugprone-exception-escape,readability-function-cognitive-complexity)
 {
 
@@ -882,7 +1099,8 @@ auto main(int argc, const char *argv[]) -> int// NOLINT(bugprone-exception-escap
         }
     }
 
-    const LogLevel logLevel = args.contains("debug") ? LogLevel::Debug : LogLevel::Info;
+    const bool debug = args.contains("debug");
+    const LogLevel logLevel = debug ? LogLevel::Debug : LogLevel::Info;
 
     // Connect to the simulator
     WindowsEventConnection<true, ConsoleLogger> connection(appName);
@@ -890,7 +1108,9 @@ auto main(int argc, const char *argv[]) -> int// NOLINT(bugprone-exception-escap
     WindowsEventHandler<true, ConsoleLogger> connectionHandler(connection);
     connectionHandler.logger().level(logLevel);
 
-    // connectionHandler.registerHandler<Messages::OpenMsg>(Messages::open, handleOpen);
+    if (debug) {
+        connectionHandler.registerHandler<Messages::OpenMsg>(Messages::open, handleOpen);
+    }
     connectionHandler.registerHandler<Messages::QuitMsg>(Messages::quit, handleClose);
     connectionHandler.registerHandler<Messages::ExceptionMsg>(Messages::exception, handleException);
 
@@ -907,14 +1127,22 @@ auto main(int argc, const char *argv[]) -> int// NOLINT(bugprone-exception-escap
         }
     } else if (type == "vor") {
         if (!icao.empty()) {
-            listVORDetails(connectionHandler, icao, region);
+            printVORDetails(connectionHandler, icao, region);
         } else {
             listVORs(connectionHandler, filter, region, scope);
         }
     } else if (type == "ndb") {
-        listNDBs(connectionHandler, filter, region, scope);
+        if (!icao.empty()) {
+            printNDBDetails(connectionHandler, icao, region);
+        } else {
+            listNDBs(connectionHandler, filter, region, scope);
+        }
     } else if (type == "waypoint") {
-        listWaypoints(connectionHandler, filter, region, scope);
+        if (!icao.empty()) {
+            printWaypointDetails(connectionHandler, icao, region);
+        } else {
+            listWaypoints(connectionHandler, filter, region, scope);
+        }
     } else {
         std::cerr << std::format("Unknown type '{}' specified. Supported types are 'airport', 'vor', 'ndb', and 'waypoint'.\n", type);
     }

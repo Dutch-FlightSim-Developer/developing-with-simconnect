@@ -933,6 +933,8 @@ template<std::size_t MaxLength> struct VasiBuilder;
 template<std::size_t MaxLength> struct AirlineBuilder;
 template<std::size_t MaxLength> struct VORBuilder;
 template<std::size_t MaxLength> struct NDBBuilder;
+template<std::size_t MaxLength> struct WaypointBuilder;
+template<std::size_t MaxLength> struct RouteBuilder;
 
 
 template <std::size_t MaxLength>
@@ -948,6 +950,14 @@ struct Builder
 
     constexpr VORBuilder<MaxLength> vor() const {
         return VORBuilder<MaxLength>{ definition.push(FacilityField::vorOpen) };
+    }
+
+    constexpr NDBBuilder<MaxLength> ndb() const {
+        return NDBBuilder<MaxLength>{ definition.push(FacilityField::ndbOpen) };
+    }
+
+    constexpr WaypointBuilder<MaxLength> waypoint() const {
+        return WaypointBuilder<MaxLength>{ definition.push(FacilityField::waypointOpen) };
     }
 };
 

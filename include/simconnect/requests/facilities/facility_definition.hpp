@@ -292,6 +292,43 @@ enum class VORType : int32_t {
 };
 
 
+enum class NDBType : int32_t {
+    Compass_Locator = 0,
+    Medium_Homing = 1,
+    Homing = 2,
+    High_Homing = 3,
+};
+
+
+enum class WaypointType : int32_t {
+    None = 0,
+    Named = 1,
+    Unnamed = 2,
+    VOR = 3,
+    NDB = 4,
+    OffRoute = 5,
+    IAF = 6,
+    FAF = 7,
+    RNAV = 8,
+    VFR = 9,
+};
+
+
+enum class RouteType : int32_t {
+    None = 0,
+    Victor = 1,
+    Jet = 2,
+    Both = 3,
+};
+
+
+enum class RouteWaypointType : int32_t {
+    VOR = static_cast<int32_t>('V'),
+    NDB = static_cast<int32_t>('N'),
+    Waypoint = static_cast<int32_t>('W'),
+};
+
+
 enum class LocalizerCategory : int32_t {
     None = 0,
     Cat1 = 1,
@@ -304,6 +341,7 @@ enum class LocalizerCategory : int32_t {
     SDF_NoGS = 8,
     SDF_WithGS = 9,
 };
+
 
 #pragma region Helipad data structures
 

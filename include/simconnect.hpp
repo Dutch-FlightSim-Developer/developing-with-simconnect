@@ -37,7 +37,14 @@ enum class SimulatorVersion {
     MSFS2024        // SIMCONNECT_DATATYPE_MAX == 18
 };
 
-
+/**
+ * A shorthand test if we need to avoid using MSFS 2024 specific features.
+ */
+#if defined(SIMCONNECT_TYPEDEF)
+#define MSFS_2024_SDK 1
+#else
+#define MSFS_2024_SDK 0
+#endif
 
 /**
  * Detects which simulator SDK is being compiled against at compile-time.
@@ -101,15 +108,5 @@ inline constexpr SimulatorVersion simulatorVersion = getSimulatorVersion();
  * Compile-time constant for the current simulator version string.
  */
 inline constexpr std::string_view simulatorVersionString = getSimulatorVersionString();
-
-// Handle some 2020 vs 2024 differences in the SimConnect.h header.
-#if !defined(SIMCONNECT_TYPEDEF)
-
-inline constexpr DWORD SIMCONNECT_OBJECT_ID_MAX = DWORD_MAX - 128;                       // proxy value for User vehicle ObjectID
-inline constexpr DWORD SIMCONNECT_OBJECT_ID_USER_AIRCRAFT = 0;                           // proxy value for User aircraft ObjectID
-inline constexpr DWORD SIMCONNECT_OBJECT_ID_USER_AVATAR = SIMCONNECT_OBJECT_ID_MAX + 1;  // proxy value for User avatar ObjectID
-inline constexpr DWORD SIMCONNECT_OBJECT_ID_USER_CURRENT = SIMCONNECT_OBJECT_ID_MAX + 2; // proxy value for User aircraft/avatar ObjectID
-
-#endif
 
 } // namespace SimConnect

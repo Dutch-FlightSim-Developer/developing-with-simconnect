@@ -63,7 +63,7 @@ public:
      * @param msg The message to get the correlation ID from.
      * @returns The correlation ID from the message.
      */
-    unsigned long correlationId(const Messages::MsgBase& msg) const {
+    RequestId correlationId(const Messages::MsgBase& msg) {
         return static_cast<const Messages::SystemStateMsg*>(&msg)->dwRequestID;
     }
 

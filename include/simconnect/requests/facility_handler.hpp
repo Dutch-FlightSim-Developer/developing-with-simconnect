@@ -47,7 +47,15 @@ private:
     FacilityHandler& operator=(FacilityHandler&&) = delete;
 
 public:
-    FacilityHandler(simconnect_message_handler_type& handler) : simConnectMessageHandler_(handler)
+    FacilityHandler(simconnect_message_handler_type& handler, std::string loggerName = "SimConnect::FacilityHandler", LogLevel logLevel = LogLevel::Info)
+        : MessageHandler<RequestId, FacilityHandler<M>, M, Messages::facilityData, Messages::facilityDataEnd, Messages::facilityMinimalList>(std::move(loggerName), logLevel)
+        , simConnectMessageHandler_(handler)
+    {
+        this->enable(simConnectMessageHandler_);
+    }
+    FacilityHandler(simconnect_message_handler_type& handler, typename M::logger_type& parentLogger, std::string loggerName = "SimConnect::FacilityHandler", LogLevel logLevel = LogLevel::Info)
+        : MessageHandler<RequestId, FacilityHandler<M>, M, Messages::facilityData, Messages::facilityDataEnd, Messages::facilityMinimalList>(parentLogger, std::move(loggerName), logLevel)
+        , simConnectMessageHandler_(handler)
     {
         this->enable(simConnectMessageHandler_);
     }
@@ -59,7 +67,7 @@ public:
      * @param msg The message to get the correlation ID from.
      * @returns The correlation ID from the message.
 	 */
-    RequestId correlationId(const Messages::MsgBase& msg) const {
+    RequestId correlationId(const Messages::MsgBase& msg) {
         switch (msg.dwID) {
         case Messages::facilityData:
             return reinterpret_cast<const Messages::FacilityDataMsg&>(msg).UserRequestId;

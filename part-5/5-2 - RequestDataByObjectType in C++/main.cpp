@@ -15,6 +15,8 @@
  */
 
 
+#include <cstddef>
+
 #include <exception>
 #include <chrono>
 #include <set>
@@ -26,7 +28,7 @@
 #include <format>
 #include <string_view>
 
-
+#include <simconnect.hpp>
 #include <simconnect/simconnect.hpp>
 #include <simconnect/windows_event_connection.hpp>
 #include <simconnect/windows_event_handler.hpp>
@@ -37,10 +39,11 @@
 #include <simconnect/util/console_logger.hpp>
 
 
+using namespace SimConnect;
 using namespace std::chrono_literals;
 
 
-struct SimObjectInfo : SimConnect::SimObjectIdHolder {
+struct SimObjectInfo : SimObjectIdHolder {
 	std::string title;
 	std::string category;
 };
@@ -96,10 +99,10 @@ static void handleException(const SIMCONNECT_RECV_EXCEPTION& msg) {
 	}
 	switch (exc)
 	{
-	case SIMCONNECT_EXCEPTION_NONE:										// Should never happen
+	case Exceptions::none:										// Should never happen
 		std::cerr << "No exception.\n";
 		break;
-	case SIMCONNECT_EXCEPTION_ERROR:
+	case Exceptions::error:
 		std::cerr << "Some unspecific error has occurred.\n";
 		break;
 	case SIMCONNECT_EXCEPTION_SIZE_MISMATCH:
@@ -228,15 +231,18 @@ static void handleException(const SIMCONNECT_RECV_EXCEPTION& msg) {
 	case SIMCONNECT_EXCEPTION_SET_INPUT_EVENT_FAILED:
 		std::cerr << "The input event name was not found. (SetInputEvent)\n";
 		break;
+#if MSFS_2024_SDK
 	case SIMCONNECT_EXCEPTION_INTERNAL:
+        std::cerr << "An internal SimConnect error has occurred.\n";
 		break;
+#endif
 		// No default; we want an error if we miss one
 	}
 }
 // NOLINTEND(misc-include-cleaner)
 
 
-void setupSimObjectInfoDefinition(SimConnect::DataDefinition<SimObjectInfo>& def) {
+void setupSimObjectInfoDefinition(DataDefinition<SimObjectInfo>& def) {
 	def.addString128(&SimObjectInfo::title, "title")
 		.addString32(&SimObjectInfo::category, "category");
 }
@@ -244,31 +250,33 @@ void setupSimObjectInfoDefinition(SimConnect::DataDefinition<SimObjectInfo>& def
 
 void handleSimObjectDataMap(std::unordered_map<unsigned long, SimObjectInfo>& result) {
 	std::cout << "Received data for " << result.size() << " SimObjects\n";
-	std::vector<int> objectCount(SIMCONNECT_SIMOBJECT_TYPE_USER_CURRENT + 1, 0); // NOLINT(misc-include-cleaner)
+	std::vector<int> objectCount(static_cast<std::size_t>(SimObjectTypes::max) + 1, 0);
 	std::set<std::string> unknownCategories;
 	std::map<std::string, std::set<std::string>> titlesPerCategory;
 
 	for (const auto& [simObjectId, simObject] : result) {
 		if (simObject.category == "Airplane") {
 			std::cout << std::format("Adding airplane '{}'.\n", simObject.title);
-			++objectCount[SIMCONNECT_SIMOBJECT_TYPE_AIRCRAFT]; // NOLINT(misc-include-cleaner)
+			++objectCount[SimObjectTypes::aircraft]; // NOLINT(misc-include-cleaner)
 		}
 		else if (simObject.category == "Helicopter") {
 			std::cout << std::format("Adding helicopter '{}'.\n", simObject.title);
-			++objectCount[SIMCONNECT_SIMOBJECT_TYPE_HELICOPTER]; // NOLINT(misc-include-cleaner)
+			++objectCount[SimObjectTypes::helicopter]; // NOLINT(misc-include-cleaner)
 		}
 		else if (simObject.category == "Boat") {
 			std::cout << std::format("Adding boat '{}'.\n", simObject.title);
-			++objectCount[SIMCONNECT_SIMOBJECT_TYPE_BOAT]; // NOLINT(misc-include-cleaner)
+			++objectCount[SimObjectTypes::boat]; // NOLINT(misc-include-cleaner)
 		}
 		else if (simObject.category == "GroundVehicle") {
 			std::cout << std::format("Adding ground vehicle '{}'.\n", simObject.title);
-			++objectCount[SIMCONNECT_SIMOBJECT_TYPE_GROUND]; // NOLINT(misc-include-cleaner)
+			++objectCount[SimObjectTypes::ground]; // NOLINT(misc-include-cleaner)
 		}
-		else if (simObject.category == "Animal") {
+#if MSFS_2024_SDK
+        else if (simObject.category == "Animal") {
 			std::cout << std::format("Adding animal '{}'.\n", simObject.title);
-			++objectCount[SIMCONNECT_SIMOBJECT_TYPE_ANIMAL]; // NOLINT(misc-include-cleaner)
+			++objectCount[SimObjectTypes::animal]; // NOLINT(misc-include-cleaner)
 		}
+#endif
 		else {
 			std::cout << std::format("Adding unknown category '{}' for '{}'.\n", simObject.category, simObject.title);
 			unknownCategories.insert(simObject.category);
@@ -289,11 +297,13 @@ void handleSimObjectDataMap(std::unordered_map<unsigned long, SimObjectInfo>& re
 	}
 	std::cout << "\n"
 		<< "Summary of SimObjects by type:\n"
-		<< "Aircraft ..... : " << objectCount[SIMCONNECT_SIMOBJECT_TYPE_AIRCRAFT] << "\n"
-		<< "Helicopters .. : " << objectCount[SIMCONNECT_SIMOBJECT_TYPE_HELICOPTER] << "\n"
-		<< "Boats ........ : " << objectCount[SIMCONNECT_SIMOBJECT_TYPE_BOAT] << "\n"
-		<< "Ground Vehicles: " << objectCount[SIMCONNECT_SIMOBJECT_TYPE_GROUND] << "\n"
-		<< "Animals ...... : " << objectCount[SIMCONNECT_SIMOBJECT_TYPE_ANIMAL] << "\n"
+		<< "Aircraft ..... : " << objectCount[SimObjectTypes::aircraft] << "\n"
+		<< "Helicopters .. : " << objectCount[SimObjectTypes::helicopter] << "\n"
+		<< "Boats ........ : " << objectCount[SimObjectTypes::boat] << "\n"
+		<< "Ground Vehicles: " << objectCount[SimObjectTypes::ground] << "\n"
+#if MSFS_2024_SDK
+		<< "Animals ...... : " << objectCount[SimObjectTypes::animal] << "\n"
+#endif
 		<< "\n";
 	if (!unknownCategories.empty()) {
 		std::cout << "Unknown categories:\n";
@@ -305,10 +315,10 @@ void handleSimObjectDataMap(std::unordered_map<unsigned long, SimObjectInfo>& re
 
 
 void testGetData() {
-	SimConnect::WindowsEventConnection<false, SimConnect::ConsoleLogger> connection;
-	SimConnect::WindowsEventHandler<false, SimConnect::ConsoleLogger> handler(connection);
+	WindowsEventConnection<false, ConsoleLogger> connection;
+	WindowsEventHandler<false, ConsoleLogger> handler(connection);
 	handler.autoClosing(true);
-	//connection.logger().level(SimConnect::LogLevel::Trace);
+	//connection.logger().level(LogLevel::Trace);
 
 	handler.registerDefaultHandler([](const SIMCONNECT_RECV& msg) { // NOLINT(misc-include-cleaner)
 		std::cerr << std::format("Ignoring message of type {} (length {} bytes)\n", msg.dwID, msg.dwSize);
@@ -317,11 +327,11 @@ void testGetData() {
 	handler.registerHandler<SIMCONNECT_RECV_QUIT>(SIMCONNECT_RECV_ID_QUIT, handleClose); // NOLINT(misc-include-cleaner)
 	handler.registerHandler<SIMCONNECT_RECV_EXCEPTION>(SIMCONNECT_RECV_ID_EXCEPTION, handleException); // NOLINT(misc-include-cleaner)
 
-	SimConnect::DataDefinition<SimObjectInfo> aircraftDef;
+	DataDefinition<SimObjectInfo> aircraftDef;
 
 	if (connection.open()) {
 		setupSimObjectInfoDefinition(aircraftDef);
-		SimConnect::SimObjectDataHandler<SimConnect::WindowsEventHandler<false, SimConnect::ConsoleLogger>> dataHandler(handler);
+		SimObjectDataHandler<WindowsEventHandler<false, ConsoleLogger>> dataHandler(handler);
 
         constexpr unsigned long radiusInMeters{ 10000 }; // 10 km
 		auto aircraftRequest = dataHandler.requestDataByType<SimObjectInfo>(aircraftDef, [](const SimObjectInfo& info) {
@@ -332,9 +342,9 @@ void testGetData() {
 				<< "  Category: " << info.category << "\n";
 			}, [] {
 				std::cout << "All data received.\n";
-			}, radiusInMeters, SimConnect::SimObjectTypes::aircraft);
+			}, radiusInMeters, SimObjectTypes::aircraft);
 
-		auto allRequest = dataHandler.requestDataByType<SimObjectInfo>(aircraftDef, &handleSimObjectDataMap, 0, SimConnect::SimObjectTypes::all);
+		auto allRequest = dataHandler.requestDataByType<SimObjectInfo>(aircraftDef, &handleSimObjectDataMap, 0, SimObjectTypes::all);
 
         std::cout << "\n\nHandling messages for 10 seconds.\n";
         constexpr auto duration = 10s;

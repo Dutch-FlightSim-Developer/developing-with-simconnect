@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-
+#include <simconnect.hpp>
 #include <simconnect/simconnect.hpp>
 #include <simconnect/simconnect_datatypes.hpp>
 
@@ -62,9 +62,11 @@ struct VORData {
     float localizerWidth_;                  // LOCALIZER_WIDTH
     float glideSlope_;                      // GLIDE_SLOPE
     std::array<char, Name64Length> name_;   // NAME
-    float dmeBias_;                         // DME_BIAS
-    LocalizerCategory lsCategory_;          // LS_CATEGORY
-    std::int32_t isTrueReferenced_;         // IS_TRUE_REFERENCED
+#if MSFS_2024_SDK
+    float dmeBias_;                         // DME_BIAS (2024 only)
+    LocalizerCategory lsCategory_;          // LS_CATEGORY (2024 only)
+    std::int32_t isTrueReferenced_;         // IS_TRUE_REFERENCED (2024 only)
+#endif
 
 public:
     inline static bool isVORData(const Messages::FacilityDataMsg& msg) noexcept {
@@ -79,7 +81,9 @@ public:
     constexpr bool isDme() const noexcept { return isDme_ != 0; }
     constexpr bool dmeAtNav() const noexcept { return dmeAtNav_ != 0; }
     constexpr bool dmeAtGlideSlope() const noexcept { return dmeAtGlideSlope_ != 0; }
+#if MSFS_2024_SDK
     constexpr float dmeBias() const noexcept { return dmeBias_; }
+#endif
 
     constexpr bool hasGlideSlope() const noexcept { return hasGlideSlope_ != 0; }
     constexpr float glideSlope() const noexcept { return glideSlope_; }
@@ -97,8 +101,10 @@ public:
     constexpr float localizerHeading() const noexcept { return localizer_; }
     constexpr float localizerWidth() const noexcept { return localizerWidth_; }
     constexpr bool hasBackCourse() const noexcept { return hasBackCourse_ != 0; }
+#if MSFS_2024_SDK
     constexpr LocalizerCategory lsCategory() const noexcept { return lsCategory_; }
     constexpr bool isTrueReferenced() const noexcept { return isTrueReferenced_ != 0; }
+#endif
 };
 
 #pragma pack(pop)
@@ -202,6 +208,7 @@ struct VORBuilder
     constexpr VORBuilder<MaxLength> name() const {
         return VORBuilder<MaxLength>{ definition.push(FacilityField::vorName) };
     }
+#if MSFS_2024_SDK
     constexpr VORBuilder<MaxLength> dmeBias() const {
         return VORBuilder<MaxLength>{ definition.push(FacilityField::vorDmeBias) };
     }
@@ -211,6 +218,7 @@ struct VORBuilder
     constexpr VORBuilder<MaxLength> isTrueReferenced() const {
         return VORBuilder<MaxLength>{ definition.push(FacilityField::vorIsTrueReferenced) };
     }
+#endif
 
     constexpr VORBuilder<MaxLength> allFields() const {
         return VORBuilder<MaxLength>{
@@ -242,9 +250,11 @@ struct VORBuilder
                 .push(FacilityField::vorLocalizerWidth)
                 .push(FacilityField::vorGlideSlope)
                 .push(FacilityField::vorName)
+#if MSFS_2024_SDK
                 .push(FacilityField::vorDmeBias)
                 .push(FacilityField::vorLsCategory)
                 .push(FacilityField::vorIsTrueReferenced)
+#endif
         };
     }
     

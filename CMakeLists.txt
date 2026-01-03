@@ -26,16 +26,33 @@ include(cmake/PreventInSourceBuilds.cmake)
 include(ProjectOptions.cmake)
 
 
+# ---- SimConnect SDK Selection ----
+# Option to choose between MSFS 2020 and MSFS 2024 SDK
+set(MSFS_SDK_VERSION "2024" CACHE STRING "Microsoft Flight Simulator SDK version (2020 or 2024)")
+set_property(CACHE MSFS_SDK_VERSION PROPERTY STRINGS "2020" "2024")
+
 # ---- SimConnect SDK Path ----
-# Check for MSFS 2024 SDK environment variable
-if(DEFINED ENV{MSFS2024_SDK})
-  set(SIMCONNECT_SDK_PATH "$ENV{MSFS2024_SDK}/SimConnect SDK")
-  message(STATUS "Using MSFS 2024 SDK from: ${SIMCONNECT_SDK_PATH}")
-elseif(DEFINED ENV{MSFS_SDK})
-  set(SIMCONNECT_SDK_PATH "$ENV{MSFS_SDK}/SimConnect SDK")
-  message(STATUS "Using MSFS 2020 SDK from: ${SIMCONNECT_SDK_PATH}")
+if(MSFS_SDK_VERSION STREQUAL "2020")
+  # Check for MSFS 2020 SDK environment variable
+  if(DEFINED ENV{MSFS2020_SDK})
+    set(SIMCONNECT_SDK_PATH "$ENV{MSFS2020_SDK}/SimConnect SDK")
+    message(STATUS "Using MSFS 2020 SDK from: ${SIMCONNECT_SDK_PATH}")
+  elseif(DEFINED ENV{MSFS_SDK})
+    set(SIMCONNECT_SDK_PATH "$ENV{MSFS_SDK}/SimConnect SDK")
+    message(STATUS "Using MSFS 2020 SDK from: ${SIMCONNECT_SDK_PATH}")
+  else()
+    message(FATAL_ERROR "MSFS2020_SDK or MSFS_SDK environment variable not set. Please set it to your MSFS 2020 SDK installation path.")
+  endif()
+elseif(MSFS_SDK_VERSION STREQUAL "2024")
+  # Check for MSFS 2024 SDK environment variable
+  if(DEFINED ENV{MSFS2024_SDK})
+    set(SIMCONNECT_SDK_PATH "$ENV{MSFS2024_SDK}/SimConnect SDK")
+    message(STATUS "Using MSFS 2024 SDK from: ${SIMCONNECT_SDK_PATH}")
+  else()
+    message(FATAL_ERROR "MSFS2024_SDK environment variable not set. Please set it to your MSFS 2024 SDK installation path.")
+  endif()
 else()
-  message(FATAL_ERROR "MSFS2024_SDK or MSFS_SDK environment variable not set. Please set it to your MSFS SDK installation path.")
+  message(FATAL_ERROR "Invalid MSFS_SDK_VERSION: ${MSFS_SDK_VERSION}. Must be either '2020' or '2024'.")
 endif()
 
 # Verify the path exists

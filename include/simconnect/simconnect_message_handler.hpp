@@ -134,10 +134,11 @@ public:
             handler(msg);
         }
         else if (defHandler.hasHandlers()) {
+            this->logger().debug("Dispatching to default handler for message ID {}", static_cast<int>(id));
             defHandler(msg);
         }
         else {
-            this->logger().trace("No handler for message ID {}", static_cast<int>(id));
+            this->logger().debug("No handler for message ID {}", static_cast<int>(id));
         }
 
         if (shouldClose) {
@@ -210,6 +211,8 @@ public:
      * @param proc The message handler.
      */
     handler_id_type registerHandler(MessageId id, H::handler_proc_type proc) {
+        this->logger().debug("Registering handler for message ID {}", static_cast<int>(id));
+
         guard_type guard(mutex_);
 
         return handlers_[id].setProc(proc);
@@ -223,6 +226,8 @@ public:
      * @param proc The message handler.
      */
     void unRegisterHandler(MessageId id, handler_id_type handler) {
+        this->logger().debug("Unregistering handler ID {} for message ID {}", handler, static_cast<int>(id));
+
         guard_type guard(mutex_);
 
         return handlers_[id].clear(handler);

@@ -221,8 +221,11 @@ static void handleException(const SIMCONNECT_RECV_EXCEPTION& msg) {
 	case SIMCONNECT_EXCEPTION_SET_INPUT_EVENT_FAILED:
 		std::cerr << "The input event name was not found. (SetInputEvent)\n";
 		break;
+#if MSFS_2024_SDK
 	case SIMCONNECT_EXCEPTION_INTERNAL:
+        std::cerr << "An internal SimConnect error has occurred.\n";
 		break;
+#endif
 		// No default; we want an error if we miss one
 	}
 }

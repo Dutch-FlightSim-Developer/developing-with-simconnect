@@ -15,20 +15,20 @@
  * limitations under the License.
  */
 
+#include <simconnect.hpp>
+#include <simconnect/simconnect.hpp>
+#include <simconnect/requests/facilities/facility_definition.hpp>
+#include <simconnect/requests/facilities/facility_definition_builder.hpp>
 
- #include <simconnect/simconnect.hpp>
- #include <simconnect/requests/facilities/facility_definition.hpp>
- #include <simconnect/requests/facilities/facility_definition_builder.hpp>
 
+#include <cmath>
+#include <cstdint>
 
- #include <cmath>
- #include <cstdint>
-
- #include <numbers>
- #include <set>
- #include <array>
- #include <string>
- #include <string_view>
+#include <numbers>
+#include <set>
+#include <array>
+#include <string>
+#include <string_view>
 
 
 namespace SimConnect::Facilities {
@@ -46,7 +46,9 @@ class TaxiParkingData {
     float radius_;                  // RADIUS
     float biasX_;                  // BIAS_X
     float biasZ_;                  // BIAS_Z
+#if MSFS_2024_SDK
     int32_t nAirlines_;            // N_AIRLINES
+#endif
 
     static constexpr std::array<std::string_view, 38> parkingNameStrings_ = {
         "", "Parking", "N Parking", "NE Parking", "E Parking", "SE Parking",
@@ -116,7 +118,9 @@ public:
         return airportLongitude + deltaLon;
     }
 
+#if MSFS_2024_SDK
     constexpr int32_t nAirlines() const noexcept { return nAirlines_; }
+#endif
 };
 #pragma pack(pop)
 
@@ -184,9 +188,11 @@ struct TaxiParkingBuilder
     constexpr TaxiParkingBuilder<MaxLength> biasZ() const {
         return TaxiParkingBuilder<MaxLength>{ definition.push(FacilityField::taxiParkingBiasZ) };
     }
+#if MSFS_2024_SDK
     constexpr TaxiParkingBuilder<MaxLength> nAirlines() const {
         return TaxiParkingBuilder<MaxLength>{ definition.push(FacilityField::taxiParkingNAirlines) };
     }
+#endif
 
     constexpr TaxiParkingBuilder<MaxLength> allFields() const {
         return TaxiParkingBuilder<MaxLength>{
@@ -201,7 +207,9 @@ struct TaxiParkingBuilder
                 .push(FacilityField::taxiParkingRadius)
                 .push(FacilityField::taxiParkingBiasX)
                 .push(FacilityField::taxiParkingBiasZ)
+#if MSFS_2024_SDK
                 .push(FacilityField::taxiParkingNAirlines)
+#endif
         };
     }
 };

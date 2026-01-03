@@ -25,6 +25,7 @@
 #include <chrono>
 
 
+#include <simconnect.hpp>
 #include <simconnect/simconnect.hpp>
 
 #include <simconnect/windows_event_connection.hpp>
@@ -221,9 +222,11 @@ static void handleException(const Messages::ExceptionMsg &msg)
   case Exceptions::setInputEventFailed:
     std::cerr << "The input event name was not found. (SetInputEvent)\n";
     break;
+#if MSFS_2024_SDK
   case Exceptions::internal:
     std::cerr << "An internal SimConnect error has occurred.\n";
     break;
+#endif
   default:
     std::cerr << std::format("An unknown exception code was received: {}.\n", msg.dwException);
     break;
@@ -302,6 +305,7 @@ auto main(int argc, const char *argv[]) -> int// NOLINT(bugprone-exception-escap
         else if (typeName == "ground") {
             simObjectType = SimObjectTypes::ground;
         }
+#if MSFS_2024_SDK
         else if (typeName == "balloon") {
             simObjectType = SimObjectTypes::hotAirBalloon;
         }
@@ -314,6 +318,7 @@ auto main(int argc, const char *argv[]) -> int// NOLINT(bugprone-exception-escap
         else if ((typeName == "user-current") || (typeName == "current")) {
             simObjectType = SimObjectTypes::userCurrent;
         }
+#endif
         else {
             std::cerr << std::format("Unknown object type '{}'. Valid types are: user, user-aircraft, all, aircraft, helicopter, boat, ground, balloon, animal, user-avatar, avatar, user-current, current.\n",
                 typeName);

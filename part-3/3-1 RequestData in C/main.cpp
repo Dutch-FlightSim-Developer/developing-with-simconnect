@@ -249,8 +249,11 @@ static void handleException(const SIMCONNECT_RECV_EXCEPTION& msg)
     case SIMCONNECT_EXCEPTION_SET_INPUT_EVENT_FAILED:
         std::cerr << "The input event name was not found. (SetInputEvent)\n";
         break;
+#if MSFS_2024_SDK
     case SIMCONNECT_EXCEPTION_INTERNAL:
+        std::cerr << "An internal SimConnect error has occurred.\n";
         break;
+#endif
         // No default; we want an error if we miss one
     }
 }
@@ -609,7 +612,7 @@ static int testConnect()
 		SimConnect_AddToDataDefinition(hSimConnect, aircraftInfoId, "aircraft AGL", "feet", SIMCONNECT_DATATYPE_INT32, 0, int(DatumId::AltAGL));
 		SimConnect_AddToDataDefinition(hSimConnect, aircraftInfoId, "plane altitude", "feet", SIMCONNECT_DATATYPE_INT32, 0, int(DatumId::AltASL));
 
-		SimConnect_RequestDataOnSimObject(hSimConnect, reqId, aircraftInfoId, SIMCONNECT_SIMOBJECT_TYPE_USER_AIRCRAFT, SIMCONNECT_PERIOD_ONCE, SIMCONNECT_DATA_REQUEST_FLAG_TAGGED);
+		SimConnect_RequestDataOnSimObject(hSimConnect, reqId, aircraftInfoId, SIMCONNECT_SIMOBJECT_TYPE_USER, SIMCONNECT_PERIOD_ONCE, SIMCONNECT_DATA_REQUEST_FLAG_TAGGED);
 
         handle_messages(hEventHandle, hSimConnect);
 

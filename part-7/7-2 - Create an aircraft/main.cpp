@@ -34,6 +34,15 @@
 #include <numbers>
 #include <chrono>
 
+/**
+ * A shorthand test if we need to avoid using MSFS 2024 specific features.
+ */
+#if defined(SIMCONNECT_TYPEDEF)
+#define MSFS_2024_SDK 1
+#else
+#define MSFS_2024_SDK 0
+#endif
+
 
 constexpr static const char* appName = "List parkings";
 static HANDLE hSimConnect{ nullptr };		// The connection handle
@@ -212,8 +221,11 @@ static void handleException(const SIMCONNECT_RECV_EXCEPTION& msg)
     case SIMCONNECT_EXCEPTION_SET_INPUT_EVENT_FAILED:
         std::cerr << "The input event name was not found. (SetInputEvent)\n";
         break;
+#if MSFS_2024_SDK
     case SIMCONNECT_EXCEPTION_INTERNAL:
+        std::cerr << "An internal error has occurred.\n";
         break;
+#endif
         // No default; we want an error if we miss one
     }
 }
@@ -603,6 +615,7 @@ auto main(int argc, const char* argv[]) -> int
         std::cerr << "[ABORTING: Failed to connect to simulator]\n";
         return 1;
     }
+#if MSFS_2024_SDK
     HRESULT hr = SimConnect_AICreateNonATCAircraft_EX1(hSimConnect, 
         aircraftInfo.title.c_str(),
         aircraftInfo.livery.c_str(),
@@ -618,6 +631,22 @@ auto main(int argc, const char* argv[]) -> int
             static_cast<DWORD>(aircraftInfo.planeAirspeed)
         },
 		REQID_CREATE_AIRCRAFT);
+#else
+    HRESULT hr = SimConnect_AICreateNonATCAircraft(hSimConnect, 
+        aircraftInfo.title.c_str(),
+        aircraftInfo.atcId.c_str(),
+        SIMCONNECT_DATA_INITPOSITION{
+            aircraftInfo.planeLatitude,
+            aircraftInfo.planeLongitude,
+            aircraftInfo.planeAltitude,
+            aircraftInfo.planePitch,
+            aircraftInfo.planeBank,
+            aircraftInfo.planeHeading,
+            static_cast<DWORD>(aircraftInfo.onGround),
+            static_cast<DWORD>(aircraftInfo.planeAirspeed)
+        },
+		REQID_CREATE_AIRCRAFT);
+#endif
     if (FAILED(hr)) {
         std::cerr << std::format("[Failed to create AI aircraft: 0x{:08X}]\n", hr);
         disconnect();

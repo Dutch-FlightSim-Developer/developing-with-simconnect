@@ -34,6 +34,16 @@
 #include <chrono>
 
 
+/**
+ * A shorthand test if we need to avoid using MSFS 2024 specific features.
+ */
+#if defined(SIMCONNECT_TYPEDEF)
+#define MSFS_2024_SDK 1
+#else
+#define MSFS_2024_SDK 0
+#endif
+
+
 constexpr static const char* appName = "List parkings";
 static HANDLE hSimConnect{ nullptr };		// The connection handle
 static HANDLE hEvent{ nullptr };			// The event handle (for efficient waiting for SimConnect messages)
@@ -249,8 +259,11 @@ static void handleException(const SIMCONNECT_RECV_EXCEPTION& msg)
     case SIMCONNECT_EXCEPTION_SET_INPUT_EVENT_FAILED:
         std::cerr << "The input event name was not found. (SetInputEvent)\n";
         break;
+#if MSFS_2024_SDK
     case SIMCONNECT_EXCEPTION_INTERNAL:
+        std::cerr << "An internal error has occurred.\n";
         break;
+#endif
         // No default; we want an error if we miss one
     }
 }
@@ -435,7 +448,7 @@ static bool startPositionData(std::string filename)
 		return false;
     }
 
-    HRESULT hr = SimConnect_RequestDataOnSimObject(hSimConnect, REQID_AIRCRAFT_POSITION, DEFID_AIRCRAFT_POSITION, SIMCONNECT_OBJECT_ID_USER_AIRCRAFT, SIMCONNECT_PERIOD_SECOND, SIMCONNECT_DATA_REQUEST_FLAG_CHANGED);
+    HRESULT hr = SimConnect_RequestDataOnSimObject(hSimConnect, REQID_AIRCRAFT_POSITION, DEFID_AIRCRAFT_POSITION, SIMCONNECT_OBJECT_ID_USER, SIMCONNECT_PERIOD_SECOND, SIMCONNECT_DATA_REQUEST_FLAG_CHANGED);
     if (FAILED(hr)) {
         std::cerr << std::format("[Failed to request aircraft position data: HRESULT 0x{:08X}, skipping position updates]\n", hr);
         positionData.close();
@@ -460,7 +473,7 @@ static void stopPositionData()
             std::cerr << "[Position data file closed]\n";
         }
 
-        HRESULT hr = SimConnect_RequestDataOnSimObject(hSimConnect, REQID_AIRCRAFT_POSITION, DEFID_AIRCRAFT_POSITION, SIMCONNECT_OBJECT_ID_USER_AIRCRAFT, SIMCONNECT_PERIOD_NEVER);
+        HRESULT hr = SimConnect_RequestDataOnSimObject(hSimConnect, REQID_AIRCRAFT_POSITION, DEFID_AIRCRAFT_POSITION, SIMCONNECT_OBJECT_ID_USER, SIMCONNECT_PERIOD_NEVER);
         if (FAILED(hr)) {
             std::cerr << std::format("[Failed to cancel aircraft position data request: HRESULT 0x{:08X}]\n", hr);
         }
@@ -822,7 +835,7 @@ auto main(int argc, const char* argv[]) -> int
     }
 
 	// Request the aircraft info once
-    HRESULT hr = SimConnect_RequestDataOnSimObject(hSimConnect, REQID_AIRCRAFT_INFO, DEFID_AIRCRAFT_INFO, SIMCONNECT_OBJECT_ID_USER_AIRCRAFT, SIMCONNECT_PERIOD_ONCE);
+    HRESULT hr = SimConnect_RequestDataOnSimObject(hSimConnect, REQID_AIRCRAFT_INFO, DEFID_AIRCRAFT_INFO, SIMCONNECT_OBJECT_ID_USER, SIMCONNECT_PERIOD_ONCE);
     if (FAILED(hr)) {
         disconnect();
         std::cerr << std::format("[ABORTING: Failed to request aircraft info: HRESULT 0x{:08X}]\n", hr);

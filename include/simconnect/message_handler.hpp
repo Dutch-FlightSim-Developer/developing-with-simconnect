@@ -41,7 +41,7 @@ namespace SimConnect {
  * @tparam id The MessageIds that this handler will respond to.
  */
 template <class ID, class D, class M, MessageId... id>
-class MessageHandler : public MessageDispatcher<ID, Messages::MsgBase, M, MultiHandlerPolicy<Messages::MsgBase>>
+class MessageHandler : public MessageDispatcher<ID, Messages::MsgBase, M, MultiHandlerPolicy<Messages::MsgBase>, typename M::logger_type>
 {
 public:
 	using correlation_id_type = ID;
@@ -95,12 +95,17 @@ protected:
             }
         }
         if (handler.hasHandlers()) {
+            this->logger().debug("Dispatching to correlation ID handler for correlation ID {}", correlationId(msg));
             handler(msg);
             if (remove) {
+                this->logger().debug("Auto-removing correlation ID handler for correlation ID {}", correlationId(msg));
                 std::lock_guard lock(mutex_);
                 messageHandlers_.erase(correlationId(msg));
             }
             return true;
+        }
+        else {
+            this->logger().debug("No correlation ID handler for correlation ID {}", correlationId(msg));
         }
         return false;
     }
@@ -137,7 +142,14 @@ protected:
 
 
 public:
-    MessageHandler() = default;
+    MessageHandler(std::string loggerName = "SimConnect::MessageHandler", LogLevel logLevel = LogLevel::Info)
+        : MessageDispatcher<ID, Messages::MsgBase, M, MultiHandlerPolicy<Messages::MsgBase>, typename M::logger_type>(std::move(loggerName), logLevel)
+    {
+    }
+    MessageHandler(typename M::logger_type& parentLogger, std::string loggerName = "SimConnect::MessageHandler", LogLevel logLevel = LogLevel::Info)
+        : MessageDispatcher<ID, Messages::MsgBase, M, MultiHandlerPolicy<Messages::MsgBase>, typename M::logger_type>(parentLogger, std::move(loggerName), logLevel)
+    {
+    }
     ~MessageHandler() {
         cleanup();
     }
@@ -150,8 +162,8 @@ public:
      * @param msg The message to get the correlation ID from.
      * @returns The correlation ID from the message.
      */
-    unsigned long correlationId(const Messages::MsgBase& msg) const {
-        return static_cast<const D*>(this)->correlationId(msg);
+    unsigned long correlationId(const Messages::MsgBase& msg) {
+        return static_cast<D*>(this)->correlationId(msg);
     }
 
 
@@ -183,6 +195,8 @@ public:
      * @param autoRemove True to automatically remove the handler after it has been called.
      */
     void registerHandler(correlation_id_type correlationId, handler_proc_type correlationHandler, bool autoRemove) {
+        this->logger().debug("Registering handler for correlation ID {} (autoremove={})", correlationId, autoRemove);
+
         std::lock_guard lock(mutex_);
 
         if (!messageHandlers_.contains(correlationId)) {
@@ -199,6 +213,8 @@ public:
      * @param handler The message handler's id.
      */
     void unRegisterHandler(correlation_id_type correlationId, handler_id_type handler) noexcept {
+        this->logger().debug("Unregistering handler ID {} for correlation ID {}", handler, correlationId);
+
         std::lock_guard lock(mutex_);
 
         auto idHandler = this->getHandler(correlationId);

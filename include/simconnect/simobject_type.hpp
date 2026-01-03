@@ -63,6 +63,7 @@ struct SimObjectTypeSet {
         case SimObjectTypes::ground:
             types_ = static_cast<unsigned long>(SimObjectTypeAsBitField::ground);
             break;
+#if MSFS_2024_SDK
         case SimObjectTypes::hotAirBalloon:
             types_ = static_cast<unsigned long>(SimObjectTypeAsBitField::hotAirBalloon);
             break;
@@ -75,6 +76,7 @@ struct SimObjectTypeSet {
         case SimObjectTypes::userCurrent:
             types_ = static_cast<unsigned long>(SimObjectTypeAsBitField::userCurrent);
             break;
+#endif
         case SimObjectTypes::all:
             types_ = static_cast<unsigned long>(SimObjectTypeAsBitField::all);
             break;
@@ -197,10 +199,12 @@ struct SimObjectTypeSet {
         if (hasHelicopter()) func(SimObjectTypes::helicopter);
         if (hasBoat()) func(SimObjectTypes::boat);
         if (hasGround()) func(SimObjectTypes::ground);
+#if MSFS_2024_SDK
         if (hasHotAirBalloon()) func(SimObjectTypes::hotAirBalloon);
         if (hasAnimal()) func(SimObjectTypes::animal);
         if (hasUserAvatar()) func(SimObjectTypes::userAvatar);
         if (hasUserCurrent()) func(SimObjectTypes::userCurrent);
+#endif
     }
 };
 

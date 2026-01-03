@@ -85,6 +85,14 @@ public:
 
 
     /**
+     * Set the logger's log level.
+     * 
+     * @param level The log level to set.
+     */
+    void loggerLevel(LogLevel level) noexcept { logger_.level(level); }
+
+
+    /**
      * Returns true if there is a default handler registered.
      */
     [[nodiscard]]

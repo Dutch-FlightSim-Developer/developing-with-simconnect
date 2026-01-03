@@ -21,6 +21,7 @@
 #include <string_view>
 #include <functional>
 
+#include <simconnect.hpp>
 #include <simconnect/simconnect.hpp>
 #include <simconnect/message_handler.hpp>
 
@@ -64,8 +65,12 @@ public:
      * @param msg The message to get the correlation ID from.
      * @returns The correlation ID from the message.
 	 */
-    RequestId correlationId(const Messages::MsgBase& msg) const {
+    RequestId correlationId([[maybe_unused]] const Messages::MsgBase& msg) {
+#if MSFS_2024_SDK
         return static_cast<const Messages::EnumerateSimObjectAndLiveryListMsg&>(msg).dwRequestID;
+#else
+        return noRequest;
+#endif
     }
 
 
@@ -78,10 +83,11 @@ public:
      * @return A Request object that can be used to stop the request.
      */
     [[nodiscard]]
-    Request requestEnumeration(SimObjectType simObjectType,
-        std::function<void(std::string_view title, std::string_view livery)> handler,
-        std::function<void()> onDone = nullptr)
+    Request requestEnumeration([[maybe_unused]] SimObjectType simObjectType,
+        [[maybe_unused]] std::function<void(std::string_view title, std::string_view livery)> handler,
+        [[maybe_unused]] std::function<void()> onDone = nullptr)
     {
+#if MSFS_2024_SDK
         auto requestId = simConnectMessageHandler_.connection().requests().nextRequestID();
 
         this->registerHandler(requestId, [requestId, handler, onDone](const Messages::MsgBase& msg) {
@@ -104,6 +110,10 @@ public:
             // No specific stop function for enumeration, so just unregister the handler
             this->removeHandler(requestId);
         } };
+#else
+        simConnectMessageHandler_.connection().logger().error("SimObject and livery enumeration is not supported in this version of the SDK.");
+        return Request{};
+#endif
     }
 
 
@@ -116,9 +126,10 @@ public:
      * @return A Request object that can be used to stop the request.
      */
     [[nodiscard]]
-    Request requestEnumeration(SimObjectType simObjectType,
-        std::function<void(const std::map<std::string, std::set<std::string>>&)> handler)
+    Request requestEnumeration([[maybe_unused]] SimObjectType simObjectType,
+        [[maybe_unused]] std::function<void(const std::map<std::string, std::set<std::string>>&)> handler)
     {
+#if MSFS_2024_SDK
         auto requestId = simConnectMessageHandler_.connection().requests().nextRequestID();
         auto result = std::make_shared<std::map<std::string, std::set<std::string>>>();
 
@@ -140,6 +151,10 @@ public:
             // No specific stop function for enumeration, so just unregister the handler
             this->removeHandler(requestId);
         } };
+#else
+        simConnectMessageHandler_.connection().logger().error("SimObject and livery enumeration is not supported in this version of the SDK.");
+        return Request{};
+#endif
     }
 };
 

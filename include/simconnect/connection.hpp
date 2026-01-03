@@ -1064,15 +1064,20 @@ public:
      * @param simObjectType The type of SimObject to request titles and liveries for.
      * @return The connection reference for chaining.
      */
-    Derived& enumerateSimObjectsAndLiveries(RequestId requestId, SimObjectType simObjectType) {
+    Derived& enumerateSimObjectsAndLiveries([[maybe_unused]] RequestId requestId, [[maybe_unused]] SimObjectType simObjectType) {
         guard_type guard(mutex_);
 
+#if MSFS_SDK_2024
         state(SimConnect_EnumerateSimObjectsAndLiveries(hSimConnect_, requestId, simObjectType));
         if (failed()) {
             logger_.error("SimConnect_EnumerateSimObjectsAndLiveries failed with error code 0x{:08X}.", state());
         } else {
             logger_.debug("Requested enumeration of SimObject titles and liveries for type {} (requestId={}, sendId={})", static_cast<std::underlying_type_t<SimObjectType>>(simObjectType), requestId, fetchSendIdInternal());
         }
+#else
+        state(-1);
+        logger_.error("SimConnect_EnumerateSimObjectsAndLiveries is not supported in this version of the SDK.");
+#endif
         return static_cast<Derived&>(*this);
     }
 
@@ -1093,12 +1098,17 @@ public:
 
         switch (scope) {
         case FacilitiesListScope::allFacilities:
+#if MSFS_SDK_2024
             state(SimConnect_RequestAllFacilities(hSimConnect_, type, requestId));
             if (failed()) {
                 logger_.error("SimConnect_RequestAllFacilities failed with error code 0x{:08X}.", state());
             } else {
                 logger_.debug("Requested listing of all facilities (type={}, requestId={}, sendId={})", static_cast<std::underlying_type_t<FacilityListType>>(type), requestId, fetchSendIdInternal());
             }
+#else
+            state(-1);
+            logger_.error("SimConnect_RequestAllFacilities is not supported in this version of the SDK.");
+#endif
             break;
 
         case FacilitiesListScope::cacheOnly:
@@ -1332,12 +1342,32 @@ public:
     {
         guard_type guard(mutex_);
 
+#if MSFS_SDK_2024
         state(SimConnect_AICreateNonATCAircraft_EX1(hSimConnect_, title.c_str(), livery.c_str(), tailNumber.c_str(), initPos, requestId));
         if (failed()) {
-            logger_.error("SimConnect_AICreateNonATCAircraft_EX1 failed with error code 0x{:08X}.", state());
+          logger_.error("SimConnect_AICreateNonATCAircraft_EX1 failed with error code 0x{:08X}.", state());
         } else {
-            logger_.debug("Created non-ATC aircraft '{}' with livery '{}' and tail '{}' (requestId={}, sendId={})", title, livery, tailNumber, requestId, fetchSendIdInternal());
+          logger_.debug("Created non-ATC aircraft '{}' with livery '{}' and tail '{}' (requestId={}, sendId={})",
+            title,
+            livery,
+            tailNumber,
+            requestId,
+            fetchSendIdInternal());
         }
+#else
+        state(SimConnect_AICreateNonATCAircraft(
+          hSimConnect_, title.c_str(), tailNumber.c_str(), initPos, requestId));
+        if (failed()) {
+          logger_.error("SimConnect_AICreateNonATCAircraft failed with error code 0x{:08X}.", state());
+        } else {
+          logger_.debug("Created non-ATC aircraft '{}' with livery '{}' and tail '{}' (requestId={}, sendId={})",
+            title,
+            livery,
+            tailNumber,
+            requestId,
+            fetchSendIdInternal());
+        }
+#endif
         return static_cast<Derived&>(*this);
     }
 
@@ -1377,12 +1407,22 @@ public:
     {
         guard_type guard(mutex_);
 
+#if MSFS_SDK_2024
         state(SimConnect_AICreateParkedATCAircraft_EX1(hSimConnect_, title.c_str(), livery.c_str(), tailNumber.c_str(), airportIcao.c_str(), requestId));
         if (failed()) {
             logger_.error("SimConnect_AICreateParkedATCAircraft_EX1 failed with error code 0x{:08X}.", state());
         } else {
             logger_.debug("Created parked aircraft '{}' with livery '{}' and tail '{}' at '{}' (requestId={}, sendId={})", title, livery, tailNumber, airportIcao, requestId, fetchSendIdInternal());
         }
+#else
+        state(SimConnect_AICreateParkedATCAircraft(
+          hSimConnect_, title.c_str(), tailNumber.c_str(), airportIcao.c_str(), requestId));
+        if (failed()) {
+            logger_.error("SimConnect_AICreateParkedATCAircraft failed with error code 0x{:08X}.", state());
+        } else {
+            logger_.debug("Created parked aircraft '{}' with livery '{}' and tail '{}' at '{}' (requestId={}, sendId={})", title, livery, tailNumber, airportIcao, requestId, fetchSendIdInternal());
+        }
+#endif
         return static_cast<Derived&>(*this);
     }
 
@@ -1420,12 +1460,21 @@ public:
     {
         guard_type guard(mutex_);
 
+#if MSFS_SDK_2024
         state(SimConnect_AICreateSimulatedObject_EX1(hSimConnect_, title.c_str(), livery.c_str(), initPos, requestId));
         if (failed()) {
             logger_.error("SimConnect_AICreateSimulatedObject_EX1 failed with error code 0x{:08X}.", state());
         } else {
             logger_.debug("Created simulated object '{}' with livery '{}' (requestId={}, sendId={})", title, livery, requestId, fetchSendIdInternal());
         }
+#else
+        state(SimConnect_AICreateSimulatedObject(hSimConnect_, title.c_str(), initPos, requestId));
+        if (failed()) {
+            logger_.error("SimConnect_AICreateSimulatedObject failed with error code 0x{:08X}.", state());
+        } else {
+            logger_.debug("Created simulated object '{}' with livery '{}' (requestId={}, sendId={})", title, livery, requestId, fetchSendIdInternal());
+        }
+#endif
         return static_cast<Derived&>(*this);
     }
 

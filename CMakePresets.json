@@ -190,6 +190,30 @@
             "inherits": [
                 "windows-clang-debug"
             ]
+        },
+        {
+            "name": "windows-clang-debug-tests-2020",
+            "description": "",
+            "displayName": "Target MSFS 2020 with the clang compiler, debug build, tests included",
+            "cacheVariables": {
+                "BUILD_TESTING": "ON",
+                "MSFS_SDK_VERSION": "2020"
+            },
+            "inherits": [
+                "windows-clang-debug"
+            ]
+        },
+        {
+            "name": "windows-clang-debug-tests-2024",
+            "description": "",
+            "displayName": "Target MSFS 2024 with the clang compiler, debug build, tests included",
+            "cacheVariables": {
+                "BUILD_TESTING": "ON",
+                "MSFS_SDK_VERSION": "2024"
+            },
+            "inherits": [
+                "windows-clang-debug"
+            ]
         }
     ],
     "testPresets": [

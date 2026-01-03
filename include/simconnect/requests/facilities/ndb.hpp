@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-
+#include <simconnect.hpp>
 #include <simconnect/simconnect.hpp>
 #include <simconnect/simconnect_datatypes.hpp>
 
@@ -45,7 +45,9 @@ struct NDBData : public LatLonAltMagVar {
     float range_;                           // RANGE
 
     std::int32_t isTerminalNDB_;            // IS_TERMINAL_NDB
-    std::int32_t bfoRequired_;              // BFO_REQUIRED
+#if MSFS_2024_SDK
+    std::int32_t bfoRequired_;              // BFO_REQUIRED (2024 only)
+#endif
 
 public:
     inline static bool isNDBData(const Messages::FacilityDataMsg& msg) noexcept {
@@ -64,7 +66,9 @@ public:
     constexpr double rangeNM() const noexcept { return static_cast<double>(range_ / 1852.0); }
 
     constexpr bool isTerminalNDB() const noexcept { return isTerminalNDB_ != 0; }
+#if MSFS_2024_SDK
     constexpr bool bfoRequired() const noexcept { return bfoRequired_ != 0; }
+#endif
 };
 
 #pragma pack(pop)
@@ -114,9 +118,11 @@ struct NDBBuilder
     constexpr NDBBuilder<MaxLength> isTerminalNDB() const {
         return NDBBuilder<MaxLength>{ definition.push(FacilityField::ndbIsTerminalNDB) };
     }
+#if MSFS_2024_SDK
     constexpr NDBBuilder<MaxLength> isBFORequired() const {
         return NDBBuilder<MaxLength>{ definition.push(FacilityField::ndbBfoRequired) };
     }
+#endif
 
     constexpr NDBBuilder<MaxLength> allFields() const {
         return NDBBuilder<MaxLength>{
@@ -130,7 +136,9 @@ struct NDBBuilder
                 .push(FacilityField::ndbType)
                 .push(FacilityField::ndbRange)
                 .push(FacilityField::ndbIsTerminalNDB)
+#if MSFS_2024_SDK
                 .push(FacilityField::ndbBfoRequired)
+#endif
         };
     }
     

@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-
+#include <simconnect.hpp>
  #include <simconnect/simconnect.hpp>
  #include <simconnect/requests/facilities/facility_definition.hpp>
  #include <simconnect/requests/facilities/facility_definition_builder.hpp>
@@ -39,26 +39,26 @@ namespace SimConnect::Facilities {
 /**
  * Represents the data structure for an Airport facility as returned by SimConnect.
  */
-class AirportData {
-    std::int8_t isClosed_;                          // IS_CLOSED
+struct AirportData {
+#if MSFS_2024_SDK
+    std::int8_t isClosed_;                          // IS_CLOSED (2024 only)
+#endif
     std::array<char, ICAOLength> icao_;             // ICAO
     std::array<char, RegionLength> region_;         // REGION
-    std::array<char, CountryLength> country_;       // COUNTRY
-    std::array<char, CityStateLength> cityState_;   // CITY_STATE
+#if MSFS_2024_SDK
+    std::array<char, CountryLength> country_;       // COUNTRY (2024 only)
+    std::array<char, CityStateLength> cityState_;   // CITY_STATE (2024 only)
+#endif
     std::array<char, NameLength> name_;             // NAME
     std::array<char, Name64Length> name64_;         // NAME64
 
-    double latitude_;                               // LATITUDE
-    double longitude_;                              // LONGITUDE
-    double altitude_;                               // ALTITUDE
-    float magVar_;                                  // MAGVAR (Magnetic Variation)
+    LatLonAltMagVar position;                      // LATITUDE, LONGITUDE, ALTITUDE, MAGVAR
+    LatLonAlt towerPosition;                       // TOWER_LATITUDE, TOWER_LONGITUDE, TOWER_ALTITUDE
 
-    double towerLatitude_;                          // TOWER_LATITUDE
-    double towerLongitude_;                         // TOWER_LONGITUDE
-    double towerAltitude_;                          // TOWER_ALTITUDE
-
-    float transitionAltitude_;                      // TRANSITION_ALTITUDE
-    float transitionLevel_;                         // TRANSITION_LEVEL
+#if MSFS_2024_SDK
+    float transitionAltitude_;                      // TRANSITION_ALTITUDE (2024 only)
+    float transitionLevel_;                         // TRANSITION_LEVEL (2024 only)
+#endif
 
     int32_t nRunways_;                              // N_RUNWAYS
     int32_t nStarts_;                               // N_STARTS
@@ -72,8 +72,10 @@ class AirportData {
     int32_t nTaxiPaths_;                            // N_TAXI_PATHS
     int32_t nTaxiNames_;                            // N_TAXI_NAMES
     int32_t nJetways_;                              // N_JETWAYS
-    int32_t nVDGS_;                                 // N_VDGS
-    int32_t nHoldingPatterns_;                      // N_HOLDING_PATTERNS
+#if MSFS_2024_SDK
+    int32_t nVDGS_;                                 // N_VDGS (2024 only)
+    int32_t nHoldingPatterns_;                      // N_HOLDING_PATTERNS (2024 only)
+#endif
 
 public:
     inline static bool isAirportData(const Messages::FacilityDataMsg& msg) {
@@ -83,42 +85,32 @@ public:
         return *reinterpret_cast<const AirportData*>(&msg.Data);
     }
 
+#if MSFS_2024_SDK
     /** Returns whether the airport is closed. */
     constexpr bool isClosed() const noexcept { return isClosed_ != 0; }
+#endif
 
     /** Returns the ICAO identifier of the airport. */
     constexpr std::string_view icao() const noexcept { return SimConnect::toString(icao_); }
     /** Returns the region code of the airport. */
     constexpr std::string_view region() const noexcept { return SimConnect::toString(region_); }
+#if MSFS_2024_SDK
     /** Returns the country of the airport. */
     constexpr std::string_view country() const noexcept { return SimConnect::toString(country_); }
     /** Returns the city/state of the airport. */
     constexpr std::string_view cityState() const noexcept { return SimConnect::toString(cityState_); }
+#endif
     /** Returns the name of the airport. */
     constexpr std::string_view name() const noexcept { return SimConnect::toString(name_); }
     /** Returns the 64-character name of the airport. */
     constexpr std::string_view name64() const noexcept { return SimConnect::toString(name64_); }
 
-    /** Returns the latitude of the airport in degrees. */
-    constexpr double latitude() const noexcept { return latitude_; }
-    /** Returns the longitude of the airport in degrees. */
-    constexpr double longitude() const noexcept { return longitude_; }
-    /** Returns the altitude of the airport in feet. */
-    constexpr double altitude() const noexcept { return altitude_; }
-    /** Returns the magnetic variation of the airport in degrees. */
-    constexpr float magVar() const noexcept { return magVar_; }
-
-    /** Returns the latitude of the airport tower in degrees. */
-    constexpr double towerLatitude() const noexcept { return towerLatitude_; }
-    /** Returns the longitude of the airport tower in degrees. */
-    constexpr double towerLongitude() const noexcept { return towerLongitude_; }
-    /** Returns the altitude of the airport tower in feet. */
-    constexpr double towerAltitude() const noexcept { return towerAltitude_; }
-
+#if MSFS_2024_SDK
     /** Returns the transition altitude in feet. */
     constexpr float transitionAltitude() const noexcept { return transitionAltitude_; }
     /** Returns the transition level in flight levels. */
     constexpr float transitionLevel() const noexcept { return transitionLevel_; }
+#endif
 
     /** Returns the number of runways at the airport. */
     constexpr int32_t nRunways() const noexcept { return nRunways_; }
@@ -144,10 +136,12 @@ public:
     constexpr int32_t nTaxiNames() const noexcept { return nTaxiNames_; }
     /** Returns the number of jetways at the airport. */
     constexpr int32_t nJetways() const noexcept { return nJetways_; }
+#if MSFS_2024_SDK
     /** Returns the number of Visual Docking Guidance Systems at the airport. */
     constexpr int32_t nVDGS() const noexcept { return nVDGS_; }
     /** Returns the number of holding patterns at the airport. */
     constexpr int32_t nHoldingPatterns() const noexcept { return nHoldingPatterns_; }
+#endif
 };
 
 #pragma pack(pop)
@@ -271,12 +265,14 @@ struct AirportBuilder
     constexpr JetwayBuilder<MaxLength> jetway() const {
         return JetwayBuilder<MaxLength>{ definition.push(FacilityField::jetwayOpen) };
     }
+#if MSFS_2024_SDK
     constexpr VDGSBuilder<MaxLength> vdgs() const {
         return VDGSBuilder<MaxLength>{ definition.push(FacilityField::vdgsOpen) };
     }
     constexpr HoldingPatternBuilder<MaxLength> holdingPattern() const {
         return HoldingPatternBuilder<MaxLength>{ definition.push(FacilityField::holdingPatternOpen) };
     }
+#endif
 
     // Field setters
     constexpr AirportBuilder<MaxLength> latitude() const {
@@ -312,6 +308,7 @@ struct AirportBuilder
     constexpr AirportBuilder<MaxLength> towerAltitude() const {
         return AirportBuilder<MaxLength>{ definition.push(FacilityField::airportTowerAltitude) };
     }
+#if MSFS_2024_SDK
     constexpr AirportBuilder<MaxLength> transitionAltitude() const {
         return AirportBuilder<MaxLength>{ definition.push(FacilityField::airportTransitionAltitude) };
     }
@@ -327,6 +324,7 @@ struct AirportBuilder
     constexpr AirportBuilder<MaxLength> cityState() const {
         return AirportBuilder<MaxLength>{ definition.push(FacilityField::airportCityState) };
     }
+#endif
     constexpr AirportBuilder<MaxLength> runways() const {
         return AirportBuilder<MaxLength>{ definition.push(FacilityField::airportRunways) };
     }
@@ -363,21 +361,27 @@ struct AirportBuilder
     constexpr AirportBuilder<MaxLength> jetways() const {
         return AirportBuilder<MaxLength>{ definition.push(FacilityField::airportJetways) };
     }
+#if MSFS_2024_SDK
     constexpr AirportBuilder<MaxLength> vdgsCount() const {
         return AirportBuilder<MaxLength>{ definition.push(FacilityField::airportVDGS) };
     }
     constexpr AirportBuilder<MaxLength> holdingPatterns() const {
         return AirportBuilder<MaxLength>{ definition.push(FacilityField::airportHoldingPatterns) };
     }
+#endif
 
     constexpr AirportBuilder<MaxLength> allFields() const {
         return AirportBuilder<MaxLength>{
             definition
+#if MSFS_2024_SDK
                 .push(FacilityField::airportIsClosed)
+#endif
                 .push(FacilityField::airportICAO)
                 .push(FacilityField::airportRegion)
+#if MSFS_2024_SDK
                 .push(FacilityField::airportCountry)
                 .push(FacilityField::airportCityState)
+#endif
                 .push(FacilityField::airportName)
                 .push(FacilityField::airportName64)
                 .push(FacilityField::airportLatitude)
@@ -387,8 +391,10 @@ struct AirportBuilder
                 .push(FacilityField::airportTowerLatitude)
                 .push(FacilityField::airportTowerLongitude)
                 .push(FacilityField::airportTowerAltitude)
+#if MSFS_2024_SDK
                 .push(FacilityField::airportTransitionAltitude)
                 .push(FacilityField::airportTransitionLevel)
+#endif
                 .push(FacilityField::airportRunways)
                 .push(FacilityField::airportStarts)
                 .push(FacilityField::airportFrequencies)
@@ -401,8 +407,10 @@ struct AirportBuilder
                 .push(FacilityField::airportTaxiPaths)
                 .push(FacilityField::airportTaxiNames)
                 .push(FacilityField::airportJetways)
+#if MSFS_2024_SDK
                 .push(FacilityField::airportVDGS)
                 .push(FacilityField::airportHoldingPatterns)
+#endif
         };
     }
 };

@@ -15,14 +15,7 @@
  * limitations under the License.
  */
 
-
-#pragma warning(push, 3)
-
-#include <Windows.h>
-#include <SimConnect.h>
-
-#pragma warning(pop)
-
+#include <simconnect.hpp>
 
 #include <array>
 #include <string_view>
@@ -52,10 +45,10 @@ inline constexpr unsigned long unused{ SIMCONNECT_UNUSED };                     
  */
 inline constexpr unsigned long noId{ 0 };
 
-using MessageId = unsigned long;                                                        ///< The type used for message IDs, SIMCONNECT_RECV_ID.
+using MessageId = unsigned long;                                                                ///< The type used for message IDs, SIMCONNECT_RECV_ID.
 
-using SendId = unsigned long;                                                           ///< The type used for Send IDs.
-inline constexpr SendId unknownSendId{ SIMCONNECT_RECV_EXCEPTION::UNKNOWN_SENDID };     ///< Constant representing an unknown Send ID.
+using SendId = unsigned long;                                                                   ///< The type used for Send IDs.
+inline constexpr SendId unknownSendId{ SIMCONNECT_RECV_EXCEPTION::UNKNOWN_SENDID };             ///< Constant representing an unknown Send ID.
 
 namespace Messages {
     using MsgBase = SIMCONNECT_RECV;
@@ -75,8 +68,13 @@ namespace Messages {
     inline constexpr MessageId systemState{ SIMCONNECT_RECV_ID_SYSTEM_STATE };
     using SystemStateMsg = SIMCONNECT_RECV_SYSTEM_STATE;
 
+#if MSFS_2024_SDK
     inline constexpr MessageId flowEvent{ SIMCONNECT_RECV_ID_FLOW_EVENT };
     using FlowEventMsg = SIMCONNECT_RECV_FLOW_EVENT;
+#else
+    inline constexpr MessageId flowEvent{ nullMsg }; // Not available
+    using FlowEventMsg = NullMsg;
+#endif
 
     inline constexpr MessageId event{ SIMCONNECT_RECV_ID_EVENT };
     using EventMsg = SIMCONNECT_RECV_EVENT;
@@ -129,8 +127,13 @@ namespace Messages {
     inline constexpr MessageId assignedObjectId{ SIMCONNECT_RECV_ID_ASSIGNED_OBJECT_ID };
     using AssignedObjectIdMsg = SIMCONNECT_RECV_ASSIGNED_OBJECT_ID;
 
+#if MSFS_2024_SDK
     inline constexpr MessageId enumerateSimObjectAndLiveryList{ SIMCONNECT_RECV_ID_ENUMERATE_SIMOBJECT_AND_LIVERY_LIST };
     using EnumerateSimObjectAndLiveryListMsg = SIMCONNECT_RECV_ENUMERATE_SIMOBJECT_AND_LIVERY_LIST;
+#else
+    inline constexpr MessageId enumerateSimObjectAndLiveryList{ nullMsg }; // Not available
+    using EnumerateSimObjectAndLiveryListMsg = NullMsg;
+#endif
 
     inline constexpr MessageId reservedKey{ SIMCONNECT_RECV_ID_RESERVED_KEY };
     using ReservedKeyMsg = SIMCONNECT_RECV_RESERVED_KEY;
@@ -181,7 +184,7 @@ namespace Messages {
     using EnumerateInputEventParamsMsg = SIMCONNECT_RECV_ENUMERATE_INPUT_EVENT_PARAMS;
 }
 
-using ExceptionCode = unsigned long;                                                    ///< The type used for exception codes.
+using ExceptionCode = unsigned long;                                                            ///< The type used for exception codes.
 
 namespace Exceptions {
     inline constexpr unsigned long unknownIndex{ SIMCONNECT_RECV_EXCEPTION::UNKNOWN_INDEX };  ///< Constant representing an unknown index.
@@ -231,17 +234,29 @@ namespace Exceptions {
     inline constexpr ExceptionCode incorrectActionParams{ SIMCONNECT_EXCEPTION_INCORRECT_ACTION_PARAMS };
     inline constexpr ExceptionCode getInputEventFailed{ SIMCONNECT_EXCEPTION_GET_INPUT_EVENT_FAILED };
     inline constexpr ExceptionCode setInputEventFailed{ SIMCONNECT_EXCEPTION_SET_INPUT_EVENT_FAILED };
+#if MSFS_2024_SDK
     inline constexpr ExceptionCode internal{ SIMCONNECT_EXCEPTION_INTERNAL };
+#endif
 }
 
-using SimObjectId = unsigned long;                                                      ///< The type used for SimObject IDs.
+using SimObjectId = unsigned long;                                                                  ///< The type used for SimObject IDs.
 
 namespace SimObject {
+#if MSFS_2024_SDK
+    inline constexpr SimObjectId max{ SIMCONNECT_OBJECT_ID_MAX };                               ///< The maximum SimObject ID as defined in the MSFS 2024 API.
+#else
+    inline constexpr SimObjectId max{ unused - 128 };                                           ///< The maximum SimObject ID as defined in the MSFS 2020 API.
+#endif
     inline constexpr SimObjectId user{ SIMCONNECT_OBJECT_ID_USER };                             ///< The user SimObject ID.
+#if MSFS_2024_SDK
     inline constexpr SimObjectId userAircraft{ SIMCONNECT_OBJECT_ID_USER_AIRCRAFT };            ///< The user aircraft SimObject ID.
     inline constexpr SimObjectId userAvatar{ SIMCONNECT_OBJECT_ID_USER_AVATAR };                ///< The user avatar SimObject ID.
     inline constexpr SimObjectId userCurrent{ SIMCONNECT_OBJECT_ID_USER_CURRENT };              ///< The current user SimObject ID.
-    inline constexpr SimObjectId max{ SIMCONNECT_OBJECT_ID_MAX };                               ///< The maximum SimObject ID.
+#else
+    inline constexpr SimObjectId userAircraft{ 0 };                                             ///< The user aircraft SimObject ID.
+    inline constexpr SimObjectId userAvatar{ (max+1) };                                         ///< The user avatar SimObject ID.
+    inline constexpr SimObjectId userCurrent{ (max+2) };                                        ///< The current user SimObject ID.
+#endif
 }
 
 using SimObjectType = SIMCONNECT_SIMOBJECT_TYPE;                                                ///< The type used for SimObject types.
@@ -254,10 +269,16 @@ namespace SimObjectTypes {
     inline constexpr SimObjectType helicopter{ SIMCONNECT_SIMOBJECT_TYPE_HELICOPTER };          ///< Helicopter SimObject type.
     inline constexpr SimObjectType boat{ SIMCONNECT_SIMOBJECT_TYPE_BOAT };                      ///< Boat SimObject type.
     inline constexpr SimObjectType ground{ SIMCONNECT_SIMOBJECT_TYPE_GROUND };                  ///< Ground vehicle SimObject type.
+#if MSFS_2024_SDK
     inline constexpr SimObjectType hotAirBalloon{ SIMCONNECT_SIMOBJECT_TYPE_HOT_AIR_BALLOON };  ///< Hot air balloon SimObject type.
     inline constexpr SimObjectType animal{ SIMCONNECT_SIMOBJECT_TYPE_ANIMAL };                  ///< Animal SimObject type.
     inline constexpr SimObjectType userAvatar{ SIMCONNECT_SIMOBJECT_TYPE_USER_AVATAR };         ///< User avatar SimObject type.
     inline constexpr SimObjectType userCurrent{ SIMCONNECT_SIMOBJECT_TYPE_USER_CURRENT };       ///< Current user SimObject type.
+
+    inline constexpr SimObjectType max{ SIMCONNECT_SIMOBJECT_TYPE_USER_CURRENT };               ///< Maximum SimObject type.
+#else
+    inline constexpr SimObjectType max{ SIMCONNECT_SIMOBJECT_TYPE_GROUND };                     ///< Maximum SimObject type.
+#endif
 };
 
 using RequestId = unsigned long;                ///< The type used for request IDs.
@@ -281,7 +302,11 @@ using DataType = SIMCONNECT_DATATYPE;                 ///< The type used for dat
 namespace DataTypes {
     inline constexpr DataType invalid{ SIMCONNECT_DATATYPE_INVALID };               ///< Invalid data type.
 
+#if MSFS_2024_SDK
     inline constexpr DataType int8{ SIMCONNECT_DATATYPE_INT8 };                     ///< 8-bit integer data type.
+#else
+    inline constexpr DataType int8{ SIMCONNECT_DATATYPE_INVALID };                  ///< 8-bit integer data type.
+#endif
     inline constexpr DataType int32{ SIMCONNECT_DATATYPE_INT32 };                   ///< 32-bit integer data type.
     inline constexpr DataType int64{ SIMCONNECT_DATATYPE_INT64 };                   ///< 64-bit integer data type.
 
@@ -364,10 +389,12 @@ namespace FacilityDataTypes {
     inline constexpr FacilityDataType route{ SIMCONNECT_FACILITY_DATA_ROUTE };                              ///< Route facility data type.
     inline constexpr FacilityDataType pavement{ SIMCONNECT_FACILITY_DATA_PAVEMENT };                        ///< Pavement facility data type.
     inline constexpr FacilityDataType approachLights{ SIMCONNECT_FACILITY_DATA_APPROACH_LIGHTS };           ///< Approach lights facility data type.
+#if MSFS_2024_SDK
     inline constexpr FacilityDataType vasi{ SIMCONNECT_FACILITY_DATA_VASI };                                ///< VASI facility data type.
     inline constexpr FacilityDataType vdgs{ SIMCONNECT_FACILITY_DATA_VDGS };                                ///< VDGS facility data type.
     inline constexpr FacilityDataType holdingPattern{ SIMCONNECT_FACILITY_DATA_HOLDING_PATTERN };           ///< Holding pattern facility data type.
     inline constexpr FacilityDataType taxiParkingAirline{ SIMCONNECT_FACILITY_DATA_TAXI_PARKING_AIRLINE };  ///< Taxi parking airline facility data type.
+#endif
 }
 
 enum FacilitiesListScope {

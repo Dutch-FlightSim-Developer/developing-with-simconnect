@@ -26,7 +26,10 @@
 #include <chrono>
 #include <cstddef>
 
+
+#include <simconnect.hpp>
 #include <simconnect/simconnect.hpp>
+#include <simconnect/simconnect_datatypes.hpp>
 
 #include <simconnect/util/console_logger.hpp>
 #include <simconnect/util/logger.hpp>
@@ -34,10 +37,12 @@
 #include <simconnect/windows_event_connection.hpp>
 using ThisConnection = SimConnect::WindowsEventConnection<true, SimConnect::ConsoleLogger>;
 #include <simconnect/windows_event_handler.hpp>
-using ThisSimConnectHandler = SimConnect::WindowsEventHandler<true, SimConnect::ConsoleLogger>;
-
+using ThisConnectionHandler = SimConnect::WindowsEventHandler<true, SimConnect::ConsoleLogger>;
 #include <simconnect/requests/facility_handler.hpp>
+using ThisFacilityHandler = SimConnect::FacilityHandler<ThisConnectionHandler>;
 #include <simconnect/requests/facility_list_handler.hpp>
+using ThisFacilityListHandler = SimConnect::FacilityListHandler<ThisConnectionHandler>;
+
 #include <simconnect/requests/facilities/facility_definition.hpp>
 #include <simconnect/requests/facilities/facility_definition_builder.hpp>
 #include <simconnect/requests/facilities/airport.hpp>
@@ -238,9 +243,11 @@ static void handleException(const Messages::ExceptionMsg &msg)
   case Exceptions::setInputEventFailed:
     std::cerr << "The input event name was not found. (SetInputEvent)\n";
     break;
+#if MSFS_2024_SDK
   case Exceptions::internal:
     std::cerr << "An internal SimConnect error has occurred.\n";
     break;
+#endif
   default:
     std::cerr << std::format("An unknown exception code was received: {}.\n", msg.dwException);
     break;
@@ -293,15 +300,16 @@ static std::map<std::string, std::string> gatherArgs(int argc,
  */
 static void printTaxiParking(const std::string& parkingName, const Facilities::TaxiParkingFacility& parking, const Facilities::AirportData& airportData)
 {
-    std::cout << std::format("Parking '{}': (Orientation {}, Heading {:03}) at Airport {} (Region {}) Lat {:.6f} Lon {:.6f} Alt {:.2f}m\n",
+    const LatLonAlt parkingPosition{ .latitude = parking.data.latitude(airportData.position.latitude, airportData.position.longitude),
+                               .longitude = parking.data.longitude(airportData.position.latitude, airportData.position.longitude),
+                               .altitude = airportData.position.altitude };
+    std::cout << std::format("  - {}: Location {:.6f}{}{}, {:.6f}{}{}, Alt {}ft, Orientation {}, Heading {:03}\n",
         parkingName,
+        parkingPosition.latitudeNormalized(), degreeSymbol, parkingPosition.latitudeDirection(),
+        parkingPosition.longitudeNormalized(), degreeSymbol, parkingPosition.longitudeDirection(),
+        parkingPosition.altitudeFeet(),
         parking.data.isOrientationForward() ? "Forward" : "Reverse",
-        static_cast<int>(parking.data.heading()),
-        airportData.icao(),
-        airportData.region(),
-        parking.data.latitude(airportData.latitude(), airportData.longitude()),
-        parking.data.longitude(airportData.latitude(), airportData.longitude()),
-        airportData.altitude()
+        static_cast<int>(parking.data.heading())
     );
 }
 
@@ -363,7 +371,7 @@ static void printFrequency(const Facilities::FrequencyData& frequency)
         type = "GCO";
         break;
     }
-    std::cout << std::format("- {:10}: {:.3f} MHz ('{}')\n", type, frequency.frequencyMHz(), frequency.name());
+    std::cout << std::format("  - {:10}: {:.3f} MHz ('{}')\n", type, frequency.frequencyMHz(), frequency.name());
 }
 
 
@@ -372,24 +380,48 @@ static void printFrequency(const Facilities::FrequencyData& frequency)
  * 
  * @param airport The airport to print.
  */
-static void printAirport(const Facilities::AirportFacility& airport)
+static void printAirport(const Facilities::AirportFacility& airportFacility)
 {
-    std::cout << std::format("Airport {} has {} frequencies and {} taxi parkings:\n",
-        airport.data.icao(),
-        airport.frequencies.size(),
-        airport.taxiParkings.size());
+    const auto& airport = airportFacility.data;
+
+    std::cout << std::format("Airport '{}'::\n", airport.icao());
+#if MSFS_2024_SDK
+    if (airport.isClosed()) {
+        std::cout << "  - This airport is currently closed.\n";
+    }
+#endif
+    std::cout
+     << std::format("  Name              : '{}'\n", airport.name())
+     << std::format("  Full name         : '{}'\n", airport.name64())
+     << std::format("  Region            : '{}'\n", airport.region())
+     << std::format("  Position          : {:.6f}{}{}, {:.6f}{}{}, Alt {}ft\n",
+        airport.position.latitudeNormalized(), degreeSymbol, airport.position.latitudeDirection(),
+        airport.position.longitudeNormalized(), degreeSymbol, airport.position.longitudeDirection(),
+        airport.position.altitudeFeet())
+     << std::format("  Magnetic Variation: {:.2f}{}{}\n",
+        airport.position.magVarNormalized(), degreeSymbol, airport.position.magVarDirection())
+     << std::format("  Tower Position    : {:.6f}{}{}, {:.6f}{}{}, Alt {}ft\n",
+        airport.towerPosition.latitudeNormalized(), degreeSymbol, airport.towerPosition.latitudeDirection(),
+        airport.towerPosition.longitudeNormalized(), degreeSymbol, airport.towerPosition.longitudeDirection(),
+        airport.towerPosition.altitudeFeet())
+     << std::format("  Nr of runways    : {}\n", airport.nRunways())
+     << std::format("  Nr of helipads   : {}\n", airport.nHelipads())
+     << std::format("  Nr of arrivals   : {}\n", airport.nArrivals())
+     << std::format("  Nr of approaches : {}\n", airport.nApproaches())
+     << std::format("  Nr of departures : {}\n", airport.nDepartures());
+
     
-    if (airport.haveFrequencies()) {
-        std::cout << "\nFrequencies:\n";
-        for (const auto& frequency : airport.frequencies) {
+    if (airportFacility.haveFrequencies()) {
+        std::cout << "  Frequencies:\n";
+        for (const auto& frequency : airportFacility.frequencies) {
             printFrequency(frequency);
         }
     }
     
-    if (airport.haveTaxiParkings()) {
-        std::cout << "\nTaxi Parkings:\n";
-        for (const auto& [parkingKey, parking] : airport.taxiParkings) {
-            printTaxiParking(parking.data.formatParkingName(), parking, airport.data);
+    if (airportFacility.haveTaxiParkings()) {
+        std::cout << "  Taxi Parkings:\n";
+        for (const auto& [parkingKey, parking] : airportFacility.taxiParkings) {
+            printTaxiParking(parking.data.formatParkingName(), parking, airport);
         }
     }
 }
@@ -401,8 +433,9 @@ static void printAirport(const Facilities::AirportFacility& airport)
  * @param connectionHandler The connection handler to use for communication.
  * @param icao The ICAO code of the airport to list.
  * @param region The region code of the airport to list.
+ * @param logLevel The log level to use for the facility handler.
  */
-static void listAirportDetails(auto& connectionHandler, const std::string& icao, const std::string& region)
+static void listAirportDetails(ThisConnectionHandler& connectionHandler, const std::string& icao, const std::string& region, LogLevel logLevel = LogLevel::Info)
 {
     bool listingDone{ false };
 
@@ -418,7 +451,9 @@ static void listAirportDetails(auto& connectionHandler, const std::string& icao,
                 .allFields()
             .end()
         .end();
-    FacilityHandler<WindowsEventHandler<true, ConsoleLogger>> facilityHandler(connectionHandler);
+    ThisFacilityHandler facilityHandler(connectionHandler);
+    facilityHandler.loggerLevel(logLevel);
+
     const FacilityDefinitionId defId = facilityHandler.buildDefinition(builder);
     Facilities::AirportFacility airport;
 
@@ -437,7 +472,6 @@ static void listAirportDetails(auto& connectionHandler, const std::string& icao,
             }
         },
         [&listingDone]() {
-            std::cout << "Finished listing airport parkings.\n";
             listingDone = true;
         },
         [&listingDone](const Messages::FacilityMinimalListMsg& msg) {
@@ -446,7 +480,6 @@ static void listAirportDetails(auto& connectionHandler, const std::string& icao,
         }
     );
     static constexpr auto timeout = 30s;
-    std::cout << std::format("Listing facilities, will timeout after {} seconds...\n", timeout.count());
     connectionHandler.handleUntilOrTimeout([&listingDone]() { return listingDone; }, timeout);
     request.stop();
     printAirport(airport);
@@ -459,10 +492,15 @@ static void listAirportDetails(auto& connectionHandler, const std::string& icao,
  * @param connectionHandler The connection handler to use for communication.
  * @param icaoPattern Regex pattern to filter airports by ICAO/ident.
  * @param regionFilter Exact region code to filter airports by (optional).
+ * @param scope The facilities list scope to use.
+ * @param logLevel The log level to use for the facility list handler.
  */
-static void listAirports(ThisSimConnectHandler& connectionHandler, std::string_view icaoPattern, std::string_view regionFilter, FacilitiesListScope scope = FacilitiesListScope::allFacilities)
+static void listAirports(ThisConnectionHandler& connectionHandler, std::string_view icaoPattern, std::string_view regionFilter,
+    FacilitiesListScope scope = FacilitiesListScope::allFacilities,
+    LogLevel logLevel = LogLevel::Info)
 {
-    FacilityListHandler<ThisSimConnectHandler> facilityListHandler(connectionHandler);
+    ThisFacilityListHandler facilityListHandler(connectionHandler);
+    facilityListHandler.loggerLevel(logLevel);
 
     std::regex icaoRegex;
     bool useRegex = false;
@@ -518,10 +556,15 @@ static void listAirports(ThisSimConnectHandler& connectionHandler, std::string_v
  * @param connectionHandler The connection handler to use for communication.
  * @param identPattern Regex pattern to filter VORs by ident.
  * @param regionFilter Exact region code to filter VORs by (optional).
+ * @param scope The facilities list scope to use.
+ * @param logLevel The log level to use for the facility list handler.
  */
-static void listVORs(ThisSimConnectHandler& connectionHandler, std::string_view identPattern, std::string_view regionFilter, FacilitiesListScope scope = FacilitiesListScope::allFacilities)
+static void listVORs(ThisConnectionHandler& connectionHandler, std::string_view identPattern, std::string_view regionFilter,
+    FacilitiesListScope scope = FacilitiesListScope::allFacilities,
+    LogLevel logLevel = LogLevel::Info)
 {
-    FacilityListHandler<ThisSimConnectHandler> facilityListHandler(connectionHandler);
+    ThisFacilityListHandler facilityListHandler(connectionHandler);
+    facilityListHandler.loggerLevel(logLevel);
 
     std::regex identRegex;
     bool useRegex = false;
@@ -654,7 +697,9 @@ static void printVORData(const Facilities::VORData& vor)
         if (vor.dmeAtGlideSlope()) {
             std::cout << "                      DME co-located with Glide Slope\n";
         }
+#if MSFS_2024_SDK
         std::cout << std::format("  DME Bias          : {:.2f} NM\n", vor.dmeBias());
+#endif
     }
     
     if (vor.hasGlideSlope()) {
@@ -669,7 +714,9 @@ static void printVORData(const Facilities::VORData& vor)
         std::cout << std::format("  Localizer         : {:.2f}{}, Width {:.2f}{}\n",
             vor.localizerHeading(), degreeSymbol,
             vor.localizerWidth(), degreeSymbol);
+#if MSFS_2024_SDK
         std::cout << std::format("  ILS Category      : {}\n", static_cast<int>(vor.lsCategory()));
+#endif
         if (vor.hasBackCourse()) {
             std::cout << "                      Has Back Course\n";
         }
@@ -683,7 +730,9 @@ static void printVORData(const Facilities::VORData& vor)
     }
     
     std::cout << std::format("  Nav Range         : {:.1f} NM\n", vor.navRangeNM());
+#if MSFS_2024_SDK
     std::cout << std::format("  Reference         : {}\n", vor.isTrueReferenced() ? "True" : "Magnetic");
+#endif
 }
 
 
@@ -693,8 +742,9 @@ static void printVORData(const Facilities::VORData& vor)
  * @param connectionHandler The connection handler to use for communication.
  * @param ident The identifier of the VOR to list.
  * @param region The region code of the VOR to list.
+ * @param logLevel The log level to use for the facility handler.
  */
-static void printVORDetails(auto& connectionHandler, const std::string& ident, const std::string& region)
+static void printVORDetails(ThisConnectionHandler& connectionHandler, const std::string& ident, const std::string& region, LogLevel logLevel = LogLevel::Info)
 {
     bool listingDone{ false };
 
@@ -704,7 +754,9 @@ static void printVORDetails(auto& connectionHandler, const std::string& ident, c
         .vor()
             .allFields()
         .end();
-    FacilityHandler<WindowsEventHandler<true, ConsoleLogger>> facilityHandler(connectionHandler);
+    ThisFacilityHandler facilityHandler(connectionHandler);
+    facilityHandler.loggerLevel(logLevel);
+
     const FacilityDefinitionId defId = facilityHandler.buildDefinition(builder);
     Facilities::VORData vor{};
     bool vorReceived{ false };
@@ -741,10 +793,15 @@ static void printVORDetails(auto& connectionHandler, const std::string& ident, c
  * @param connectionHandler The connection handler to use for communication.
  * @param identPattern Regex pattern to filter NDBs by ident.
  * @param regionFilter Exact region code to filter NDBs by (optional).
+ * @param scope The facilities list scope to use.
+ * @param logLevel The log level to use for the facility list handler.
  */
-static void listNDBs(ThisSimConnectHandler& connectionHandler, std::string_view identPattern, std::string_view regionFilter, FacilitiesListScope scope = FacilitiesListScope::allFacilities)
+static void listNDBs(ThisConnectionHandler& connectionHandler, std::string_view identPattern, std::string_view regionFilter,
+    FacilitiesListScope scope = FacilitiesListScope::allFacilities,
+    LogLevel logLevel = LogLevel::Info)
 {
-    FacilityListHandler<ThisSimConnectHandler> facilityListHandler(connectionHandler);
+    ThisFacilityListHandler facilityListHandler(connectionHandler);
+    facilityListHandler.loggerLevel(logLevel);
 
     std::regex identRegex;
     bool useRegex = false;
@@ -829,11 +886,13 @@ static void printNDBData(const Facilities::NDBData& ndb)
     else {
         std::cout << "  Designation       : Enroute NDB\n";
     }
+#if MSFS_2024_SDK
     if (ndb.bfoRequired()) {
         std::cout << "  BFO Required      : Yes\n";
     } else {
         std::cout << "  BFO Required      : No\n";
     }
+#endif
 }
 
 /**
@@ -842,8 +901,9 @@ static void printNDBData(const Facilities::NDBData& ndb)
  * @param connectionHandler The connection handler to use for communication.
  * @param ident The identifier of the NDB to list.
  * @param region The region code of the NDB to list.
+ * @param logLevel The log level to use for the facility handler.
  */
-static void printNDBDetails(auto& connectionHandler, const std::string& ident, const std::string& region)
+static void printNDBDetails(ThisConnectionHandler& connectionHandler, const std::string& ident, const std::string& region, LogLevel logLevel = LogLevel::Info)
 {
     bool listingDone{ false };
 
@@ -853,7 +913,9 @@ static void printNDBDetails(auto& connectionHandler, const std::string& ident, c
         .ndb()
             .allFields()
         .end();
-    FacilityHandler<WindowsEventHandler<true, ConsoleLogger>> facilityHandler(connectionHandler);
+    ThisFacilityHandler facilityHandler(connectionHandler);
+    facilityHandler.loggerLevel(logLevel);
+
     const FacilityDefinitionId defId = facilityHandler.buildDefinition(builder);
     Facilities::NDBData ndb{};
     bool ndbReceived{ false };
@@ -890,10 +952,15 @@ static void printNDBDetails(auto& connectionHandler, const std::string& ident, c
  * @param connectionHandler The connection handler to use for communication.
  * @param identPattern Regex pattern to filter waypoints by ident.
  * @param regionFilter Exact region code to filter waypoints by (optional).
+ * @param scope The facilities list scope to use.
+ * @param logLevel The log level to use for the facility list handler.
  */
-static void listWaypoints(ThisSimConnectHandler& connectionHandler, std::string_view identPattern, std::string_view regionFilter, FacilitiesListScope scope = FacilitiesListScope::allFacilities)
+static void listWaypoints(ThisConnectionHandler& connectionHandler, std::string_view identPattern, std::string_view regionFilter,
+    FacilitiesListScope scope = FacilitiesListScope::allFacilities,
+    LogLevel logLevel = LogLevel::Info)
 {
-    FacilityListHandler<ThisSimConnectHandler> facilityListHandler(connectionHandler);
+    ThisFacilityListHandler facilityListHandler(connectionHandler);
+    facilityListHandler.loggerLevel(logLevel);
 
     std::regex identRegex;
     bool useRegex = false;
@@ -1024,8 +1091,9 @@ static void printWaypointData(const Facilities::WaypointFacility& waypointFacili
  * @param connectionHandler The connection handler to use for communication.
  * @param ident The identifier of the Waypoint to list.
  * @param region The region code of the Waypoint to list.
+ * @param logLevel The log level to use for the facility handler.
  */
-static void printWaypointDetails(auto& connectionHandler, const std::string& ident, const std::string& region)
+static void printWaypointDetails(ThisConnectionHandler& connectionHandler, const std::string& ident, const std::string& region, LogLevel logLevel = LogLevel::Info)
 {
     bool listingDone{ false };
 
@@ -1038,7 +1106,9 @@ static void printWaypointDetails(auto& connectionHandler, const std::string& ide
                 .allFields()
             .end()
         .end();
-    FacilityHandler<WindowsEventHandler<true, ConsoleLogger>> facilityHandler(connectionHandler);
+    ThisFacilityHandler facilityHandler(connectionHandler);
+    facilityHandler.loggerLevel(logLevel);
+
     const FacilityDefinitionId defId = facilityHandler.buildDefinition(builder);
     Facilities::WaypointFacility waypoint{};
     bool waypointReceived{ false };
@@ -1121,27 +1191,27 @@ auto main(int argc, const char *argv[]) -> int// NOLINT(bugprone-exception-escap
 
     if (type == "airport") {
         if (!icao.empty()) {
-            listAirportDetails(connectionHandler, icao, region);
+            listAirportDetails(connectionHandler, icao, region, logLevel);
         } else {
-            listAirports(connectionHandler, filter, region, scope);
+            listAirports(connectionHandler, filter, region, scope, logLevel);
         }
     } else if (type == "vor") {
         if (!icao.empty()) {
-            printVORDetails(connectionHandler, icao, region);
+            printVORDetails(connectionHandler, icao, region, logLevel);
         } else {
-            listVORs(connectionHandler, filter, region, scope);
+            listVORs(connectionHandler, filter, region, scope, logLevel);
         }
     } else if (type == "ndb") {
         if (!icao.empty()) {
-            printNDBDetails(connectionHandler, icao, region);
+            printNDBDetails(connectionHandler, icao, region, logLevel);
         } else {
-            listNDBs(connectionHandler, filter, region, scope);
+            listNDBs(connectionHandler, filter, region, scope, logLevel);
         }
     } else if (type == "waypoint") {
         if (!icao.empty()) {
-            printWaypointDetails(connectionHandler, icao, region);
+            printWaypointDetails(connectionHandler, icao, region, logLevel);
         } else {
-            listWaypoints(connectionHandler, filter, region, scope);
+            listWaypoints(connectionHandler, filter, region, scope, logLevel);
         }
     } else {
         std::cerr << std::format("Unknown type '{}' specified. Supported types are 'airport', 'vor', 'ndb', and 'waypoint'.\n", type);

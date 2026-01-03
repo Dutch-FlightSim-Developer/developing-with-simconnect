@@ -101,10 +101,19 @@ private:
     FacilityListHandler& operator=(FacilityListHandler&&) = delete;
 
 public:
-    FacilityListHandler(simconnect_message_handler_type& handler) : simConnectMessageHandler_(handler)
+    FacilityListHandler(simconnect_message_handler_type& handler, std::string loggerName = "SimConnect::FacilityListHandler", LogLevel logLevel = LogLevel::Info)
+        : MessageHandler<RequestId, FacilityListHandler<M>, M, Messages::airportList, Messages::waypointList, Messages::ndbList, Messages::vorList>(std::move(loggerName), logLevel)
+        , simConnectMessageHandler_(handler)
     {
         this->enable(simConnectMessageHandler_);
     }
+    FacilityListHandler(simconnect_message_handler_type& handler, typename M::logger_type& parentLogger, std::string loggerName = "SimConnect::FacilityListHandler", LogLevel logLevel = LogLevel::Info)
+        : MessageHandler<RequestId, FacilityListHandler<M>, M, Messages::airportList, Messages::waypointList, Messages::ndbList, Messages::vorList>(parentLogger, std::move(loggerName), logLevel)
+        , simConnectMessageHandler_(handler)
+    {
+        this->enable(simConnectMessageHandler_);
+    }
+
     ~FacilityListHandler() = default;
 
     /**
@@ -115,21 +124,38 @@ public:
      * @param msg The message to get the correlation ID from.
      * @returns The correlation ID from the message.
 	 */
-    RequestId correlationId(const Messages::MsgBase& msg) const {
+    RequestId correlationId(const Messages::MsgBase& msg) {
         switch (msg.dwID) {
         case Messages::airportList:
-            return reinterpret_cast<const Messages::AirportListMsg&>(msg).dwRequestID;
+        {
+            const RequestId reqId = reinterpret_cast<const Messages::AirportListMsg&>(msg).dwRequestID;
+            this->logger().debug("Processing AirportListMsg for request {}.", reqId);
+            return reqId;
+        }
 
         case Messages::waypointList:
-            return reinterpret_cast<const Messages::WaypointListMsg&>(msg).dwRequestID;
+        {
+            RequestId reqId = reinterpret_cast<const Messages::WaypointListMsg&>(msg).dwRequestID;
+            this->logger().debug("Processing WaypointListMsg for request {}.", reqId);
+            return reqId;
+        }
 
         case Messages::ndbList:
-            return reinterpret_cast<const Messages::NdbListMsg&>(msg).dwRequestID;
+        {
+            RequestId reqId = reinterpret_cast<const Messages::NdbListMsg&>(msg).dwRequestID;
+            this->logger().debug("Processing NdbListMsg for request {}.", reqId);
+            return reqId;
+        }
 
         case Messages::vorList:
-            return reinterpret_cast<const Messages::VorListMsg&>(msg).dwRequestID;
+        {
+            RequestId reqId = reinterpret_cast<const Messages::VorListMsg&>(msg).dwRequestID;
+            this->logger().debug("Processing VorListMsg for request {}.", reqId);
+            return reqId;
+        }
 
         default:
+            this->logger().warn("Received unknown message ID {} when trying to get correlation ID.", static_cast<int>(msg.dwID));
             break;
         }
         return noRequest;
@@ -153,8 +179,12 @@ public:
     {
         auto requestId = simConnectMessageHandler_.connection().requests().nextRequestID();
 
-        this->registerHandler(requestId, [handler, onDone](const Messages::MsgBase& msg) {
+        auto& logger = this->logger();
+        this->registerHandler(requestId, [handler, onDone, &logger](const Messages::MsgBase& msg) {
                 const Messages::AirportListMsg& enumMsg = reinterpret_cast<const Messages::AirportListMsg&>(msg);
+
+                logger.debug("Received airport list message: request ID {}, array size {}, entry number {}/{}",
+                    enumMsg.dwRequestID, enumMsg.dwArraySize, enumMsg.dwEntryNumber, enumMsg.dwOutOf);
 
                 for (unsigned long i = 0; i < enumMsg.dwArraySize; ++i) {
                     const auto& item = enumMsg.rgData[i];

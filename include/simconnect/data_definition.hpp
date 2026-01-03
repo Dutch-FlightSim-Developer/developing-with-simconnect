@@ -213,7 +213,7 @@ public:
         // As long as all fields exactly match the SimConnect data types, we can use a direct mapping.
 
         // Numerical values are pretty straightforward.
-
+#if MSFS_2024_SDK
         case DataTypes::int8:
         {
             if constexpr (!std::is_same_v<FieldType, int8_t>) {
@@ -268,6 +268,7 @@ public:
             }
         }
             break;
+#endif
 
         case DataTypes::int32:
         {

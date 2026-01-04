@@ -105,26 +105,17 @@ static bool addDataDefinitionField(SIMCONNECT_DATA_DEFINITION_ID definitionId, c
 static void handleException(const SIMCONNECT_RECV_EXCEPTION& msg)
 {
 
-    printf("Received an exception type %lu:\n", msg.dwException);
+    std::cout << std::format("Received an exception type {}:\n", msg.dwException);
     if (msg.dwSendID != SIMCONNECT_RECV_EXCEPTION::UNKNOWN_SENDID)
     {
-        printf("- Related to a message with SendID %lu.\n", msg.dwSendID);
-        
-        // Look up the SendID in our tracker
-        auto it = sendIdTracker.find(msg.dwSendID);
-        if (it != sendIdTracker.end()) {
-            printf("- SendID %lu corresponds to: %s\n", msg.dwSendID, it->second.c_str());
-        }
-        else {
-            printf("- SendID %lu not found in tracker.\n", msg.dwSendID);
-		}
+        std::cout << std::format("- Related to a message with SendID {}.\n", msg.dwSendID);
     }
     if (msg.dwIndex != SIMCONNECT_RECV_EXCEPTION::UNKNOWN_INDEX)
     {
-        printf("- Regarding parameter %lu.\n", msg.dwIndex);
+        std::cout << std::format("- Regarding parameter {}.\n", msg.dwIndex);
     }
 
-    const SIMCONNECT_EXCEPTION exc{ static_cast<SIMCONNECT_EXCEPTION>(msg.dwException) };
+    const SIMCONNECT_EXCEPTION exc{static_cast<SIMCONNECT_EXCEPTION>(msg.dwException)};
     switch (exc)
     {
     case SIMCONNECT_EXCEPTION_NONE: // Should never happen
@@ -261,7 +252,7 @@ static void handleException(const SIMCONNECT_RECV_EXCEPTION& msg)
         break;
 #if MSFS_2024_SDK
     case SIMCONNECT_EXCEPTION_INTERNAL:
-        std::cerr << "An internal error has occurred.\n";
+        std::cerr << "An internal SimConnect error has occurred.\n";
         break;
 #endif
         // No default; we want an error if we miss one

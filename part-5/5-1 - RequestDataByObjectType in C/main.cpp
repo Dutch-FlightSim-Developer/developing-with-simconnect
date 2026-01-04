@@ -256,36 +256,36 @@ static void handleException(const SIMCONNECT_RECV_EXCEPTION& msg)
  * @param dataSize The size of the data.
  */
 static void hexDump(const uint8_t* data, unsigned dataSize) {
-    printf("\n\nRaw data: (%d bytes)\n\n", dataSize);
+    std::cout << std::format("\n\nRaw data: ({} bytes)\n\n", dataSize);
     unsigned count{ 0 };
 
     while (count < dataSize) {
         if ((count % 16) == 0) {
-            printf("0x%04x ", count);
+            std::cout << std::format("0x{:04x} ", count);
         }
-        printf(" 0x%02x", data[count]);
+        std::cout << std::format(" 0x{:02x}", data[count]);
         count += 1;
         if ((count % 16) == 0) {
-            printf("  ");
+            std::cout << "  ";
             for (unsigned p = count - 16; p < count; p++) {
-                printf("%c", ((data[p] < 0x20) || (data[p] > 0x7f)) ? '.' : ((char)(data[p])));
+                std::cout << static_cast<char>(((data[p] < 0x20) || (data[p] > 0x7f)) ? '.' : data[p]);
             }
-            printf("\n");
+            std::cout << '\n';
         }
     }
     if ((count % 16) != 0) {
         while ((count % 16) != 0) {
-            printf("     ");
+            std::cout << "     ";
             count++;
         }
-        printf(" ");
+        std::cout << ' ';
         for (unsigned p = count - 16; p < dataSize; p++) {
-            printf("%c", ((data[p] < 0x20) || (data[p] > 0x7f)) ? '.' : ((char)(data[p])));
+            std::cout << static_cast<char>(((data[p] < 0x20) || (data[p] > 0x7f)) ? '.' : data[p]);
         }
-        printf("\n\n");
+        std::cout << "\n\n";
     }
     else {
-        printf("\n");
+        std::cout << '\n';
     }
 }
 
@@ -301,51 +301,51 @@ static void parseUntagged([[maybe_unused]] const uint8_t* ptr, [[maybe_unused]] 
     size_t i{ 0 };
     // First item: Title
     const char* title{ toCharPtr(&(ptr[i])) };
-    printf("Aircraft title is '%s'.\n", title);
+    std::cout << std::format("Aircraft title is '{}'.\n", title);
     i += 128;
 
     // Second item: isUser
-    printf("This %s the user's aircraft.\n", (ptr[i] ? "IS" : "ISN'T"));
+    std::cout << std::format("This {} the user's aircraft.\n", (ptr[i] ? "IS" : "ISN'T"));
     i += sizeof(DWORD);
 
     // Third item: ATC Id
     const char* atcId{ toCharPtr(&(ptr[i])) };
-    printf("Aircraft ATC Id is '%s'.\n", atcId);
+    std::cout << std::format("Aircraft ATC Id is '{}'.\n", atcId);
     i += 32;
 
     // Fourth item: ATC Model
     const char* atcModelInMsg{ toCharPtr(&(ptr[i])) };
     char atcModel[32];
     strncpy_s(atcModel, atcModelInMsg, 32);
-    printf("Aircraft ATC Model is '%s'.\n", atcModel);
+    std::cout << std::format("Aircraft ATC Model is '{}'.\n", atcModel);
     i += 32;
 
     // Fifth item: Aircraft altitude Above Ground Level
     int32_t aAGL = *toIntPtr(&(ptr[i]));
-    printf("Aircraft is %d feet above ground level.\n", aAGL);
+    std::cout << std::format("Aircraft is {} feet above ground level.\n", aAGL);
     i += sizeof(int32_t);
 
     // Sixt item: Altitude
     int32_t alt = *toIntPtr(&(ptr[i]));
     if (alt == 0)
     {
-        printf("Aircraft is at sea level.\n");
+        std::cout << "Aircraft is at sea level.\n";
     }
     else if (alt > 0)
     {
-        printf("Aircraft is %d feet above sea level.\n", alt);
+        std::cout << std::format("Aircraft is {} feet above sea level.\n", alt);
     }
     else
     {
-        printf("Aircraft is %d feet below sea level.\n", -alt);
+        std::cout << std::format("Aircraft is {} feet below sea level.\n", -alt);
     }
     i += sizeof(int32_t);
 
     if (i < dataSize) {
-        printf("Skipping %d unused byte(s).\n", int(dataSize - i));
+        std::cout << std::format("Skipping {} unused byte(s).\n", int(dataSize - i));
     }
     else if (i > dataSize) {
-        printf("Not enough data!\n");
+        std::cout << "Not enough data!\n";
     }
 }
 
@@ -370,10 +370,16 @@ static void parseTagged([[maybe_unused]] const uint8_t* ptr, [[maybe_unused]] un
 
         switch (id)
         {
+        case DatumId::NoId:
+        {
+            // Most likely an alignment issue; skip
+        }
+        break;
+
         case DatumId::Title:
         {
             const char* title{ toCharPtr(&(ptr[i])) };
-            printf("Aircraft title is '%s'.\n", title);
+            std::cout << std::format("Aircraft title is '{}'.\n", title);
             i += strlen(title) + 1;
             if ((i % sizeof(DWORD)) != 0)
             {
@@ -384,7 +390,7 @@ static void parseTagged([[maybe_unused]] const uint8_t* ptr, [[maybe_unused]] un
 
         case DatumId::IsUser:
         {
-            printf("This %s the user's aircraft.\n", (ptr[i] ? "IS" : "ISN'T"));
+            std::cout << std::format("This {} the user's aircraft.\n", (ptr[i] ? "IS" : "ISN'T"));
             i += sizeof(DWORD);
         }
         break;
@@ -392,7 +398,7 @@ static void parseTagged([[maybe_unused]] const uint8_t* ptr, [[maybe_unused]] un
         case DatumId::AtcId:
         {
             const char* atcId{ toCharPtr(&(ptr[i])) };
-            printf("Aircraft ATC Id is '%s'.\n", atcId);
+            std::cout << std::format("Aircraft ATC Id is '{}'.\n", atcId);
             i += strlen(atcId) + 1;
             if ((i % sizeof(DWORD)) != 0)
             {
@@ -406,7 +412,7 @@ static void parseTagged([[maybe_unused]] const uint8_t* ptr, [[maybe_unused]] un
             const char* atcModelInMsg{ toCharPtr(&(ptr[i])) };
             char atcModel[32];
             strncpy_s(atcModel, atcModelInMsg, 32);
-            printf("Aircraft ATC Model is '%s'.\n", atcModel);
+            std::cout << std::format("Aircraft ATC Model is '{}'.\n", atcModel);
             i += 32;
         }
         break;
@@ -414,7 +420,7 @@ static void parseTagged([[maybe_unused]] const uint8_t* ptr, [[maybe_unused]] un
         case DatumId::AltAGL:
         {
             int32_t aAGL = *toIntPtr(&(ptr[i]));
-            printf("Aircraft is %d feet above ground level.\n", aAGL);
+            std::cout << std::format("Aircraft is {} feet above ground level.\n", aAGL);
             i += sizeof(int32_t);
         }
         break;
@@ -424,15 +430,15 @@ static void parseTagged([[maybe_unused]] const uint8_t* ptr, [[maybe_unused]] un
             int32_t alt = *toIntPtr(&(ptr[i]));
             if (alt == 0)
             {
-                printf("Aircraft is at sea level.\n");
+                std::cout << "Aircraft is at sea level.\n";
             }
             else if (alt > 0)
             {
-                printf("Aircraft is %d feet above sea level.\n", alt);
+                std::cout << std::format("Aircraft is {} feet above sea level.\n", alt);
             }
             else
             {
-                printf("Aircraft is %d feet below sea level.\n", -alt);
+                std::cout << std::format("Aircraft is {} feet below sea level.\n", -alt);
             }
             i += sizeof(int32_t);
         }
@@ -440,10 +446,10 @@ static void parseTagged([[maybe_unused]] const uint8_t* ptr, [[maybe_unused]] un
         }
     }
     if (i < dataSize) {
-        printf("Skipping %d unused byte(s).\n", int(dataSize - i));
+        std::cout << std::format("Skipping {} unused byte(s).\n", int(dataSize - i));
     }
     else if (i > dataSize) {
-        printf("Not enough data!\n");
+        std::cout << "Not enough data!\n";
     }
 }
 
@@ -469,13 +475,13 @@ static void handle_messages(HANDLE hEvent)
             {
                 const SIMCONNECT_RECV_OPEN* pOpen = toRecvPtr<SIMCONNECT_RECV_OPEN>(pData);
 
-                printf("Connected to '%s' version %d.%d (build %d.%d)\n",
+
+                std::cerr << std::format("[Connected to '{}' version {}.{} (build {}.{}) using SimConnect version {}.{} (build {}.{})]\n",
                     pOpen->szApplicationName,
                     pOpen->dwApplicationVersionMajor,
                     pOpen->dwApplicationVersionMinor,
                     pOpen->dwApplicationBuildMajor,
-                    pOpen->dwApplicationBuildMinor);
-                printf("  using SimConnect version %d.%d (build %d.%d)\n",
+                    pOpen->dwApplicationBuildMinor,
                     pOpen->dwSimConnectVersionMajor,
                     pOpen->dwSimConnectVersionMinor,
                     pOpen->dwSimConnectBuildMajor,
@@ -485,7 +491,7 @@ static void handle_messages(HANDLE hEvent)
 
             case SIMCONNECT_RECV_ID_QUIT:
             {
-                printf("Simulator is shutting down.\n");
+                std::cerr << "Simulator is shutting down.\n";
                 connected = false;
             }
             break;
@@ -496,22 +502,22 @@ static void handle_messages(HANDLE hEvent)
                 const SIMCONNECT_RECV_SIMOBJECT_DATA* msg = toRecvPtr<SIMCONNECT_RECV_SIMOBJECT_DATA>(pData);
 
                 if (msg->dwRequestID != reqId) {
-                    printf("Ignoring data for request %d. (this isn't ours)\n", msg->dwRequestID);
+                    std::cout << std::format("Ignoring data for request {}. (this isn't ours)\n", msg->dwRequestID);
                 }
                 else if (msg->dwDefineID != aircraftInfoId) {
-                    printf("Ignoring data for Define ID %d. (this isn't ours)\n", msg->dwDefineID);
+                    std::cout << std::format("Ignoring data for Define ID {}. (this isn't ours)\n", msg->dwDefineID);
                 }
                 else {
                     unsigned dataSize{ cbData - (4 * 10) };
-                    printf("Received SimObject data for request %d, object %d, defineId %d, %d items, entry %d out of %d, remaining message size %d bytes.\n",
+                    std::cout << std::format("Received SimObject data for request {}, object {}, defineId {}, {} items, entry {} out of {}, remaining message size {} bytes.\n",
                         msg->dwRequestID, msg->dwObjectID, msg->dwDefineID, msg->dwDefineCount,
                         msg->dwentrynumber, msg->dwoutof,
                         dataSize);
                     if (isChanged(msg)) {
-                        printf("  - Data is sent due to a change.\n");
+                        std::cout << "  - Data is sent due to a change.\n";
                     }
                     if (isTagged(msg)) {
-                        printf("  - Data is in the TAGGED format.\n");
+                        std::cout << "  - Data is in the TAGGED format.\n";
                     }
 
                     hexDump(toBytePtr(&(msg->dwData)), dataSize);
@@ -529,7 +535,7 @@ static void handle_messages(HANDLE hEvent)
             break;
 
             default:
-                printf("Ignoring message of type %d (length %d bytes)\n", pData->dwID, pData->dwSize);
+                std::cout << std::format("Ignoring message of type {} (length {} bytes)\n", pData->dwID, pData->dwSize);
                 break;
             }
         }
@@ -548,7 +554,7 @@ static int testConnect()
 {
     HANDLE hEventHandle{ ::CreateEvent(NULL, FALSE, FALSE, NULL) };
     if (hEventHandle == NULL) {
-        printf("Failed to create a Windows Event!\n");
+        std::cerr << "Failed to create a Windows Event!\n";
         return 1;
     }
 

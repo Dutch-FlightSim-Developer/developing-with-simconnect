@@ -126,9 +126,9 @@ add_subdirectory(part-2)
 add_subdirectory(part-3)
 add_subdirectory(part-4)
 add_subdirectory(part-5)
-#add_subdirectory(part-6) # Not yet working
+add_subdirectory(part-6)
 add_subdirectory(part-7)
-#add_subdirectory(part-8)
+add_subdirectory(part-8)
 add_subdirectory(part-9)
 
 

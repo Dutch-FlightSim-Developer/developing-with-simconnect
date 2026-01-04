@@ -27,6 +27,17 @@
 #include <chrono>
 #include <map>
 
+
+/**
+ * A shorthand test if we need to avoid using MSFS 2024 specific features.
+ */
+#if defined(SIMCONNECT_TYPEDEF)
+#define MSFS_2024_SDK 1     // NOLINT(cppcoreguidelines-macro-usage)
+#else
+#define MSFS_2024_SDK 0     // NOLINT(cppcoreguidelines-macro-usage)
+#endif
+
+
 using namespace std::chrono_literals;
 
 
@@ -51,17 +62,17 @@ constexpr static SIMCONNECT_CLIENT_EVENT_ID EVENT{ 2 };
 static void handleException(const SIMCONNECT_RECV_EXCEPTION& msg)
 {
 
-    printf("Received an exception type %u:\n", msg.dwException);
+    std::cout << std::format("Received an exception type {}:\n", msg.dwException);
     if (msg.dwSendID != SIMCONNECT_RECV_EXCEPTION::UNKNOWN_SENDID)
     {
-        printf("- Related to a message with SendID %u.\n", msg.dwSendID);
+        std::cout << std::format("- Related to a message with SendID {}.\n", msg.dwSendID);
     }
     if (msg.dwIndex != SIMCONNECT_RECV_EXCEPTION::UNKNOWN_INDEX)
     {
-        printf("- Regarding parameter %u.\n", msg.dwIndex);
+        std::cout << std::format("- Regarding parameter {}.\n", msg.dwIndex);
     }
 
-    const SIMCONNECT_EXCEPTION exc{ static_cast<SIMCONNECT_EXCEPTION>(msg.dwException) };
+    const SIMCONNECT_EXCEPTION exc{static_cast<SIMCONNECT_EXCEPTION>(msg.dwException)};
     switch (exc)
     {
     case SIMCONNECT_EXCEPTION_NONE: // Should never happen
@@ -178,38 +189,27 @@ static void handleException(const SIMCONNECT_RECV_EXCEPTION& msg)
     case SIMCONNECT_EXCEPTION_OBJECT_SCHEDULE:
         std::cerr << "The AI object creation failed. (scheduling issue)\n";
         break;
-#if defined(SIMCONNECT_EXCEPTION_JETWAY_DATA)
     case SIMCONNECT_EXCEPTION_JETWAY_DATA:
         std::cerr << "Requesting JetWay data failed.\n";
         break;
-#endif
-#if defined(SIMCONNECT_EXCEPTION_ACTION_NOT_FOUND)
     case SIMCONNECT_EXCEPTION_ACTION_NOT_FOUND:
         std::cerr << "The action was not found.\n";
         break;
-#endif
-#if defined(SIMCONNECT_EXCEPTION_NOT_AN_ACTION)
     case SIMCONNECT_EXCEPTION_NOT_AN_ACTION:
         std::cerr << "The action was not a valid action.\n";
         break;
-#endif
-#if defined(SIMCONNECT_EXCEPTION_INCORRECT_ACTION_PARAMS)
     case SIMCONNECT_EXCEPTION_INCORRECT_ACTION_PARAMS:
         std::cerr << "The action parameters were incorrect.\n";
         break;
-#endif
-#if defined(SIMCONNECT_EXCEPTION_GET_INPUT_EVENT_FAILED)
     case SIMCONNECT_EXCEPTION_GET_INPUT_EVENT_FAILED:
         std::cerr << "The input event name was not found. (GetInputEvent)\n";
         break;
-#endif
-#if defined(SIMCONNECT_EXCEPTION_SET_INPUT_EVENT_FAILED)
     case SIMCONNECT_EXCEPTION_SET_INPUT_EVENT_FAILED:
         std::cerr << "The input event name was not found. (SetInputEvent)\n";
         break;
-#endif
-#if defined(SIMCONNECT_EXCEPTION_INTERNAL)
+#if MSFS_2024_SDK
     case SIMCONNECT_EXCEPTION_INTERNAL:
+        std::cerr << "An internal SimConnect error has occurred.\n";
         break;
 #endif
         // No default; we want an error if we miss one

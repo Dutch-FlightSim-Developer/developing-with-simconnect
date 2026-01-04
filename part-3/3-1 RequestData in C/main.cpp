@@ -44,6 +44,15 @@
 #include <iostream>
 
 
+/**
+ * A shorthand test if we need to avoid using MSFS 2024 specific features.
+ */
+#if defined(SIMCONNECT_TYPEDEF)
+#define MSFS_2024_SDK 1     // NOLINT(cppcoreguidelines-macro-usage)
+#else
+#define MSFS_2024_SDK 0     // NOLINT(cppcoreguidelines-macro-usage)
+#endif
+
 constexpr DWORD reqId{ 1 };
 constexpr DWORD aircraftInfoId{ 1 };
 

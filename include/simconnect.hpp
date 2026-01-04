@@ -64,16 +64,12 @@ consteval SimulatorVersion getSimulatorVersion() {
 #elif !defined(SIMCONNECT_REFSTRUCT)
     // FSX didn't have SIMCONNECT_REFSTRUCT defined
     return SimulatorVersion::FSX;
+#elif defined(SIMCONNECT_TYPEDEF)
+    // MSFS 2024 SDK defines SIMCONNECT_TYPEDEF
+    return SimulatorVersion::MSFS2024;
 #else
-    if constexpr (SIMCONNECT_DATATYPE::SIMCONNECT_DATATYPE_MAX == 18) {
-        // MSFS 2024 added SIMCONNECT_DATATYPE_INT8
-        return SimulatorVersion::MSFS2024;
-    }
-    else if constexpr (SIMCONNECT_DATATYPE::SIMCONNECT_DATATYPE_MAX == 17) {
-        // Up to MSFS 2024 there were only 17 data types, excluding P3D which added several large sized numerical types
-        return SimulatorVersion::MSFS2020;
-    }
-    return SimulatorVersion::Unknown;
+    // Default to MSFS 2020 if none of the above
+    return SimulatorVersion::MSFS2020;
 #endif
 }
 

@@ -38,7 +38,7 @@
     <VCProjectVersion>17.0</VCProjectVersion>
     <Keyword>Win32Proj</Keyword>
     <ProjectGuid>{da7f4bdf-1cf5-4c71-bc60-f88f91463705}</ProjectGuid>
-    <RootNamespace>_9_4___MSFS_2024_List_airport_parkings</RootNamespace>
+    <RootNamespace>_9_4___MSFS_2024_List_Facilities_in_CXX</RootNamespace>
     <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
@@ -90,16 +90,16 @@
   </ImportGroup>
   <PropertyGroup Label="UserMacros" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
-    <TargetName>list-parkings</TargetName>
+    <TargetName>list-facilities</TargetName>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug (MSFS2020)|x64'">
-    <TargetName>list-parkings</TargetName>
+    <TargetName>list-facilities</TargetName>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug (MSFS2024)|x64'">
-    <TargetName>list-parkings</TargetName>
+    <TargetName>list-facilities</TargetName>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
-    <TargetName>list-parkings</TargetName>
+    <TargetName>list-facilities</TargetName>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <ClCompile>

@@ -246,83 +246,90 @@ inline const Recv* toRecvPtr(const void* ptr) { return reinterpret_cast<const Re
  */
 static void processMessages() {
 	while(connected) {
-		SIMCONNECT_RECV* data{ nullptr };
+		SIMCONNECT_RECV* pData{ nullptr };
 		DWORD len{ 0 };
-		HRESULT hr = SimConnect_GetNextDispatch(hSimConnect, &data, &len);
+		HRESULT hr = SimConnect_GetNextDispatch(hSimConnect, &pData, &len);
 
 		if (FAILED(hr)) {
 			break;
 		}
 
-		switch (data->dwID) {
+		switch (pData->dwID) {
 
-            case SIMCONNECT_RECV_ID_OPEN:
-            {
-                const SIMCONNECT_RECV_OPEN* pOpen = toRecvPtr<SIMCONNECT_RECV_OPEN>(pData);
-
-
-                std::cerr << std::format("[Connected to '{}' version {}.{} (build {}.{}) using SimConnect version {}.{} (build {}.{})]\n",
-                    pOpen->szApplicationName,
-                    pOpen->dwApplicationVersionMajor,
-                    pOpen->dwApplicationVersionMinor,
-                    pOpen->dwApplicationBuildMajor,
-                    pOpen->dwApplicationBuildMinor,
-                    pOpen->dwSimConnectVersionMajor,
-                    pOpen->dwSimConnectVersionMinor,
-                    pOpen->dwSimConnectBuildMajor,
-                    pOpen->dwSimConnectBuildMinor);
-            }
+        case SIMCONNECT_RECV_ID_EXCEPTION:
+        {
+            const auto& msg = *toRecvPtr<SIMCONNECT_RECV_EXCEPTION>(pData);
+            handleException(msg);
+        }
             break;
 
-            case SIMCONNECT_RECV_ID_QUIT:
-            {
-                std::cerr << "Simulator is shutting down.\n";
-                connected = false;
-            }
+        case SIMCONNECT_RECV_ID_OPEN:
+        {
+            const auto& msg = *toRecvPtr<SIMCONNECT_RECV_OPEN>(pData);
+
+
+            std::cerr << std::format("[Connected to '{}' version {}.{} (build {}.{}) using SimConnect version {}.{} (build {}.{})]\n",
+                msg.szApplicationName,
+                msg.dwApplicationVersionMajor,
+                msg.dwApplicationVersionMinor,
+                msg.dwApplicationBuildMajor,
+                msg.dwApplicationBuildMinor,
+                msg.dwSimConnectVersionMajor,
+                msg.dwSimConnectVersionMinor,
+                msg.dwSimConnectBuildMajor,
+                msg.dwSimConnectBuildMinor);
+        }
+            break;
+
+        case SIMCONNECT_RECV_ID_QUIT:
+        {
+            std::cerr << "Simulator is shutting down.\n";
+            connected = false;
+        }
             break;
 
 		case SIMCONNECT_RECV_ID_SYSTEM_STATE:		// A system state has been received
 		{
-			SIMCONNECT_RECV_SYSTEM_STATE* msg = (SIMCONNECT_RECV_SYSTEM_STATE*)data;
+			const auto& msg = *toRecvPtr<SIMCONNECT_RECV_SYSTEM_STATE>(pData);
 
-            switch (msg->dwRequestID) {
+            switch (msg.dwRequestID) {
 
             case REQ_AIRCRAFT_LOADED:
-                std::cout << std::format("AircraftLoaded: '{}'\n", msg->szString);
+                std::cout << std::format("AircraftLoaded: '{}'\n", msg.szString);
                 break;
 
             case REQ_FLIGHT_LOADED:
-                std::cout << std::format("FlightLoaded: '{}'\n", msg->szString);
+                std::cout << std::format("FlightLoaded: '{}'\n", msg.szString);
                 break;
 
             case REQ_FLIGHTPLAN_LOADED:
-                std::cout << std::format("FlightPlan: '{}'\n", msg->szString);
+                std::cout << std::format("FlightPlan: '{}'\n", msg.szString);
                 break;
 
             case REQ_DIALOG_MODE:
-                std::cout << std::format("DialogMode: {}\n", msg->dwInteger);
+                std::cout << std::format("DialogMode: {}\n", msg.dwInteger);
                 break;
 
             case REQ_SIM_STATE:
-                std::cout << std::format("Sim State: {}\n", msg->dwInteger);
+                std::cout << std::format("Sim State: {}\n", msg.dwInteger);
                 break;
 
             case REQ_SIM_LOADED:
-                std::cout << std::format("Sim Loaded: '{}'\n", msg->szString);
+                std::cout << std::format("Sim Loaded: '{}'\n", msg.szString);
                 break;
 
             default:
                 std::cerr << std::format("[Unknown systemState for request {} received. (dwInteger={}, fFloat={}, szString='{}')]\n",
-                    msg->dwRequestID, msg->dwInteger, msg->fFloat, msg->szString);
+                    msg.dwRequestID, msg.dwInteger, msg.fFloat, msg.szString);
                 break;
             }
 
 		}
-			break;
+            break;
 
 		default:
-			std::cerr << std::format("[Received an unknown message with type {}. (size {} bytes)]\n", data->dwID, len);
-			break;
+			std::cerr << std::format("[Received an unknown message with type {}. (size {} bytes)]\n", pData->dwID, len);
+            break;
 		}
 	}
 }

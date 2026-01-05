@@ -25,6 +25,10 @@
 #include <simconnect/simconnect.hpp>
 #include <simconnect/message_handler.hpp>
 
+#if !MSFS_2024_SDK
+#include <simconnect/ai/simobjects/msfs_scanner.hpp>
+#endif
+
 
 namespace SimConnect {
 
@@ -111,7 +115,10 @@ public:
             this->removeHandler(requestId);
         } };
 #else
-        simConnectMessageHandler_.connection().logger().error("SimObject and livery enumeration is not supported in this version of the SDK.");
+        AI::MSFSScanner<logger_type> scanner("SimConnect::SimObjectAndLiveryHandler", this->logger().level());
+
+        scanner.scan(simObjectType, handler);
+
         return Request{};
 #endif
     }
@@ -152,7 +159,15 @@ public:
             this->removeHandler(requestId);
         } };
 #else
-        simConnectMessageHandler_.connection().logger().error("SimObject and livery enumeration is not supported in this version of the SDK.");
+        AI::MSFSScanner<logger_type> scanner("SimConnect::SimObjectAndLiveryHandler", this->logger().level());
+
+        auto result = std::make_shared<std::map<std::string, std::set<std::string>>>();
+        scanner.scan(simObjectType, [result](std::string_view title, std::string_view livery) {
+            (*result)[std::string(title)].insert(std::string(livery));
+        });
+
+        handler(*result);
+
         return Request{};
 #endif
     }

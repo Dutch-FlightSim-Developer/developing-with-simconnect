@@ -25,13 +25,11 @@ namespace SimConnect{
 /**
  * The NullLogger class is a logger that does not log anything.
  */
-class NullLogger : public Logger<NullLogger> {
+class NullLogger : public Logger<NullLogger, LogLevel::Disabled> {
 public:
-
-
-    NullLogger() : Logger<NullLogger>("NullLogger", LogLevel::Disabled) {}
-	NullLogger(std::string name, LogLevel level = LogLevel::Disabled) : Logger<NullLogger>(name, level) {}
-	NullLogger(std::string name, NullLogger& rootLogger, LogLevel level = LogLevel::Disabled) : Logger<NullLogger>(name, rootLogger, level) {}
+    NullLogger() : Logger<NullLogger, LogLevel::Disabled>("NullLogger", LogLevel::Disabled) {}
+	NullLogger(std::string name, LogLevel level = LogLevel::Disabled) : Logger<NullLogger, LogLevel::Disabled>(name, level) {}
+	NullLogger(std::string name, NullLogger& rootLogger, LogLevel level = LogLevel::Disabled) : Logger<NullLogger, LogLevel::Disabled>(name, rootLogger, level) {}
 	NullLogger(const NullLogger&) = default;
 	NullLogger(NullLogger&&) = default;
 	NullLogger& operator=(const NullLogger&) = default;

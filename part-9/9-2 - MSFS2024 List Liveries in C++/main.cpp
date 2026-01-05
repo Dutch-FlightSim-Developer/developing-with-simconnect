@@ -326,10 +326,16 @@ auto main(int argc, const char *argv[]) -> int// NOLINT(bugprone-exception-escap
         }
     }
 
+    LogLevel logLevel{ LogLevel::Info };
+    if (args.contains("debug")) {
+        logLevel = LogLevel::Debug;
+    }
+
     // Connect to the simulator
     WindowsEventConnection<true, ConsoleLogger> connection(appName);
-    connection.logger().level(LogLevel::Debug);
+    connection.logger().level(logLevel);
     WindowsEventHandler<true, ConsoleLogger> connectionHandler(connection);
+    connectionHandler.logger().level(logLevel);
 
     connectionHandler.registerHandler<Messages::OpenMsg>(Messages::open, handleOpen);
     connectionHandler.registerHandler<Messages::QuitMsg>(Messages::quit, handleClose);
@@ -340,7 +346,8 @@ auto main(int argc, const char *argv[]) -> int// NOLINT(bugprone-exception-escap
         return 1;
     }
 
-    SimObjectAndLiveryHandler<decltype(connectionHandler)> handler(connectionHandler);
+    SimObjectAndLiveryHandler<WindowsEventHandler<true, ConsoleLogger>> handler(connectionHandler);
+    handler.logger().level(logLevel);
     bool listingDone{ false };
 
     auto request = handler.requestEnumeration(simObjectType, [&listingDone](const std::map<std::string, std::set<std::string>> &data) {
@@ -355,7 +362,7 @@ auto main(int argc, const char *argv[]) -> int// NOLINT(bugprone-exception-escap
     });
 
     static constexpr auto timeout = 30s;
-    std::cout << std::format("Listing liveries, will timeout after {} seconds...\n", timeout.count());
+    std::cerr << std::format("Listing liveries, will timeout after {} seconds...\n", timeout.count());
     connectionHandler.handleUntilOrTimeout([&listingDone]() { return listingDone; }, timeout);
     request.stop();
 

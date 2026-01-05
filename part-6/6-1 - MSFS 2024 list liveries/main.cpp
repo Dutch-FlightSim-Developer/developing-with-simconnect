@@ -301,6 +301,7 @@ static void handle_messages()
             }
             break;
 
+#if MSFS_2024_SDK
             case SIMCONNECT_RECV_ID_ENUMERATE_SIMOBJECT_AND_LIVERY_LIST:
             {
                 auto pLiveryList = toRecvPtr<SIMCONNECT_RECV_ENUMERATE_SIMOBJECT_AND_LIVERY_LIST>(pData);
@@ -326,6 +327,7 @@ static void handle_messages()
                 }
             }
             break;
+#endif
 
             default:
                 std::cerr << std::format("[Ignoring message of type {} (length {} bytes)]\n", pData->dwID, pData->dwSize);
@@ -344,16 +346,18 @@ constexpr static const SIMCONNECT_DATA_REQUEST_ID REQUEST_ID{ 1 };
 
 auto main(int argc, const char* argv[]) -> int
 {
-	SIMCONNECT_SIMOBJECT_TYPE objType = SIMCONNECT_SIMOBJECT_TYPE_ANIMAL;
+	SIMCONNECT_SIMOBJECT_TYPE objType = SIMCONNECT_SIMOBJECT_TYPE_ALL;
 
     if (argc == 2) {
         std::string arg{ argv[1] };
         if (arg == "user") {
             objType = SIMCONNECT_SIMOBJECT_TYPE_USER;
         }
+#if MSFS_2024_SDK
         else if (arg == "user-aircraft") {
             objType = SIMCONNECT_SIMOBJECT_TYPE_USER_AIRCRAFT;
         }
+#endif
         else if (arg == "all") {
             objType = SIMCONNECT_SIMOBJECT_TYPE_ALL;
         }
@@ -369,6 +373,7 @@ auto main(int argc, const char* argv[]) -> int
         else if (arg == "ground") {
             objType = SIMCONNECT_SIMOBJECT_TYPE_GROUND;
         }
+#if MSFS_2024_SDK
         else if (arg == "balloon") {
             objType = SIMCONNECT_SIMOBJECT_TYPE_HOT_AIR_BALLOON;
         }
@@ -381,6 +386,7 @@ auto main(int argc, const char* argv[]) -> int
         else if ((arg == "user-current") || (arg == "current")) {
             objType = SIMCONNECT_SIMOBJECT_TYPE_USER_CURRENT;
         }
+#endif
         else {
             std::cerr << std::format("Unknown object type '{}'. Valid types are: user, user-aircraft, all, aircraft, helicopter, boat, ground, balloon, animal, user-avatar, avatar, user-current, current.\n", arg);
             return -1;
@@ -396,7 +402,12 @@ auto main(int argc, const char* argv[]) -> int
 	}
 	std::cout << "Connected to MSFS 2024!\n";
 
+#if MSFS_2024_SDK
 	HRESULT hr = SimConnect_EnumerateSimObjectsAndLiveries(hSimConnect, REQUEST_ID, objType);
+#else
+    std::cerr << "[Livery enumeration is not supported in this version of the SDK.]\n";
+    HRESULT hr = E_NOTIMPL;
+#endif
     if (FAILED(hr)) {
         std::cerr << std::format("[Failed to request livery list: 0x{:08X}]\n", hr);
 

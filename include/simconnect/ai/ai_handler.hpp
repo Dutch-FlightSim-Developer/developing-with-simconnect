@@ -48,8 +48,17 @@ public:
     }
 
 
-    void createNonATCAircraft(Connection& connection,
-        std::string title, std::string livery, std::string tailNumber,
+    /**
+     * Creates a non-ATC aircraft in the simulator. (With livery version)
+     * 
+     * @param connection The SimConnect connection to use.
+     * @param title The title of the aircraft.
+     * @param livery The livery of the aircraft.
+     * @param tailNumber The tail number of the aircraft.
+     * @param initPos The initial position of the aircraft.
+     * @param objectIdHandler A callback function to handle the assigned object ID.
+     */
+    void createNonATCAircraft(std::string title, std::string livery, std::string tailNumber,
         Data::InitPosition initPos,
         std::function<void(unsigned long)> objectIdHandler)
     {
@@ -62,6 +71,31 @@ public:
 
         connection.createNonATCAircraft(title, livery, tailNumber, initPos, requestId);
     }
+    
+
+    /**
+     * Creates a non-ATC aircraft in the simulator. (No livery version)
+     * 
+     * @param connection The SimConnect connection to use.
+     * @param title The title of the aircraft.
+     * @param tailNumber The tail number of the aircraft.
+     * @param initPos The initial position of the aircraft.
+     * @param objectIdHandler A callback function to handle the assigned object ID.
+     */
+    void createNonATCAircraft(std::string title, std::string tailNumber,
+        Data::InitPosition initPos,
+        std::function<void(unsigned long)> objectIdHandler)
+    {
+        auto requestId = connection.requests().nextRequestID();
+
+        registerHandler(requestId, [objectIdHandler](const Messages::MsgBase& msg) {
+            auto& assigned = static_cast<const Messages::AssignedObjectIdMsg&>(msg);
+            objectIdHandler(assigned.dwObjectID);
+        }, true);
+
+        connection.createNonATCAircraft(title, tailNumber, initPos, requestId);
+    }
+
 };
 
 } // namespace SimConnect

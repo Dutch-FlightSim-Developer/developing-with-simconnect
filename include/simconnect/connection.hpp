@@ -1360,12 +1360,12 @@ public:
         if (failed()) {
           logger_.error("SimConnect_AICreateNonATCAircraft failed with error code 0x{:08X}.", state());
         } else {
-          logger_.debug("Created non-ATC aircraft '{}' with livery '{}' and tail '{}' (requestId={}, sendId={})",
+          logger_.debug("Created non-ATC aircraft '{}' and tail '{}' (requestId={}, sendId={}, livery '{}' ignored for MSFS 2020)",
             title,
-            livery,
             tailNumber,
             requestId,
-            fetchSendIdInternal());
+            fetchSendIdInternal(),
+            livery);
         }
 #endif
         return static_cast<Derived&>(*this);

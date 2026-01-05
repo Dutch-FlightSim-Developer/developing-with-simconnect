@@ -35,8 +35,6 @@ namespace SimConnect {
  * @tparam H The handler policy type.
  */
 template <class ID, class M, class D, class H, class L = NullLogger>
-    requires std::is_base_of_v<HandlerPolicy<H, M>, H>
-          && std::is_base_of_v<Logger<L>, L>
 class MessageDispatcher
 {
 public:

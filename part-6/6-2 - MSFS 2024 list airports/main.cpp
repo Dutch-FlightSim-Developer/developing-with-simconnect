@@ -490,7 +490,12 @@ auto main(int argc, const char* argv[]) -> int
     HRESULT hr{ 0 };
     switch (queryType) {
     case QueryType::All:
+#if MSFS_2024_SDK
         hr = SimConnect_RequestAllFacilities(hSimConnect, objType, REQUEST_ID);
+#else
+        std::cerr << "[Requesting all facilities is not supported in this version of the SDK.]\n";
+        hr = E_NOTIMPL;
+#endif
 		break;
     case QueryType::Bubble:
         hr = SimConnect_RequestFacilitiesList_EX1(hSimConnect, objType, REQUEST_ID);

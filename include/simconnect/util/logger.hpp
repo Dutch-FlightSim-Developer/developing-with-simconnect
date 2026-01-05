@@ -56,7 +56,7 @@ constexpr const char* LogLevelNames[] = {
  * It supports different log levels and can be configured to log to different outputs.
  * Non-root loggers delegate to their root logger while preserving name information.
  */
-template <class logger_type>
+template <class logger_type, LogLevel MinimalLevel = LogLevel::Init>
 class Logger {
     std::string name_;
     LogLevel level_{ LogLevel::Info };
@@ -90,12 +90,12 @@ public:
         return rootLogger_; 
     }
 
-    inline bool isTraceEnabled() { return level() <= LogLevel::Trace; }
-    inline bool isDebugEnabled() { return level() <= LogLevel::Debug; }
-    inline bool isInfoEnabled() { return level() <= LogLevel::Info; }
-    inline bool isWarnEnabled() { return level() <= LogLevel::Warn; }
-    inline bool isErrorEnabled() { return level() <= LogLevel::Error; }
-    inline bool isFatalEnabled() { return level() <= LogLevel::Fatal; }
+    inline bool isTraceEnabled() { return (MinimalLevel <= LogLevel::Trace) && (level() <= LogLevel::Trace); }
+    inline bool isDebugEnabled() { return (MinimalLevel <= LogLevel::Debug) && (level() <= LogLevel::Debug); }
+    inline bool isInfoEnabled() { return (MinimalLevel <= LogLevel::Info) && (level() <= LogLevel::Info); }
+    inline bool isWarnEnabled() { return (MinimalLevel <= LogLevel::Warn) && (level() <= LogLevel::Warn); }
+    inline bool isErrorEnabled() { return (MinimalLevel <= LogLevel::Error) && (level() <= LogLevel::Error); }
+    inline bool isFatalEnabled() { return (MinimalLevel <= LogLevel::Fatal) && (level() <= LogLevel::Fatal); }
 
 
     /**
@@ -106,8 +106,8 @@ public:
      * @param level The log level of the message.
      * @param message The message to log.
      */
-    void doLog(const std::string& loggerName, LogLevel level, const std::string& message) {
-        static_cast<logger_type*>(this)->doLog(loggerName, level, message);
+    void doLog(const std::string& loggerName, LogLevel logLevel, const std::string& message) {
+        static_cast<logger_type*>(this)->doLog(loggerName, logLevel, message);
     }
 
 
@@ -119,14 +119,16 @@ public:
      * @param message The message to log.
      * @param loggerName The name of the originating logger (for delegation).
      */
-    void log(LogLevel level, const std::string& message, const std::string& loggerName = {}) {
-        if (isRootLogger()) {
-            // Root logger handles the actual logging
-            const std::string& effectiveName = loggerName.empty() ? name_ : loggerName;
-            doLog(effectiveName, level, message);
-        } else {
-            // Non-root logger delegates to root with its own name
-            rootLogger_->get().doLog(name_, level, message);
+    void log(LogLevel logLevel, const std::string& message, const std::string& loggerName = {}) {
+        if ((logLevel >= MinimalLevel) && (logLevel >= level())) {
+            if (isRootLogger()) {
+                // Root logger handles the actual logging
+                const std::string& effectiveName = loggerName.empty() ? name_ : loggerName;
+                doLog(effectiveName, logLevel, message);
+            } else {
+                // Non-root logger delegates to root with its own name
+                rootLogger_->get().doLog(name_, logLevel, message);
+            }
         }
     }
 
@@ -138,8 +140,10 @@ public:
      * @param args The arguments to format the message with.
      */
     template<typename... Args>
-    void log(LogLevel level, const std::string format, Args&&... args) {
-        log(level, std::vformat(format, std::make_format_args(args...)));
+    void log(LogLevel logLevel, const std::string format, Args&&... args) {
+        if ((logLevel >= MinimalLevel) && (logLevel >= level())) {
+            log(logLevel, std::vformat(format, std::make_format_args(args...)));
+        }
     }
 
 

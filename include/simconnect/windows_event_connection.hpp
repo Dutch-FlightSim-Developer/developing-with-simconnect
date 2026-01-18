@@ -24,6 +24,7 @@
 
 #include <simconnect/connection.hpp>
 
+#include <string_view>
 #include <chrono>
 
 
@@ -56,7 +57,7 @@ public:
 	 * Constructor.
 	 * @param name The name of the connection.
 	 */
-    WindowsEventConnection(std::string name) : Connection<WindowsEventConnection<ThreadSafe, L>, ThreadSafe, L>(name) {}
+    WindowsEventConnection(std::string_view name) : Connection<WindowsEventConnection<ThreadSafe, L>, ThreadSafe, L>(name) {}
 
 
 	/**
@@ -71,7 +72,7 @@ public:
 	 * @param name The name of the connection.
 	 * @param eventHandle The event handle to use for signalling that SIMCONNECT messages are available.
 	 */
-    WindowsEventConnection(std::string name, HANDLE eventHandle) : Connection<WindowsEventConnection<ThreadSafe, L>, ThreadSafe, L>(name), eventHandle_(eventHandle) {}
+    WindowsEventConnection(std::string_view name, HANDLE eventHandle) : Connection<WindowsEventConnection<ThreadSafe, L>, ThreadSafe, L>(name), eventHandle_(eventHandle) {}
 
     ~WindowsEventConnection() {
         if (eventHandle_ != nullptr) {

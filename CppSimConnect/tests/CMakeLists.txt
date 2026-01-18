@@ -20,20 +20,21 @@ include(GoogleTest)
 
 # Collect all test files
 file(GLOB TEST_SOURCES 
-  DataBlockTests.cpp
-  DataBlockReaderTests.cpp
-  DataBlockBuilderTests.cpp
-  TestDataDefinition.cpp
-  TestDataDefinition_Float32.cpp
-  TestDataDefinition_Float64.cpp
-  TestDataDefinition_Int32.cpp
-  TestDataDefinition_Int64.cpp
-  TestDataDefinition_TestString.cpp
-  TestDataFrequency.cpp
-  TestLogger.cpp
-  TestPeriodLimits.cpp
-  TestSimObjectType.cpp
-  TestSimpleHandler.cpp
+    DataBlockTests.cpp
+    DataBlockReaderTests.cpp
+    DataBlockBuilderTests.cpp
+    TestDataDefinition.cpp
+    TestDataDefinition_Float32.cpp
+    TestDataDefinition_Float64.cpp
+    TestDataDefinition_Int32.cpp
+    TestDataDefinition_Int64.cpp
+    TestDataDefinition_TestString.cpp
+    TestDataFrequency.cpp
+    TestLogger.cpp
+    TestPeriodLimits.cpp
+    TestSimObjectType.cpp
+    TestSimpleHandler.cpp
+    SimObjectRepositoryTests.cpp
 )
 
 # Create test executable

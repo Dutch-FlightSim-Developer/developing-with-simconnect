@@ -19,6 +19,7 @@
 #include <map>
 #include <set>
 #include <ranges>
+#include <span>
 #include <regex>
 #include <string>
 #include <string_view>
@@ -33,6 +34,7 @@
 
 #include <simconnect/util/console_logger.hpp>
 #include <simconnect/util/logger.hpp>
+#include <simconnect/util/args.hpp>
 
 #include <simconnect/windows_event_connection.hpp>
 using ThisConnection = SimConnect::WindowsEventConnection<true, SimConnect::ConsoleLogger>;
@@ -54,6 +56,7 @@ using ThisFacilityListHandler = SimConnect::FacilityListHandler<ThisConnectionHa
 
 
 using namespace SimConnect;
+using namespace std::literals::string_view_literals;
 using namespace std::chrono_literals;
 
 
@@ -252,44 +255,6 @@ static void handleException(const Messages::ExceptionMsg &msg)
     std::cerr << std::format("An unknown exception code was received: {}.\n", msg.dwException);
     break;
   }
-}
-
-
-/**
- * Gather command-line arguments into the args map.
- *
- * All commandline arguments starting with '--' are treated as flags and key-value pairs.
- * The other arguments are treated as positional arguments with keys 'Arg0', 'Arg1', etc.
- * Entry "Arg0" is always the program name.
- *
- * @param args The map to store the gathered arguments.
- * @param argc The number of command-line arguments.
- * @param argv The array of command-line argument strings.
- */
-static std::map<std::string, std::string> gatherArgs(int argc,
-  const char *argv[])// NOLINT(cppcoreguidelines-avoid-c-arrays,hicpp-avoid-c-arrays,modernize-avoid-c-arrays)
-{
-  std::map<std::string, std::string> args;
-  int fixedArg{ 0 };
-
-  args["Arg" + std::to_string(fixedArg++)] = argv[0];// NOLINT(cppcoreguidelines-pro-bounds-pointer-arithmetic)
-  for (int i = 1; i < argc; ++i) {
-    const std::string arg = argv[i];// NOLINT(cppcoreguidelines-pro-bounds-pointer-arithmetic)
-    if (arg.starts_with("--")) {
-      auto eqPos = arg.find('=');
-      if (eqPos != std::string::npos) {
-        const std::string key = arg.substr(2, eqPos - 2);
-        const std::string value = arg.substr(eqPos + 1);
-
-        args[key] = value;
-      } else {
-        args[arg.substr(2)] = "";// No value provided
-      }
-    } else {
-      args["Arg" + std::to_string(fixedArg++)] = arg;
-    }
-  }
-  return args;
 }
 
 
@@ -1148,15 +1113,20 @@ auto main(int argc, const char *argv[]) -> int// NOLINT(bugprone-exception-escap
 
     static constexpr const char *appName = "List titles and liveries";
 
-    auto args = gatherArgs(argc, argv);
+    const Util::Args args(std::span<const char*>(argv, argc));
 
-    const std::string icao = args.contains("Arg1") ? args["Arg1"] : "";
-    const std::string region = args.contains("region") ? args["region"] : "";
-    const std::string type = args.contains("type") ? args["type"] : "airport";
-    const std::string filter = args.contains("filter") ? args["filter"] : "";
+    const std::string icao(args["Arg1"]);
+    const std::string region(args["region"]);
+    const std::string filter(args["filter"]);
+
+    std::string type("airport");
+    if (args.has("type")) {
+        type = std::string(args["type"]);
+    }
+
     FacilitiesListScope scope = FacilitiesListScope::allFacilities;
-    if (args.contains("scope")) {
-        const std::string scopeStr = args["scope"];
+    if (args.has("scope")) {
+        const std::string scopeStr(args["scope"]);
         if (scopeStr == "cache") {
             scope = FacilitiesListScope::cacheOnly;
         } else if (scopeStr == "bubble") {
@@ -1169,7 +1139,7 @@ auto main(int argc, const char *argv[]) -> int// NOLINT(bugprone-exception-escap
         }
     }
 
-    const bool debug = args.contains("debug");
+    const bool debug = args.has("debug");
     const LogLevel logLevel = debug ? LogLevel::Debug : LogLevel::Info;
 
     // Connect to the simulator

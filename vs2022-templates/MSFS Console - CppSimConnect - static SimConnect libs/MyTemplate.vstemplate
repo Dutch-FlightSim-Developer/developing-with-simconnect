@@ -1,0 +1,25 @@
+<VSTemplate Version="3.0.0" xmlns="http://schemas.microsoft.com/developer/vstemplate/2005" Type="Project">
+  <TemplateData>
+    <Name>MSFS Console - CppSimConnect - statically linked SimConnect libraries</Name>
+    <Description>A C++ Windows Console app linking to SimConnect for either MSFS 2020 or 2024, using the CppSimConnect library with statically linked SimConnect libraries.</Description>
+    <ProjectType>VC</ProjectType>
+    <ProjectSubType>
+    </ProjectSubType>
+    <LanguageTag>cpp</LanguageTag>
+    <PlatformTag>windows</PlatformTag>
+    <ProjectTypeTag>console</ProjectTypeTag>
+    <SortOrder>1</SortOrder>
+    <CreateNewFolder>true</CreateNewFolder>
+    <DefaultName>MSFS Console - CppSimConnect - static SimConnect libs</DefaultName>
+    <ProvideDefaultName>true</ProvideDefaultName>
+    <LocationField>Enabled</LocationField>
+    <EnableLocationBrowseButton>true</EnableLocationBrowseButton>
+    <Icon>__TemplateIcon.png</Icon>
+  </TemplateData>
+  <TemplateContent>
+    <Project TargetFileName="MSFS Console - CppSimConnect - static SimConnect libs.vcxproj" File="MSFS Console - CppSimConnect - static SimConnect libs.vcxproj" ReplaceParameters="true">
+      <ProjectItem ReplaceParameters="false" TargetFileName="$projectname$.vcxproj.filters">MSFS Console - CppSimConnect - static SimConnect libs.vcxproj.filters</ProjectItem>
+      <ProjectItem ReplaceParameters="false" TargetFileName="main.cpp">main.cpp</ProjectItem>
+    </Project>
+  </TemplateContent>
+</VSTemplate>

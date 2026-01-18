@@ -352,7 +352,7 @@ public:
                     addTitle(resolvedCategory, title);
                     logger_.trace("Resolved and added {} '{}'", resolvedCategory, title);
                 } else {
-                    logger_.warn("Could not resolve base container '{}' for title '{}'", baseContainer, title);
+                    logger_.warn("No base container '{}' with a category for title '{}'", baseContainer, title);
                 }
             }
 

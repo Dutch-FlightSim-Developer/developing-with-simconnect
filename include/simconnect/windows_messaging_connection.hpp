@@ -22,6 +22,9 @@
 
 #pragma warning(pop)
 
+#include <string_view>
+
+
 #include <simconnect/simconnect_exception.hpp>
 #include <simconnect/connection.hpp>
 
@@ -54,7 +57,7 @@ public:
 	 * Constructor.
 	 * @param name The name of the connection.
 	 */
-	WindowsMessagingConnection(std::string name) : Connection<ThreadSafe>(name) {}
+	WindowsMessagingConnection(std::string_view name) : Connection<ThreadSafe>(name) {}
 
 	/**
 	 * Constructor, using the default client name.
@@ -69,7 +72,7 @@ public:
 	 * @param hWnd The window handle to use for the SIMCONNECT messages.
 	 * @param userMessageId The message id to use for the SIMCONNECT messages.
 	 */
-	WindowsMessagingConnection(std::string name, HWND hWnd, DWORD userMessageId) : Connection(name), hWnd_(hWnd), userMessageId_(userMessageId) {}
+	WindowsMessagingConnection(std::string_view name, HWND hWnd, DWORD userMessageId) : Connection(name), hWnd_(hWnd), userMessageId_(userMessageId) {}
 
 
 	~WindowsMessagingConnection() { }

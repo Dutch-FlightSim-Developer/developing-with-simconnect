@@ -15,6 +15,8 @@
  * limitations under the License.
  */
 
+#include <string_view>
+
 #include <simconnect/connection.hpp>
 #include <simconnect/simconnect_error.hpp>
 
@@ -39,7 +41,7 @@ public:
 	 * Constructor.
 	 * @param name The name of the connection.
 	 */
-    SimpleConnection(std::string name) : Connection<SimpleConnection<ThreadSafe>, ThreadSafe>(name) {}
+    SimpleConnection(std::string_view name) : Connection<SimpleConnection<ThreadSafe>, ThreadSafe>(name) {}
 
 
     ~SimpleConnection() {}

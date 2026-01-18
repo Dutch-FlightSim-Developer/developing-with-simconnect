@@ -175,7 +175,7 @@ protected:
 
 public:
 	Connection() : clientName_("SimConnect client") {}
-	Connection(std::string name) : clientName_(name) {}
+	Connection(std::string_view name) : clientName_(name) {}
 
 	// We don't want copied or moved Connections.
 	Connection(const Connection&) = delete;

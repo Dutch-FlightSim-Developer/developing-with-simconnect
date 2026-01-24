@@ -14,29 +14,31 @@
  * limitations under the License.
  */
 
-#include <array>
-#include <format>
-#include <functional>
+
 #include <iostream>
-#include <map>
-#include <set>
+#include <format>
 #include <string>
-
+#include <string_view>
 #include <chrono>
-
+#include <span>
 
 #include <simconnect.hpp>
 #include <simconnect/simconnect.hpp>
 
 #include <simconnect/util/console_logger.hpp>
 #include <simconnect/util/logger.hpp>
+#include <simconnect/util/args.hpp>
 
 #include <simconnect/windows_event_connection.hpp>
 using ThisConnection = SimConnect::WindowsEventConnection<true, SimConnect::ConsoleLogger>;
 #include <simconnect/windows_event_handler.hpp>
 using ThisConnectionHandler = SimConnect::WindowsEventHandler<true, SimConnect::ConsoleLogger>;
-#include <simconnect/requests/simobject_and_livery_handler.hpp>
-using ThisSimObjectAndLiveryHandler = SimConnect::SimObjectAndLiveryHandler<ThisConnectionHandler>;
+
+#include <simconnect/events/events.hpp>
+#include <simconnect/events/event_handler.hpp>
+#include <simconnect/events/input_group.hpp>
+#include <simconnect/events/notification_group.hpp>
+
 
 using namespace SimConnect;
 using namespace std::chrono_literals;
@@ -58,6 +60,7 @@ static std::string version(unsigned long major, unsigned long minor)
 /**
  * Handle the SIMCONNECT_RECV_OPEN message.
  */
+[[maybe_unused]]
 static void handleOpen(const Messages::OpenMsg &msg)
 {
   std::cout << "Connected to " << &(msg.szApplicationName[0]) << " version "
@@ -72,9 +75,8 @@ static void handleOpen(const Messages::OpenMsg &msg)
 /**
  * Handle the SIMCONNECT_RECV_QUIT message.
  */
-static void handleClose([[maybe_unused]] const Messages::QuitMsg &msg) {
-    std::cout << "Simulator shutting down.\n";
-}
+static void handleClose([[maybe_unused]] const Messages::QuitMsg &msg) { std::cout << "Simulator shutting down.\n"; }
+
 
 /**
  * Handle SimConnect Exception messages.
@@ -239,101 +241,35 @@ static void handleException(const Messages::ExceptionMsg &msg)
 
 
 /**
- * Gather command-line arguments into the args map.
- *
- * All commandline arguments starting with '--' are treated as flags and key-value pairs.
- * The other arguments are treated as positional arguments with keys 'Arg0', 'Arg1', etc.
- * Entry "Arg0" is always the program name.
- *
- * @param args The map to store the gathered arguments.
- * @param argc The number of command-line arguments.
- * @param argv The array of command-line argument strings.
+ * Set up keyboard input to toggle recording and exit the program.
  */
-static std::map<std::string, std::string> gatherArgs(int argc,
-  const char *argv[])// NOLINT(cppcoreguidelines-avoid-c-arrays,hicpp-avoid-c-arrays,modernize-avoid-c-arrays)
+template<typename EvtHandler, typename InputGroup, typename ExitHandler>
+static bool setupKeys(EvtHandler &eventHandler, InputGroup &inputGroup, ExitHandler&& onExit)
 {
-  std::map<std::string, std::string> args;
-  int fixedArg{ 0 };
+  std::cerr << "[Press the Stop key to exit the program]\n";
 
-  args["Arg" + std::to_string(fixedArg++)] = argv[0];// NOLINT(cppcoreguidelines-pro-bounds-pointer-arithmetic)
-  for (int i = 1; i < argc; ++i) {
-    const std::string arg = argv[i];// NOLINT(cppcoreguidelines-pro-bounds-pointer-arithmetic)
-    if (arg.starts_with("--")) {
-      auto eqPos = arg.find('=');
-      if (eqPos != std::string::npos) {
-        const std::string key = arg.substr(2, eqPos - 2);
-        const std::string value = arg.substr(eqPos + 1);
+  const event exit = event::get("Exit.Program");
+  inputGroup.addEvent(exit, "VK_MEDIA_STOP");
+  eventHandler.template registerEventHandler<Messages::EventMsg>(
+    exit,
+    [onExit = std::forward<ExitHandler>(onExit)]([[maybe_unused]] const Messages::EventMsg &evt) {
+        std::cerr << "[Exit key pressed]\n";
+        onExit();
+    });
 
-        args[key] = value;
-      } else {
-        args[arg.substr(2)] = "";// No value provided
-      }
-    } else {
-      args["Arg" + std::to_string(fixedArg++)] = arg;
-    }
-  }
-  return args;
+  return inputGroup;
 }
 
 
-auto main(int argc, const char *argv[]) -> int// NOLINT(bugprone-exception-escape)
+constexpr static const char* appName = "SimConnect Console Application";
+
+
+auto main([[maybe_unused]] int argc, [[maybe_unused]] const char* argv[]) -> int // NOLINT(bugprone-exception-escape)
 {
+    const Util::Args args(std::span<const char*>(argv, argc));
 
-    static constexpr const char *appName = "List titles and liveries";
-
-    auto args = gatherArgs(argc, argv);
-
-    SimObjectType simObjectType{ SimObjectTypes::aircraft };
-
-    if (args.contains("Arg1")) { // Check for object type argument
-        auto typeName = args["Arg1"];
-
-        if (typeName == "user") {
-            simObjectType = SimObjectTypes::user;
-        }
-        else if (typeName == "user-aircraft") {
-            simObjectType = SimObjectTypes::userAircraft;
-        }
-        else if (typeName == "all") {
-            simObjectType = SimObjectTypes::all;
-        }
-        else if (typeName == "aircraft") {
-            simObjectType = SimObjectTypes::aircraft;
-        }
-        else if (typeName == "helicopter") {
-            simObjectType = SimObjectTypes::helicopter;
-        }
-        else if (typeName == "boat") {
-            simObjectType = SimObjectTypes::boat;
-        }
-        else if (typeName == "ground") {
-            simObjectType = SimObjectTypes::ground;
-        }
-#if MSFS_2024_SDK
-        else if (typeName == "balloon") {
-            simObjectType = SimObjectTypes::hotAirBalloon;
-        }
-        else if (typeName == "animal") {
-            simObjectType = SimObjectTypes::animal;
-        }
-        else if ((typeName == "user-avatar") || (typeName == "avatar")) {
-            simObjectType = SimObjectTypes::userAvatar;
-        }
-        else if ((typeName == "user-current") || (typeName == "current")) {
-            simObjectType = SimObjectTypes::userCurrent;
-        }
-#endif
-        else {
-            std::cerr << std::format("Unknown object type '{}'. Valid types are: user, user-aircraft, all, aircraft, helicopter, boat, ground, balloon, animal, user-avatar, avatar, user-current, current.\n",
-                typeName);
-            return -1;
-        }
-    }
-
-    LogLevel logLevel{ LogLevel::Info };
-    if (args.contains("debug")) {
-        logLevel = LogLevel::Debug;
-    }
+    const bool debug = args.has("debug");
+    const LogLevel logLevel = debug ? LogLevel::Debug : LogLevel::Info;
 
     // Connect to the simulator
     ThisConnection connection(appName);
@@ -341,36 +277,53 @@ auto main(int argc, const char *argv[]) -> int// NOLINT(bugprone-exception-escap
     ThisConnectionHandler connectionHandler(connection);
     connectionHandler.logger().level(logLevel);
 
-    connectionHandler.registerHandler<Messages::OpenMsg>(Messages::open, handleOpen);
+    if (debug) {
+        connectionHandler.registerHandler<Messages::OpenMsg>(Messages::open, handleOpen);
+    }
     connectionHandler.registerHandler<Messages::QuitMsg>(Messages::quit, handleClose);
     connectionHandler.registerHandler<Messages::ExceptionMsg>(Messages::exception, handleException);
 
+    std::cout << "Connecting to simulator...\n";
     if (!connection.open()) {
-        std::cerr << "[ABORTING: Failed to connect to the simulator]\n";
+        std::cerr << "Failed to connect to simulator.\n";
         return 1;
     }
+    std::cout << "Connected to simulator.\n";
 
-    ThisSimObjectAndLiveryHandler handler(connectionHandler);
-    handler.logger().level(logLevel);
-    bool listingDone{ false };
+    EventHandler<WindowsEventHandler<true, ConsoleLogger>> eventHandler(connectionHandler);
 
-    auto request = handler.requestEnumeration(simObjectType, [&listingDone](const std::map<std::string, std::set<std::string>> &data) {
-        std::cout << "Received enumeration of " << data.size() << " titles.\n";
-        for (const auto &[title, liveries] : data) {
-            std::cout << "Title: " << title << " has " << liveries.size() << " livery(ies):\n";
-            for (const auto &livery : liveries) {
-                std::cout << "  Livery: " << livery << '\n';
-            }
-        }
-        listingDone = true;
-    });
+    auto inputGroup = eventHandler.createInputGroup().withHighestPriority().enable();
+    // Set up keyboard input if requested
+    if (!setupKeys(eventHandler, inputGroup, [&connection] { connection.close(); })) {
+      std::cerr << "[ABORTING: Failed to set up keyboard input]\n";
+      return 1;
+    }
 
-    static constexpr auto timeout = 30s;
-    std::cerr << std::format("Listing liveries, will timeout after {} seconds...\n", timeout.count());
-    connectionHandler.handleUntilOrTimeout([&listingDone]() { return listingDone; }, timeout);
-    request.stop();
+    auto notificationGroup = eventHandler.createNotificationGroup().withStandardPriority();
 
-    connection.close();
+    notificationGroup
+        .addEvent(event::get("FLAPS_SET"))
+        .addEvent(event::get("FLAPS_INCR"))
+        .addEvent(event::get("FLAPS_DECR"))
+        .addEvent(event::get("FLAPS_UP"))
+        .addEvent(event::get("FLAPS_DOWN"))
+        .addEvent(event::get("AXIS_FLAPS_SET"))
+        .addEvent(event::get("FLAPS_1"))
+        .addEvent(event::get("FLAPS_2"))
+        .addEvent(event::get("FLAPS_3"))
+        //.addEvent(event::get("FLAPS_4"))  // Not available in MSFS
+        .addEvent(event::get("FLAPS_CONTINUOUS_SET"))
+        .addEvent(event::get("FLAPS_CONTINUOUS_INCR"))
+        .addEvent(event::get("FLAPS_CONTINUOUS_DECR"));
 
-    return 0;
+    eventHandler.registerEventGroupHandler<Messages::EventMsg>(notificationGroup,
+        [](const Messages::EventMsg &evt) {
+            std::cout << std::format("Received flap event '{}' (ID {})\n", event::get(evt.uEventID).name(), evt.uEventID);
+        });
+
+    const auto timeout = 30s;
+    connectionHandler.handleFor(timeout);
+
+    std::cout << "Disconnected from simulator. Exiting.\n";
+	return 0;
 }

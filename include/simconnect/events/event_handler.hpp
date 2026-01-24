@@ -16,20 +16,50 @@
  */
 
 
+#include <map>
+#include <tuple>
+#include <functional>
+#include <type_traits>
+
 #include <simconnect/simconnect.hpp>
 
 #include <simconnect/message_handler.hpp>
+#include <simconnect/messaging/handler_policy.hpp>
 #include <simconnect/events/events.hpp>
+#include <simconnect/events/event_group.hpp>
+#include <simconnect/events/event_group_handler.hpp>
 
 
 namespace SimConnect {
 
 // Forward declarations to break circular dependency
-template <class M>
+template <class M, bool EnableEventGroupHandler = true>
 class NotificationGroup;
 
-template <class M>
+template <class M, bool EnableEventGroupHandler = true>
 class InputGroup;
+
+
+template <class M>
+class NoGroupHandler {
+public:
+    using simconnect_message_handler_type = M;
+    using connection_type = typename M::connection_type;
+
+
+    NoGroupHandler([[maybe_unused]] simconnect_message_handler_type& simConnectMessageHandler) {}
+    ~NoGroupHandler() = default;
+
+    template <typename EventType = Messages::EventMsg>
+    inline void registerGroupHandler([[maybe_unused]] EventGroupId groupId, 
+                             [[maybe_unused]] std::function<void(const EventType&)> handler,
+                             [[maybe_unused]] bool autoRemove = false) {
+    }
+
+
+    inline void removeGroupHandler([[maybe_unused]] EventGroupId groupId) {
+    }
+};
 
 
 /**
@@ -37,7 +67,7 @@ class InputGroup;
  * 
  * @tparam M The type of the SimConnect message handler, which must be derived from SimConnectMessageHandler.
  */
-template <class M>
+template <class M, bool EnableEventGroupHandler = true>
 class EventHandler : public MessageHandler<EventId, EventHandler<M>, M,
     Messages::event,
     Messages::eventEx1,
@@ -70,10 +100,12 @@ public:
     using connection_type = typename M::connection_type;
     using logger_type = typename M::logger_type;
 
+    using event_group_handler_type = std::conditional_t<EnableEventGroupHandler, EventGroupHandler<M>, NoGroupHandler<M>>;
+
 
 protected:
     simconnect_message_handler_type& simConnectMessageHandler_;
-
+    event_group_handler_type eventGroupHandler_;
 
 public:
     inline connection_type& connection() {
@@ -93,7 +125,7 @@ private:
 
 
 public:
-    EventHandler(simconnect_message_handler_type& handler) : Base(), simConnectMessageHandler_(handler)
+    EventHandler(simconnect_message_handler_type& handler) : Base(), simConnectMessageHandler_(handler), eventGroupHandler_(handler)
     {
         this->enable(simConnectMessageHandler_);
     }
@@ -120,7 +152,7 @@ public:
      * @returns A new NotificationGroup instance associated with this EventHandler.
      */
     [[nodiscard]]
-    NotificationGroup<M> createNotificationGroup();
+    NotificationGroup<M, EnableEventGroupHandler> createNotificationGroup();
 
 #pragma endregion
 
@@ -132,7 +164,7 @@ public:
      * @returns A new InputGroup instance associated with this EventHandler.
      */
     [[nodiscard]]
-    InputGroup<M> createInputGroup();
+    InputGroup<M, EnableEventGroupHandler> createInputGroup();
 
 #pragma endregion
 
@@ -167,6 +199,7 @@ public:
     EventHandler& registerEventHandler(EventId eventId, 
                              std::function<void(const EventType&)> handler,
                              bool autoRemove = false) {
+        this->logger().debug(std::format("Registering handler for event ID {} (autoremove={})", eventId, autoRemove));
         this->registerHandler(eventId, [handler](const Messages::MsgBase& msg) {
             handler(reinterpret_cast<const EventType&>(msg));
         }, autoRemove);
@@ -182,7 +215,40 @@ public:
      * @returns A reference to this EventHandler.
      */
     EventHandler& removeEventHandler(EventId eventId) {
+        this->logger().debug(std::format("Removing handler for event ID {}", eventId));
         this->removeHandler(eventId);
+        return *this;
+    }
+
+
+    /**
+     * Register a handler for all Evebts in a specific Notification- or Input Group.
+     * 
+     * @tparam EventType The specific event message type (Messages::EventMsg, etc.)
+     * @param groupId The group ID to register.
+     * @param handler The typed handler to call when an event in the group is received.
+     * @param autoRemove True to automatically remove the handler after it has been called.
+     * @returns A reference to this EventHandler.
+     */
+    template <typename EventType = Messages::EventMsg>
+    EventHandler& registerEventGroupHandler(EventGroupId groupId, 
+                             std::function<void(const EventType&)> handler,
+                             bool autoRemove = false) {
+        this->logger().debug(std::format("Registering group handler for event group ID {} (autoremove={})", groupId, autoRemove));
+        eventGroupHandler_.template registerGroupHandler<EventType>(groupId, handler, autoRemove);
+        return *this;
+    }
+
+
+    /**
+     * Remove a handler for all Events in a specific Notification- or Input Group.
+     * 
+     * @param groupId The group ID to remove the handler for.
+     * @returns A reference to this EventHandler.
+     */
+    EventHandler& removeEventGroupHandler(EventGroupId groupId) {
+        this->logger().debug(std::format("Removing group handler for event group ID {}", groupId));
+        eventGroupHandler_.removeGroupHandler(groupId);
         return *this;
     }
 

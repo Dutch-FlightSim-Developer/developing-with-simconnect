@@ -53,7 +53,6 @@ TEST(TestNotificationGroups, BasicGroupCreation) {
 
     // Create an event - no need to map it manually anymore!
     auto brakeEvt = event::get("Brakes");
-    EXPECT_FALSE(brakeEvt.isMapped()) << "Event should not be mapped before adding to group";
 
     // Create a notification group and add event - mapping happens automatically
     [[maybe_unused]]
@@ -63,7 +62,6 @@ TEST(TestNotificationGroups, BasicGroupCreation) {
         .addEvent(brakeEvt);
     
     EXPECT_TRUE(connection.succeeded());
-    EXPECT_TRUE(brakeEvt.isMapped()) << "Event should be automatically mapped when added to group";
 
     connection.close();
 }

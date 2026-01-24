@@ -26,13 +26,13 @@ namespace SimConnect {
  */
 class EventGroup
 {
-    inline static std::atomic_ulong nextId_{ 0 };
+    inline static std::atomic<EventGroupId> nextId_{ 0 };
 
 protected:
     EventGroup() = default;
     ~EventGroup() = default;
 
-    unsigned long nextId() {
+    EventGroupId nextId() {
         return ++nextId_;
     }
 };

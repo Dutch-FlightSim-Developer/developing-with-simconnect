@@ -37,6 +37,7 @@
 
 #include <type_traits>
 #include <mutex>
+#include <condition_variable>
 
 #if !defined(NDEBUG)
 #include <format>
@@ -63,6 +64,9 @@ public:
     explicit NoGuard(const NoMutex&) noexcept {}
 };
 
+class Nothing
+{ };
+
 
 /**
  * A SimConnect connection.
@@ -70,14 +74,18 @@ public:
  * @tparam Derived The derived connection type.
  * @tparam ThreadSafe Whether to make the connection thread-safe.
  * @tparam L The logger type.
+ * @tparam TrackMappedEvents Whether to track mapped events to prevent duplicate event mappings.
  */
-template <class Derived, bool ThreadSafe = false, class L = NullLogger>
+template <class Derived, bool ThreadSafe = false, class L = NullLogger, bool TrackMappedEvents = true>
 class Connection : public StateFullObject
 {
 public:
-	using logger_type = L;
+    using logger_type = L;
     using mutex_type = std::conditional_t<ThreadSafe, std::recursive_mutex, NoMutex>;
     using guard_type = std::conditional_t<ThreadSafe, std::lock_guard<mutex_type>, NoGuard>;
+    using lock_type = std::conditional_t<ThreadSafe, std::unique_lock<mutex_type>, NoGuard>;
+    using cv_type = std::conditional_t<ThreadSafe, std::condition_variable, Nothing>;
+    using mappedevents_set = std::conditional_t<TrackMappedEvents, std::set<EventId>, Nothing>;
 
 
     /**
@@ -92,13 +100,40 @@ public:
 
 
 private:
-    std::string clientName_;			///< The name of the client.
-	HANDLE hSimConnect_{ nullptr };		///< The SimConnect handle, if connected.
+    std::string clientName_;			                ///< The name of the client.
+	HANDLE hSimConnect_{ nullptr };		                ///< The SimConnect handle, if connected.
 
-    mutex_type mutex_;
+    logger_type logger_{ "SimConnect::Connection" };    ///< The logger for this connection.
+
+    mutex_type mutex_;                                  ///< The mutex for thread-safety.
+    cv_type dispatchCv_;                                ///< The condition variable for dispatch waiting.
+
+    mappedevents_set mappedEvents_;                     ///< The set of mapped event IDs.
 
 
-    logger_type logger_{ "SimConnect::Connection" }; ///< The logger for this connection.
+protected:
+
+    /**
+     * Waits for a notification or a timeout.
+     * 
+     * @param duration The maximum amount of time to wait.
+     */
+    inline void waitFor(std::chrono::milliseconds duration) {
+        if constexpr (ThreadSafe) {
+            lock_type lock(mutex_);
+            dispatchCv_.wait_for(lock, duration);
+        }
+    }
+
+
+    /**
+     * Notifies all waiting dispatchers.
+     */
+    inline void notifyDispatchers() {
+        if constexpr (ThreadSafe) {
+            dispatchCv_.notify_all();
+        }
+    }
 
 
 public:
@@ -129,6 +164,7 @@ public:
 protected:
 	/**
 	 * Opens the connection.
+     * NOTE: There is no call to SimConnect_Open here, as the required parameters depend on the type of connection.
 	 * 
 	 * @param hWnd The window handle to receive the user messages.
 	 * @param userMessageId The user message identifier.
@@ -184,6 +220,8 @@ public:
 	Connection& operator=(Connection&&) = delete;
 
 
+#pragma region General
+
     /**
 	 * Provides an implicit conversion to the SimConnect handle.
 	 * @returns The SimConnect handle.
@@ -222,10 +260,6 @@ public:
 
 	// Calls to SimConnect
 
-#pragma region General
-
-    // NOTE There is no call to SimConnect_Open here, as the required parameters depend on the type of connection.
-
 	/**
 	 * Closes the connection.
 	 * @throws SimConnectException if the call fails. This should only happen if the handle is invalid.
@@ -234,14 +268,17 @@ public:
         guard_type guard(mutex_);
 
         if (isOpen()) {
-			state(SimConnect_Close(hSimConnect_));
+            this->logger().info("Closing SimConnect connection '{}'.", clientName_);
+
+            state(SimConnect_Close(hSimConnect_));
 			hSimConnect_ = nullptr;
 			if (this->failed()) {
 				logger_.error("SimConnect_Close failed with error code 0x{:08X}.", state());
 			}
-            
+            notifyDispatchers();
+
             // Clear all mapped event flags to allow re-mapping on reconnect
-            event::clearAllMappedFlags();
+            mappedEvents_.clear();
 		}
         return *static_cast<Derived*>(this);
 	}
@@ -451,6 +488,8 @@ public:
 
 #pragma region Events
 
+
+public:
     /**
      * Maps a client event to a simulator event.
      * The event will be mapped using its own name.
@@ -458,18 +497,21 @@ public:
      * @param evt The event to map.
      */
     Derived& mapClientEvent(event evt) {
-        // Check if already mapped to avoid Exceptions::eventIdDuplicate (exception 9)
-        if (evt.isMapped()) {
-            logger().debug("Event '{}' (ID {}) is already mapped, skipping", evt.name(), evt.id());
-            return static_cast<Derived&>(*this);
-        }
-
         guard_type guard(mutex_);
+
+        if constexpr (TrackMappedEvents) {
+            if (mappedEvents_.contains(evt.id())) {
+                logger().debug("Event '{}' (ID {}) is already mapped, skipping", evt.name(), evt.id());
+                return static_cast<Derived&>(*this);
+            }
+        }
 
         state(SimConnect_MapClientEventToSimEvent(hSimConnect_, evt.id(), evt.name().c_str()));
         
         if (this->succeeded()) {
-            evt.setMapped();
+            if constexpr (TrackMappedEvents) {
+                mappedEvents_.insert(evt.id());
+            }
             logger_.debug("Mapped client event ID {} to sim event '{}' (sendId={})", evt.id(), evt.name(), fetchSendIdInternal());
         } else {
             logger_.error("SimConnect_MapClientEventToSimEvent failed with error code 0x{:08X}.", state());
@@ -679,7 +721,7 @@ public:
     Derived& mapInputEventToClientEvent(event evt, std::string_view inputEvent, InputGroupId groupId, bool maskable = false) {
         guard_type guard(mutex_);
 
-        state(SimConnect_MapInputEventToClientEvent_EX1(hSimConnect_, groupId, inputEvent.data(), evt.id(), SIMCONNECT_UNUSED, SIMCONNECT_UNUSED, SIMCONNECT_UNUSED, maskable));
+        state(SimConnect_MapInputEventToClientEvent_EX1(hSimConnect_, groupId, inputEvent.data(), evt.id(), 0, SIMCONNECT_UNUSED, 0, maskable ? 1 : 0));
         if (failed()) {
             logger_.error("SimConnect_MapInputEventToClientEvent_EX1 failed with error code 0x{:08X}.", state());
         } else {
@@ -704,7 +746,7 @@ public:
     Derived& mapInputEventToClientEvent(event downEvent, event upEvent, std::string_view inputEvent, InputGroupId groupId, bool maskable = false) {
         guard_type guard(mutex_);
 
-        state(SimConnect_MapInputEventToClientEvent_EX1(hSimConnect_, groupId, inputEvent.data(), downEvent.id(), 0, upEvent.id(), SIMCONNECT_UNUSED, maskable));
+        state(SimConnect_MapInputEventToClientEvent_EX1(hSimConnect_, groupId, inputEvent.data(), downEvent.id(), 0, upEvent.id(), 0, maskable ? 1 : 0));
         if (failed()) {
             logger_.error("SimConnect_MapInputEventToClientEvent_EX1 failed with error code 0x{:08X}.", state());
         } else {
@@ -728,7 +770,7 @@ public:
     Derived& mapInputEventToClientEventWithValue(event evt, unsigned long value, std::string_view inputEvent, InputGroupId groupId, bool maskable = false) {
         guard_type guard(mutex_);
 
-        state(SimConnect_MapInputEventToClientEvent_EX1(hSimConnect_, groupId, inputEvent.data(), evt.id(), value, SIMCONNECT_UNUSED, SIMCONNECT_UNUSED, maskable));
+        state(SimConnect_MapInputEventToClientEvent_EX1(hSimConnect_, groupId, inputEvent.data(), evt.id(), value, SIMCONNECT_UNUSED, 0, maskable ? 1 : 0));
         if (failed()) {
             logger_.error("SimConnect_MapInputEventToClientEvent_EX1 failed with error code 0x{:08X}.", state());
         } else {
@@ -755,7 +797,7 @@ public:
     Derived& mapInputEventToClientEventWithValue(event downEvent, unsigned long downValue, event upEvent, unsigned long upValue, std::string_view inputEvent, InputGroupId groupId, bool maskable = false) {
         guard_type guard(mutex_);
 
-        state(SimConnect_MapInputEventToClientEvent_EX1(hSimConnect_, groupId, inputEvent.data(), downEvent.id(), downValue, upEvent.id(), upValue, maskable));
+        state(SimConnect_MapInputEventToClientEvent_EX1(hSimConnect_, groupId, inputEvent.data(), downEvent.id(), downValue, upEvent.id(), upValue, maskable ? 1 : 0));
         if (failed()) {
             logger_.error("SimConnect_MapInputEventToClientEvent_EX1 failed with error code 0x{:08X}.", state());
         } else {

@@ -76,6 +76,9 @@ private:
 
     mutex_type mutex_;
 
+    std::chrono::milliseconds dispatchInterval_{ defaultDispatchInterval };
+
+    
     // No copies or moves
     SimConnectMessageHandler(const SimConnectMessageHandler&) = delete;
     SimConnectMessageHandler(SimConnectMessageHandler&&) = delete;
@@ -100,10 +103,44 @@ public:
     ~SimConnectMessageHandler() = default;
 
 
+#pragma region Accessors
+
+    /**
+     * Returns the connection associated with this handler.
+     * 
+     * @returns The connection associated with this handler.
+     */
+    [[nodiscard]]
+    C& connection() noexcept { return connection_; }
+
+
     /**
      * @returns True if the connection will be automatically closed when the handler receives a QUIT message.
      */
     bool isAutoClosing() const noexcept { return autoClosing_; }
+
+
+    /**
+     * Sets whether the connection will be automatically closed when the handler receives a QUIT message.
+     * @param autoClosing True to automatically close the connection when the handler receives a QUIT message.
+     */
+    void autoClosing(bool autoClosing) noexcept { autoClosing_ = autoClosing; }
+
+
+    /**
+     * Returns the dispatch interval.
+     * 
+     * @returns The dispatch interval.
+     */
+    std::chrono::milliseconds dispatchInterval() const noexcept { return dispatchInterval_; }
+
+
+    /**
+     * Sets the dispatch interval.
+     * 
+     * @param interval The dispatch interval to set.
+     */
+    void dispatchInterval(std::chrono::milliseconds interval) noexcept { dispatchInterval_ = interval; }
 
 
     /**
@@ -120,7 +157,9 @@ public:
         return handlers_[id];
     }
 
+#pragma endregion
 
+#pragma region Dispatching
 
     /**
      * Dispatches a SimConnect message to the correct handler.
@@ -185,24 +224,11 @@ protected:
         }
     }
 
+#pragma endregion
 
 public:
 
-    /**
-     * Returns the connection associated with this handler.
-     * 
-     * @returns The connection associated with this handler.
-     */
-    [[nodiscard]]
-    C& connection() noexcept { return connection_; }
-
-
-    /**
-     * Sets whether the connection will be automatically closed when the handler receives a QUIT message.
-     * @param autoClosing True to automatically close the connection when the handler receives a QUIT message.
-     */
-    void autoClosing(bool autoClosing) noexcept { autoClosing_ = autoClosing; }
-
+#pragma region Handler Registration
 
     /**
      * Registers a message handler for a specific message type.
@@ -250,6 +276,9 @@ public:
         return registerHandler(id, [handler](const Messages::MsgBase& msg) { handler(*reinterpret_cast<const message_type*>(&msg)); });
     }
 
+#pragma endregion
+
+#pragma region Message handling
 
     /**
      * Handles any waiting SimConnect messages. Note that dispatching will also stop if the connection is closed.
@@ -273,10 +302,20 @@ public:
      * Handles any waiting messages until the specified predicate returns true. Note handling will also stop if the connection is closed.
      * 
      * @param predicate The predicate to evaluate.
-     * @param checkInterval The interval to check the predicate, defaults to 100ms.
      */
-    void handleUntil(std::function<bool()> predicate, std::chrono::milliseconds checkInterval = defaultDispatchInterval) {
-        static_cast<M*>(this)->dispatchUntil(std::move(predicate), checkInterval);
+    void handleUntil(std::function<bool()> predicate) {
+        static_cast<M*>(this)->dispatchUntil(std::move(predicate));
+    }
+
+
+    /**
+     * Handles incoming SimConnect messages until the specified deadline is reached or the predicate returns true. Note handling will also stop if the connection is closed.
+     * 
+     * @param predicate The predicate to evaluate.
+     * @param duration The maximum duration to handle messages.
+     */
+    void handleUntilOrTimeout(std::function<bool()> predicate, std::chrono::milliseconds duration) {
+        static_cast<M*>(this)->dispatchUntilOrTimeout(std::move(predicate), duration);
     }
 
 
@@ -287,17 +326,8 @@ public:
         static_cast<M*>(this)->dispatchUntilClosed();
     }
 
+#pragma endregion
 
-    /**
-     * Handles incoming SimConnect messages until the specified deadline is reached or the predicate returns true. Note handling will also stop if the connection is closed.
-     * 
-     * @param predicate The predicate to evaluate.
-     * @param duration The maximum duration to handle messages.
-     * @param checkInterval The interval to check the predicate, defaults to 100ms.
-     */
-    void handleUntilOrTimeout(std::function<bool()> predicate, std::chrono::milliseconds duration, std::chrono::milliseconds checkInterval = defaultDispatchInterval) {
-        static_cast<M*>(this)->dispatchUntilOrTimeout(std::move(predicate), duration, checkInterval);
-    }
 };
 
-}
+} // namespace SimConnect

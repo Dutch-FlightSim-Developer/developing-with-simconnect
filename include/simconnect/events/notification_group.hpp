@@ -34,10 +34,10 @@ namespace SimConnect {
  * 
  * @tparam M The type of the SimConnect message handler.
  */
-template <class M>
+template <class M, bool EnableEventGroupHandler>
 class NotificationGroup : public StateFullObject, public EventGroup {
 public:
-    using handler_type = EventHandler<M>;
+    using handler_type = EventHandler<M, EnableEventGroupHandler>;
     using connection_type = typename M::connection_type;
     using logger_type = typename M::logger_type;
     using mutex_type = typename M::mutex_type;
@@ -45,7 +45,7 @@ public:
 
 
 private:
-    EventHandler<M>& handler_;                  ///< The event handler associated with this notification group.
+    EventHandler<M, EnableEventGroupHandler>& handler_;                  ///< The event handler associated with this notification group.
     NotificationGroupId id_;                    ///< The ID of this notification group.
     std::optional<Events::Priority> priority_;  ///< The priority of this notification group.
 
@@ -83,7 +83,7 @@ public:
      * 
      * @param handler The event handler to associate with this notification group.
      */
-    NotificationGroup(EventHandler<M>& handler) : handler_(handler), id_(nextId()), priority_(std::nullopt)
+    NotificationGroup(EventHandler<M, EnableEventGroupHandler>& handler) : handler_(handler), id_(nextId()), priority_(std::nullopt)
     {
     }
 
@@ -523,9 +523,9 @@ public:
 
 // Implementation of EventHandler::createNotificationGroup()
 // This must be defined after NotificationGroup is fully defined to break circular dependency
-template <class M>
-NotificationGroup<M> EventHandler<M>::createNotificationGroup() {
-    return NotificationGroup<M>(*this);
+template <class M, bool EnableEventGroupHandler>
+NotificationGroup<M, EnableEventGroupHandler> EventHandler<M, EnableEventGroupHandler>::createNotificationGroup() {
+    return NotificationGroup<M, EnableEventGroupHandler>(*this);
 }
 
 } // namespace SimConnect

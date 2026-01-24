@@ -61,10 +61,9 @@ public:
      * Handles any waiting messages until the specified predicate returns true. Note that for the SimpleHandler, this method performs the same as dispatch().
      * 
      * @param predicate The predicate to evaluate.
-     * @param checkInterval The interval to check the predicate, defaults to 100ms.
      */
-    void dispatchUntil([[maybe_unused]]std::function<bool()> predicate, [[maybe_unused]] std::chrono::milliseconds checkInterval = defaultDispatchInterval) {
-        dispatch();
+    void dispatchUntil([[maybe_unused]]std::function<bool()> predicate) {
+        this->dispatch();
     }
 
 
@@ -73,7 +72,7 @@ public:
      * If you actually want it to wait, use the PollingHandler instead.
      */
     void dispatchUntilClosed() {
-        dispatch();
+        this->dispatch();
     }
 
 
@@ -82,10 +81,9 @@ public:
      * 
      * @param predicate The predicate to evaluate.
      * @param duration The maximum duration to handle messages.
-     * @param checkInterval The interval to check the predicate, defaults to 100ms.
      */
-    void dispatchUntilOrTimeout([[maybe_unused]] std::function<bool()> predicate, [[maybe_unused]] std::chrono::milliseconds duration, [[maybe_unused]] std::chrono::milliseconds checkInterval = defaultDispatchInterval) {
-        dispatch();
+    void dispatchUntilOrTimeout([[maybe_unused]] std::function<bool()> predicate, [[maybe_unused]] std::chrono::milliseconds duration) {
+        this->dispatch();
     }
 };
 }

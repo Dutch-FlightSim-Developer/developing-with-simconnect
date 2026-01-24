@@ -36,10 +36,10 @@ namespace SimConnect {
  * 
  * @tparam M The type of the SimConnect message handler.
  */
-template <class M>
+template <class M, bool EnableEventGroupHandler>
 class InputGroup : public StateFullObject, public EventGroup {
 public:
-    using handler_type = EventHandler<M>;
+    using handler_type = EventHandler<M, EnableEventGroupHandler>;
     using connection_type = typename M::connection_type;
     using logger_type = typename M::logger_type;
     using mutex_type = typename M::mutex_type;
@@ -47,7 +47,7 @@ public:
 
 
 private:
-    EventHandler<M>& handler_;
+    EventHandler<M, EnableEventGroupHandler>& handler_;
     InputGroupId id_;
     std::optional<Events::Priority> priority_;
 
@@ -89,7 +89,7 @@ public:
      * 
      * @param handler The event handler to associate with this input group.
      */
-    InputGroup(EventHandler<M>& handler) : handler_(handler), id_(nextId()), priority_(std::nullopt)
+    InputGroup(EventHandler<M, EnableEventGroupHandler>& handler) : handler_(handler), id_(nextId()), priority_(std::nullopt)
     {
     }
 
@@ -354,6 +354,9 @@ public:
         handler_.mapEvent(evt);
         state(handler_.connection().mapInputEventToClientEvent(evt, inputEvent, id_));
         if (succeeded()) {
+            state(handler_.connection().addClientEventToNotificationGroup(id_, evt));
+        }
+        if (succeeded()) {
             createInternal();
         }
         
@@ -365,6 +368,9 @@ public:
         // Automatically map the event if not already mapped
         handler_.mapEvent(evt);
         state(handler_.connection().mapInputEventToClientEvent(evt, inputEvent, id_));
+        if (succeeded()) {
+            state(handler_.connection().addClientEventToNotificationGroup(id_, evt));
+        }
         if (succeeded()) {
             createInternal();
         }
@@ -790,9 +796,9 @@ public:
 
 // Implementation of EventHandler::createInputGroup()
 // This must be defined after InputGroup is fully defined to break circular dependency
-template <class M>
-InputGroup<M> EventHandler<M>::createInputGroup() {
-    return InputGroup<M>(*this);
+template <class M, bool EnableEventGroupHandler>
+InputGroup<M, EnableEventGroupHandler> EventHandler<M, EnableEventGroupHandler>::createInputGroup() {
+    return InputGroup<M, EnableEventGroupHandler>(*this);
 }
 
 } // namespace SimConnect

@@ -42,7 +42,6 @@ private:
 
     inline static std::map<std::string, EventId> eventsByName_{};    ///< A static map of the events by name.
     inline static std::map<EventId, std::string> eventsById_{};      ///< A static map of the events by ID.
-    inline static std::set<EventId> mappedEvents_{};                 ///< Set of event IDs that have been mapped to SimConnect.
     
     inline static std::mutex registryMutex_;                         ///< Mutex for thread-safe access to static collections.
 
@@ -152,52 +151,6 @@ public:
             return it->second;
         }
         throw UnknownEvent(id_);
-    }
-
-
-    /**
-     * Check if this event has been mapped to SimConnect.
-     * 
-     * @returns True if the event has been mapped.
-     */
-    [[nodiscard]]
-    bool isMapped() const {
-        std::lock_guard<std::mutex> lock(registryMutex_);
-        
-        return mappedEvents_.contains(id_);
-    }
-
-
-    /**
-     * Mark this event as mapped to SimConnect.
-     * This should be called after successfully calling SimConnect_MapClientEventToSimEvent.
-     */
-    void setMapped() {
-        std::lock_guard<std::mutex> lock(registryMutex_);
-        
-        mappedEvents_.insert(id_);
-    }
-
-
-    /**
-     * Reset the mapped status of this event.
-     * This might be needed when reconnecting to SimConnect.
-     */
-    void clearMapped() {
-        std::lock_guard<std::mutex> lock(registryMutex_);
-        
-        mappedEvents_.erase(id_);
-    }
-
-
-    /**
-     * Clear all mapped status flags.
-     * This should be called when disconnecting from SimConnect to allow re-mapping on reconnect.
-     */
-    static void clearAllMappedFlags() {
-        std::lock_guard<std::mutex> lock(registryMutex_);
-        
-        mappedEvents_.clear();
     }
 
 

@@ -34,8 +34,8 @@ namespace SimConnect {
 /**
  * A SimConnect connection with support for notifications through a Windows Event.
  */
-template <bool ThreadSafe = false, class L = NullLogger>
-class WindowsEventConnection : public Connection<WindowsEventConnection<ThreadSafe, L>, ThreadSafe, L> {
+template <bool ThreadSafe = false, class L = NullLogger, bool TrackMappedEvents = true>
+class WindowsEventConnection : public Connection<WindowsEventConnection<ThreadSafe, L, TrackMappedEvents>, ThreadSafe, L, TrackMappedEvents> {
 public:
 	using logger_type = L;
 
@@ -50,14 +50,14 @@ public:
 	/**
 	 * Constructor, using the default client name.
 	 */
-    WindowsEventConnection() : eventHandle_() {}
+    WindowsEventConnection() : Connection<WindowsEventConnection<ThreadSafe, L, TrackMappedEvents>, ThreadSafe, L, TrackMappedEvents>(), eventHandle_() {}
 
 
 	/**
 	 * Constructor.
 	 * @param name The name of the connection.
 	 */
-    WindowsEventConnection(std::string_view name) : Connection<WindowsEventConnection<ThreadSafe, L>, ThreadSafe, L>(name) {}
+    WindowsEventConnection(std::string_view name) : Connection<WindowsEventConnection<ThreadSafe, L, TrackMappedEvents>, ThreadSafe, L, TrackMappedEvents>(name), eventHandle_() {}
 
 
 	/**
@@ -114,6 +114,7 @@ public:
     
 	/**
 	 * Checks if a message is available.
+     * 
 	 * @param duration The maximum amount of time to wait for a message, defaults to 0ms meaning don't wait.
 	 * @returns True if a message is available.
 	 */
@@ -123,6 +124,7 @@ public:
 
 	/**
 	 * Waits for a message to become available.
+     * 
 	 * @param duration The maximum amount of time to wait for a message, defaults to 0ms meaning wait indefinitely.
 	 * @returns True if a message is available.
 	 */

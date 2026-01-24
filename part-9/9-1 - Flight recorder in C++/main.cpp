@@ -364,7 +364,7 @@ static bool loadAircraftInfo(DataHandler& dataHandler, std::chrono::milliseconds
             haveAircraftInfo = false;
         }
     });
-    dataHandler.simConnectMessageHandler().handleUntil([&haveAircraftInfo]() { return haveAircraftInfo; }, maxDuration);
+    dataHandler.simConnectMessageHandler().dispatchUntilOrTimeout([&haveAircraftInfo]() { return haveAircraftInfo; }, maxDuration);
 
     return haveAircraftInfo;
 }

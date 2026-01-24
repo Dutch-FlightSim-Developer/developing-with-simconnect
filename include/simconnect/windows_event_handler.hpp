@@ -20,6 +20,9 @@
 #include <simconnect/simconnect_message_handler.hpp>
 #include <simconnect/windows_event_connection.hpp>
 
+#include <chrono>
+#include <functional>
+
 namespace SimConnect {
 
 
@@ -29,6 +32,7 @@ namespace SimConnect {
 template <bool ThreadSafe = false, class L = NullLogger, class M = MultiHandlerPolicy<Messages::MsgBase>>
 class WindowsEventHandler : public SimConnectMessageHandler<WindowsEventConnection<ThreadSafe, L>, WindowsEventHandler<ThreadSafe, L, M>, M>
 {
+
 public:
     using connection_type = WindowsEventConnection<ThreadSafe, L>;
     using handler_id_type = typename M::handler_id_type;
@@ -58,10 +62,11 @@ public:
     void dispatchFor(std::chrono::milliseconds duration = noWait) {
         const auto deadline = std::chrono::steady_clock::now() + duration;
         do {
-            if (this->isAutoClosing() && !this->connection_.isOpen()) {
-                break;
+            if (!this->connection_.isOpen()) {
+                this->logger().debug("Connection closed, stopping message dispatching.");
+                return;
             }
-            if (this->connection_.checkForMessage((duration == noWait) ? noWait : (std::chrono::duration_cast<std::chrono::milliseconds>(deadline - std::chrono::steady_clock::now())))) {
+            if (this->connection_.checkForMessage((duration == noWait) ? noWait : this->dispatchInterval())) {
                 this->dispatchWaitingMessages();
             }
         } while (deadline > std::chrono::steady_clock::now());
@@ -72,14 +77,14 @@ public:
      * Dispatches messages until the specified predicate returns true. Note dispatching will also stop if the connection is closed.
      *
      * @param predicate The predicate to evaluate to determine when to stop dispatching messages.
-     * @param checkInterval The interval to wait between checks of the predicate.
      */
-    void dispatchUntil(std::function<bool()> predicate, std::chrono::milliseconds checkInterval = defaultDispatchInterval) {
+    void dispatchUntil(std::function<bool()> predicate) {
         while (!predicate()) {
-            if (this->isAutoClosing() && !this->connection_.isOpen()) {
-                break;
+            if (!this->connection_.isOpen()) {
+                this->logger().debug("Connection closed, stopping message dispatching.");
+                return;
             }
-            if (this->connection_.checkForMessage(checkInterval)) {
+            if (this->connection_.checkForMessage(this->dispatchInterval())) {
                 this->dispatchWaitingMessages();
             }
         }
@@ -91,7 +96,7 @@ public:
      */
     void dispatchUntilClosed() {
         while (this->connection_.isOpen()) {
-            if (this->connection_.checkForMessage(defaultDispatchInterval)) {
+            if (this->connection_.checkForMessage(this->dispatchInterval())) {
                 this->dispatchWaitingMessages();
             }
         }
@@ -103,17 +108,17 @@ public:
      *
      * @param predicate The predicate to evaluate to determine when to stop dispatching messages.
      * @param duration The maximum duration to dispatch messages.
-     * @param checkInterval The interval to wait between checks of the predicate.
      */
-    void dispatchUntilOrTimeout(std::function<bool()> predicate, std::chrono::milliseconds duration, std::chrono::milliseconds checkInterval = defaultDispatchInterval) {
+    void dispatchUntilOrTimeout(std::function<bool()> predicate, std::chrono::milliseconds duration) {
         auto startTime = std::chrono::steady_clock::now();
         auto deadline = startTime + duration;
 
         while (!predicate() && (std::chrono::steady_clock::now() < deadline)) {
-            if (this->isAutoClosing() && !this->connection_.isOpen()) {
-                break;
+            if (!this->connection_.isOpen()) {
+                this->logger().debug("Connection closed, stopping message dispatching.");
+                return;
             }
-            if (this->connection_.checkForMessage(checkInterval)) {
+            if (this->connection_.checkForMessage(this->dispatchInterval())) {
                 this->dispatchWaitingMessages();
             }
         }

@@ -405,11 +405,17 @@ enum FacilitiesListScope {
 
 using FacilityDefinitionId = unsigned long;   ///< The type used for facility definition IDs.
 
-using EventId = unsigned long;                  ///< The type used for event IDs.
-using NotificationGroupId = unsigned long;      ///< The type used for notification group IDs.
-using InputGroupId = unsigned long;             ///< The type used for input group IDs.
+using SimConnectEventId = unsigned long;        ///< The type used for SimConnect (internal)event IDs.
+using EventId = unsigned long;                  ///< The type used for client event IDs.
+using EventGroupId = unsigned long;             ///< The type used for event group IDs.
+using NotificationGroupId = EventGroupId;       ///< The type used for notification group IDs.
+using InputGroupId = EventGroupId;              ///< The type used for input group IDs.
 
 namespace Events {
+
+    inline constexpr SimConnectEventId customEventMin{ 0x00011000 };    ///< Minimum custom event ID.
+    inline constexpr SimConnectEventId customEventMax{ 0x0001FFFF };    ///< Maximum custom event ID.
+
     using Priority = unsigned long;              ///< The type used for event priority.
 
     inline constexpr Priority highestPriority{ SIMCONNECT_GROUP_PRIORITY_HIGHEST };                     ///< The highest event priority.

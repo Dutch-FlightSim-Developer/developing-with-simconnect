@@ -20,8 +20,10 @@ include(GoogleTest)
 
 # Collect all test files
 file(GLOB TEST_SOURCES 
+  live_connection.cpp
   TestBackgroundHandler.cpp
   TestConnection.cpp
+  TestEventGroupHandler.cpp
   TestEventHandler.cpp
   TestEvents.cpp
   TestMultiClient.cpp

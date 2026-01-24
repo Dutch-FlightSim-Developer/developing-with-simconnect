@@ -102,8 +102,10 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="live-tests\live_connection.cpp" />
     <ClCompile Include="live-tests\TestBackgroundHandler.cpp" />
     <ClCompile Include="live-tests\TestConnection.cpp" />
+    <ClCompile Include="live-tests\TestEventGroupHandler.cpp" />
     <ClCompile Include="live-tests\TestEventHandler.cpp" />
     <ClCompile Include="live-tests\TestEvents.cpp" />
     <ClCompile Include="live-tests\TestInputGroups.cpp" />
@@ -114,6 +116,9 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="packages.config" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="live-tests\live_connection.hpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

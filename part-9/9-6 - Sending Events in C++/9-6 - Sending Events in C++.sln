@@ -1,0 +1,31 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.14.36915.13 d17.14
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "9-6 - Sending Events in C++", "9-6 - Sending Events in C++.vcxproj", "{429E51F8-FEC4-40A6-91B5-3895C7B27040}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug (MSFS 2020)|x64 = Debug (MSFS 2020)|x64
+		Debug (MSFS 2024)|x64 = Debug (MSFS 2024)|x64
+		Release (MSFS 2020)|x64 = Release (MSFS 2020)|x64
+		Release (MSFS 2024)|x64 = Release (MSFS 2024)|x64
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{429E51F8-FEC4-40A6-91B5-3895C7B27040}.Debug (MSFS 2020)|x64.ActiveCfg = Debug (MSFS 2020)|x64
+		{429E51F8-FEC4-40A6-91B5-3895C7B27040}.Debug (MSFS 2020)|x64.Build.0 = Debug (MSFS 2020)|x64
+		{429E51F8-FEC4-40A6-91B5-3895C7B27040}.Debug (MSFS 2024)|x64.ActiveCfg = Debug (MSFS 2024)|x64
+		{429E51F8-FEC4-40A6-91B5-3895C7B27040}.Debug (MSFS 2024)|x64.Build.0 = Debug (MSFS 2024)|x64
+		{429E51F8-FEC4-40A6-91B5-3895C7B27040}.Release (MSFS 2020)|x64.ActiveCfg = Release (MSFS 2020)|x64
+		{429E51F8-FEC4-40A6-91B5-3895C7B27040}.Release (MSFS 2020)|x64.Build.0 = Release (MSFS 2020)|x64
+		{429E51F8-FEC4-40A6-91B5-3895C7B27040}.Release (MSFS 2024)|x64.ActiveCfg = Release (MSFS 2024)|x64
+		{429E51F8-FEC4-40A6-91B5-3895C7B27040}.Release (MSFS 2024)|x64.Build.0 = Release (MSFS 2024)|x64
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {ADE7728A-4CA8-4385-9871-0175DB8B60FB}
+	EndGlobalSection
+EndGlobal

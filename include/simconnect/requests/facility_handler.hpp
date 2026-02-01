@@ -99,11 +99,11 @@ public:
             const unsigned fieldId = static_cast<std::size_t>(builder.definition.fields[index]);
 
             if (!this->simConnectMessageHandler_.connection().addToFacilityDefinition(defId, Facilities::facilityFieldInfos[fieldId].name)) {
-                simConnectMessageHandler_.logger().error("Failed to add field {} ('{}') to facility definition {}.",
+                this->logger().error("Failed to add field {} ('{}') to facility definition {}.",
                                                         fieldId, Facilities::facilityFieldInfos[fieldId].name, defId);
             }
             else {
-                simConnectMessageHandler_.logger().debug("Added field {} ('{}') to facility definition {}.",
+                this->logger().debug("Added field {} ('{}') to facility definition {}.",
                                                         fieldId, Facilities::facilityFieldInfos[fieldId].name, defId);
             }
         }
@@ -129,7 +129,7 @@ public:
                                 std::function<void(const Messages::FacilityMinimalListMsg&)> onConflict = nullptr)
     {
         auto requestId = simConnectMessageHandler_.connection().requests().nextRequestID();
-        auto& logger = simConnectMessageHandler_.logger();
+        auto& logger = this->logger();
 
         this->registerHandler(requestId, [onData, onEnd, onConflict, &logger]
                               (const Messages::MsgBase& msg) {

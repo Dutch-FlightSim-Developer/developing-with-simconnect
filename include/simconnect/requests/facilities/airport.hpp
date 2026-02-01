@@ -16,20 +16,23 @@
  */
 
 #include <simconnect.hpp>
- #include <simconnect/simconnect.hpp>
- #include <simconnect/requests/facilities/facility_definition.hpp>
- #include <simconnect/requests/facilities/facility_definition_builder.hpp>
+#include <simconnect/simconnect.hpp>
+#include <simconnect/simconnect_datatypes.hpp>
 
- #include <simconnect/requests/facilities/taxi_parking.hpp>
- #include <simconnect/requests/facilities/frequency.hpp>
+#include <simconnect/requests/facilities/facility_definition.hpp>
+#include <simconnect/requests/facilities/facility_definition_builder.hpp>
+
+#include <simconnect/requests/facilities/runway.hpp>
+#include <simconnect/requests/facilities/taxi_parking.hpp>
+#include <simconnect/requests/facilities/frequency.hpp>
 
 
- #include <cstdint>
+#include <cstdint>
 
- #include <map>
- #include <array>
- #include <vector>
- #include <string_view>
+#include <map>
+#include <array>
+#include <vector>
+#include <string_view>
 
 
 namespace SimConnect::Facilities {
@@ -184,8 +187,8 @@ struct ParkingKey {
 struct AirportFacility {
     AirportData data;
 
-    // inline bool haveRunways() const noexcept { return !runways.empty(); }
-    // std::vector<RunwayFacility> runways;
+    inline bool haveRunways() const noexcept { return !runways.empty(); }
+    std::vector<RunwayData> runways;
     // inline bool haveStarts() const noexcept { return !starts.empty(); }
     // std::vector<StartFacility> starts;
     inline bool haveFrequencies() const noexcept { return !frequencies.empty(); }

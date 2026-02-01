@@ -375,7 +375,14 @@ static void printAirport(const Facilities::AirportFacility& airportFacility)
      << std::format("  Nr of approaches : {}\n", airport.nApproaches())
      << std::format("  Nr of departures : {}\n", airport.nDepartures());
 
-    
+    if (airportFacility.haveRunways()) {
+        std::cout << "  Runways:\n";
+        for (const auto& runway : airportFacility.runways) {
+            std::cout << std::format("  - Runway {} ({}): Length {}ft, Width {}ft, Surface '{}'\n",
+                runway.primaryNumber(), runway.secondaryNumber(), runway.lengthFeet(), runway.widthFeet(), runway.surfaceType());
+        }
+    }
+
     if (airportFacility.haveFrequencies()) {
         std::cout << "  Frequencies:\n";
         for (const auto& frequency : airportFacility.frequencies) {
@@ -409,6 +416,9 @@ static void listAirportDetails(ThisConnectionHandler& connectionHandler, const s
     auto builder = Facilities::Builder<BuilderSize>()
         .airport()
             .allFields()
+            .runway()
+                .allFields()
+            .end()
             .frequency()
                 .allFields()
             .end()
@@ -426,6 +436,9 @@ static void listAirportDetails(ThisConnectionHandler& connectionHandler, const s
         [&airport](const Messages::FacilityDataMsg& msg) {
             if (Facilities::AirportData::isAirportData(msg)) {
                 airport.data = Facilities::AirportData::from(msg);
+            }
+            else if (Facilities::RunwayData::isRunwayData(msg)) {
+                airport.runways.push_back(Facilities::RunwayData::from(msg));
             }
             else if (Facilities::FrequencyData::isFrequencyData(msg)) {
                 airport.frequencies.push_back(Facilities::FrequencyData::from(msg));

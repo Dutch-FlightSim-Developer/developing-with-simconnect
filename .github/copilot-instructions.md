@@ -5,13 +5,106 @@ This repository provides a structured, educational walkthrough of using the Micr
 ## Project Structure
 
 - The root contains:
-  - A **modern C++20 library** in `src/` and `include/` that abstracts away all raw SimConnect usage.
+  - A **modern C++20 library** in `CppSimConnect/src/` and `include/simconnect/` that abstracts away all raw SimConnect usage.
   - **Training materials** organized into directories named `part-*`, each corresponding to a YouTube tutorial.
     - These contain subdirectories (e.g., `2-1`, `2-2`, etc.) showing individual examples, in order of presentation.
 
 - Each example appears twice:
   - **"in C"** — raw SimConnect API (procedural style)
   - **"in C++"** — using the abstraction library (clean, idiomatic modern C++)
+
+## Build System
+
+### SDK Requirements
+- Requires MSFS 2020 or 2024 SDK with environment variables:
+  - `MSFS2020_SDK` or `MSFS_SDK` pointing to MSFS 2020 SDK root
+  - `MSFS2024_SDK` pointing to MSFS 2024 SDK root
+- Set SDK version via CMake: `-DMSFS_SDK_VERSION=2024` or `-DMSFS_SDK_VERSION=2020` (default: 2024)
+
+### CMake Configuration
+```bash
+# Configure with a preset (recommended)
+# All presets explicitly specify SDK version (2020 or 2024)
+
+# User mode presets (clean builds):
+cmake --preset windows-msvc-debug-user-mode-2024
+cmake --preset windows-msvc-release-user-mode-2024
+cmake --preset windows-clang-debug-2024
+cmake --preset windows-clang-release-2024
+
+# Developer mode presets (warnings-as-errors, debug only):
+cmake --preset windows-msvc-debug-developer-mode-2024
+cmake --preset windows-clang-debug-tests-2024
+
+# Build
+cmake --build out/build/<preset-name>
+```
+
+### Available Presets
+
+All presets explicitly specify SDK version (`-2020` or `-2024`).
+
+**MSVC Debug:**
+- `windows-msvc-debug-developer-mode-2020/2024` — Warnings-as-errors (ASAN/clang-tidy disabled due to MSVC limitations)
+- `windows-msvc-debug-user-mode-2020/2024` — Clean build, no extra tooling
+
+**MSVC Release:**
+- `windows-msvc-release-user-mode-2020/2024` — Release build, user mode only
+
+**Clang:**
+- `windows-clang-debug-2020/2024` — Debug build
+- `windows-clang-release-2020/2024` — Release build
+- `windows-clang-debug-tests-2020/2024` — Debug with tests
+- `windows-clang-release-tests-2020/2024` — Release with tests
+
+### Running Tests
+```bash
+# Run all tests
+ctest --preset test-windows-msvc-debug-developer-mode
+
+# Run specific test
+ctest --preset <test-preset> -R <test-name>
+
+# Build with tests enabled
+cmake --preset windows-clang-debug-tests -DBUILD_TESTING=ON
+```
+
+Test structure:
+- **Unit tests**: `CppSimConnect/tests/` — Pure C++ library tests (no simulator required)
+- **Live tests**: `CppSimConnect/live-tests/` — Integration tests requiring a running simulator
+
+## Architecture
+
+### Connection Hierarchy
+- `Connection` — Abstract base for all SimConnect connections
+  - `SimpleConnection` — Basic connection without event-driven messaging
+  - `WindowsEventConnection` — Uses Windows Event objects for async message signaling (preferred)
+  - `WindowsMessagingConnection` — Uses Windows message queue for MFC/Win32 apps
+
+### Message Handler Hierarchy
+- `SimConnectMessageHandler` — Base for all message dispatchers
+  - `SimpleHandler` — Manual polling with lambda/function callbacks
+  - `PollingHandler` — Polling-based dispatcher
+  - `WindowsEventHandler` — Event-driven handler (pairs with `WindowsEventConnection`, preferred)
+
+### Specialized Handlers (CRTP pattern)
+- `MessageHandler<T>` — Base template for correlation-based handlers
+  - `SystemStateHandler<T>` — Handles `RequestSystemState` responses
+  - `SimObjectDataHandler<T>` — Handles `RequestDataOnSimObject` responses
+  - `SystemEventHandler<T>` — Handles subscribed system events
+  - `EventHandler<T>` — General event subscription handler
+
+### Data Handling
+- `DataBlock` — Base for data definition structures
+  - `DataBlockReader` — Read-only view of received data
+  - `DataBlockBuilder` — Builds data definitions for transmission
+- `DataDefinitions` — Factory for creating and registering data definitions
+- `Requests` — Utility for making SimConnect data requests
+
+### Message Processing
+- `HandlerProc` — Base for message processing strategies
+  - `SimpleHandlerProc` — Single callback per message type
+  - `MultiHandlerProc` — Multiple callbacks per message type
 
 ## Code Conventions
 

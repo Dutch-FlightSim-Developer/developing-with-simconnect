@@ -1341,6 +1341,48 @@ public:
         return static_cast<Derived&>(*this);
     }
 
+
+    /**
+     * Requests Jetway data for a specific airport, with a specific jetway index.
+     * 
+     * @param requestId The request ID.
+     * @param icaoCode The ICAO code of the airport to request jetway data for.
+     * @param jetwayIndex The index of the jetway to request data for.
+     * @return The connection reference for chaining.
+     */
+    Derived& requestJetwayData(RequestId requestId, std::string_view icaoCode, int jetwayIndex) {
+        guard_type guard(mutex_);
+
+        state(SimConnect_RequestJetwayData(hSimConnect_, icaoCode.data(), 1, &jetwayIndex));
+        if (failed()) {
+            logger_.error("SimConnect_RequestJetwayData failed with error code 0x{:08X}.", state());
+        } else {
+            logger_.debug("Requested Jetway data for airport {}, jetway index {} (requestId={}, sendId={})", icaoCode, jetwayIndex, requestId, fetchSendIdInternal());
+        }
+        return static_cast<Derived&>(*this);
+    }
+
+
+    /**
+     * Requests Jetway data for a specific airport, with multiple jetway indices.
+     * 
+     * @param requestId The request ID.
+     * @param icaoCode The ICAO code of the airport to request jetway data for.
+     * @param jetwayIndices A span of jetway indices to request data for.
+     * @return The connection reference for chaining.
+     */
+    Derived& requestJetwayData(RequestId requestId, std::string_view icaoCode, std::span<const int> jetwayIndices) {
+        guard_type guard(mutex_);
+        
+        state(SimConnect_RequestJetwayData(hSimConnect_, icaoCode.data(), static_cast<unsigned long>(jetwayIndices.size()), const_cast<int*>(jetwayIndices.data())));
+        if (failed()) {
+            logger_.error("SimConnect_RequestJetwayData failed with error code 0x{:08X}.", state());
+        } else {
+            logger_.debug("Requested Jetway data for airport {}, multiple jetway indices (requestId={}, sendId={})", icaoCode, requestId, fetchSendIdInternal());
+        }
+        return static_cast<Derived&>(*this);
+    }
+
 #pragma endregion
 
 #pragma region AI

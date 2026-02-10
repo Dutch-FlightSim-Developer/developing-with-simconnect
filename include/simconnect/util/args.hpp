@@ -59,7 +59,6 @@ public:
     Args& operator=(Args&&) = default;
     ~Args() = default;
 
-
     /**
      * Check if the argument with the given key exists.
      * 
@@ -77,7 +76,7 @@ public:
      * @param key The argument key to get the value for.
      * @return The argument value if it exists, or an empty string view otherwise.
      */
-    const std::string_view& operator[](const std::string key) const {
+    std::string_view operator[](const std::string key) const {
         auto it = args_.find(key);
         if (it != args_.end()) {
             return it->second;
@@ -88,17 +87,47 @@ public:
 
 
     /**
+     * Return the number of positional arguments, excluding the programname itself.
+     * 
+     * @return The number of positional arguments.
+     */
+    size_t positionalCount() const {
+        return positionalArgs_.size() - 1;
+    }
+
+    /**
+     * Check if the positional argument with the given index exists.
+     * 
+     * @param index The positional argument index to check.
+     * @return true if the positional argument exists, false otherwise.
+     */
+    bool has(size_t index) const {
+        return index < positionalArgs_.size();
+    }
+
+
+    /**
      * Get the positional argument value for the given index.
      * 
      * @param index The positional argument index to get the value for.
      * @return The positional argument value if it exists, or an empty string view otherwise.
      */
-    const std::string_view& operator[](size_t index) const {
+    std::string_view operator[](size_t index) const {
         if (index < positionalArgs_.size()) {
             return positionalArgs_[index];
         }
         static const std::string_view empty{};
         return empty;
+    }
+
+
+    /**
+     * Get the program name (the first positional argument).
+     * 
+     * @return The program name if it exists, or an empty string view otherwise.
+     */
+    std::string_view programName() const {
+        return positionalArgs_.empty() ? std::string_view{} : positionalArgs_[0];
     }
 };
 

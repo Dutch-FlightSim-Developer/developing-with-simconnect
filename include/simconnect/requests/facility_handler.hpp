@@ -16,6 +16,11 @@
  */
 
 
+#include <span>
+#include <string>
+#include <string_view>
+#include <functional>
+
 #include <simconnect/simconnect.hpp>
 #include <simconnect/message_handler.hpp>
 #include <simconnect/requests/requests.hpp>
@@ -28,7 +33,11 @@
 namespace SimConnect {
 
 template <class M>
-class FacilityHandler : public MessageHandler<RequestId, FacilityHandler<M>, M, Messages::facilityData, Messages::facilityDataEnd, Messages::facilityMinimalList>
+class FacilityHandler
+    : public MessageHandler<RequestId, FacilityHandler<M>, M,
+                            Messages::facilityData, Messages::facilityDataEnd,
+                            Messages::facilityMinimalList,
+                            Messages::jetwayData>
 {
 public:
     using simconnect_message_handler_type = M;
@@ -48,13 +57,13 @@ private:
 
 public:
     FacilityHandler(simconnect_message_handler_type& handler, std::string loggerName = "SimConnect::FacilityHandler", LogLevel logLevel = LogLevel::Info)
-        : MessageHandler<RequestId, FacilityHandler<M>, M, Messages::facilityData, Messages::facilityDataEnd, Messages::facilityMinimalList>(std::move(loggerName), logLevel)
+        : MessageHandler<RequestId, FacilityHandler<M>, M, Messages::facilityData, Messages::facilityDataEnd, Messages::facilityMinimalList, Messages::jetwayData>(std::move(loggerName), logLevel)
         , simConnectMessageHandler_(handler)
     {
         this->enable(simConnectMessageHandler_);
     }
     FacilityHandler(simconnect_message_handler_type& handler, typename M::logger_type& parentLogger, std::string loggerName = "SimConnect::FacilityHandler", LogLevel logLevel = LogLevel::Info)
-        : MessageHandler<RequestId, FacilityHandler<M>, M, Messages::facilityData, Messages::facilityDataEnd, Messages::facilityMinimalList>(parentLogger, std::move(loggerName), logLevel)
+        : MessageHandler<RequestId, FacilityHandler<M>, M, Messages::facilityData, Messages::facilityDataEnd, Messages::facilityMinimalList, Messages::jetwayData>(parentLogger, std::move(loggerName), logLevel)
         , simConnectMessageHandler_(handler)
     {
         this->enable(simConnectMessageHandler_);
@@ -77,6 +86,9 @@ public:
 
         case Messages::facilityMinimalList:
             return reinterpret_cast<const Messages::FacilityMinimalListMsg&>(msg).dwRequestID;
+            
+        case Messages::jetwayData:
+            return reinterpret_cast<const Messages::JetwayDataMsg&>(msg).dwRequestID;
 
         default:
             break;
@@ -184,6 +196,100 @@ public:
             // No specific stop function for facility data request, so just unregister the handler
             this->removeHandler(requestId);
         } };
+    }
+
+
+    /**
+     * Requests jetway data for the specified ICAO code and jetway index.
+     * 
+     * @param icaoCode The ICAO code of the facility.
+     * @param jetwayIndex The index of the jetway.
+     * @param onData The callback to be called when jetway data is received.
+     * @param onEnd The callback to be called when the jetway data request is complete.
+     * @returns The Request object representing the jetway data request.
+     */
+    [[nodiscard]]
+    Request requestJetwayData(std::string_view icaoCode, int jetwayIndex,
+                                std::function<void(const Facilities::Jetway&)> onData = nullptr,
+                                std::function<void()> onEnd = nullptr)
+    {
+        const auto requestId = simConnectMessageHandler_.connection().requests().nextRequestID();
+        auto& logger = this->logger();
+        this->registerHandler(requestId, [onData, onEnd, &logger]
+                              (const Messages::MsgBase& msg) {
+            switch (msg.dwID) {
+            case Messages::jetwayData:
+            {
+                auto &dataMsg = reinterpret_cast<const Messages::JetwayDataMsg&>(msg);
+                if (onData) {
+                    for (size_t i = 0; i < dataMsg.dwArraySize; ++i) {
+                        logger.debug("Received jetway data message for request ID {}: icao={}, parkingIndex={}.",
+                            dataMsg.dwRequestID, &(dataMsg.rgData[i].AirportIcao[0]), dataMsg.rgData[i].ParkingIndex);
+                        onData(reinterpret_cast<const Facilities::Jetway&>(dataMsg.rgData[i]));
+                    }
+                }
+                else {
+                    logger.warn("Received jetway data message for request ID {}, but no data handler is set.", dataMsg.dwRequestID);
+                }
+            }
+                break;
+            default:
+                logger.warn("Received unexpected message ID {} for jetway data request.", msg.dwID);
+                break;
+            }
+        }, false);
+        simConnectMessageHandler_.connection().requestJetwayData(requestId, icaoCode, jetwayIndex);
+        return Request{ requestId, [this, requestId]() {
+            // No specific stop function for jetway data request, so just unregister the handler
+            this->removeHandler(requestId);
+        } };
+    }
+
+
+    /**
+    * Requests jetway data for the specified ICAO code and jetway index.
+    * 
+    * @param icaoCode The ICAO code of the facility.
+    * @param jetwayIndices The indices of the jetways.
+    * @param onData The callback to be called when jetway data is received.
+    * @param onEnd The callback to be called when the jetway data request is complete.
+    * @returns The Request object representing the jetway data request.
+    */
+    [[nodiscard]]
+    Request requestJetwayData(std::string_view icaoCode, std::span<int> jetwayIndices,
+        std::function<void(const Facilities::Jetway&)> onData = nullptr,
+        std::function<void()> onEnd = nullptr)
+    {
+        const auto requestId = simConnectMessageHandler_.connection().requests().nextRequestID();
+        auto& logger = this->logger();
+        this->registerHandler(requestId, [onData, onEnd, &logger]
+        (const Messages::MsgBase& msg) {
+                switch (msg.dwID) {
+                case Messages::jetwayData:
+                {
+                    auto &dataMsg = reinterpret_cast<const Messages::JetwayDataMsg&>(msg);
+                    if (onData) {
+                        for (size_t i = 0; i < dataMsg.dwArraySize; ++i) {
+                            logger.debug("Received jetway data message for request ID {}: icao={}, parkingIndex={}.",
+                                dataMsg.dwRequestID, &(dataMsg.rgData[i].AirportIcao[0]), dataMsg.rgData[i].ParkingIndex);
+                            onData(reinterpret_cast<const Facilities::Jetway&>(dataMsg.rgData[i]));
+                        }
+                    }
+                    else {
+                        logger.warn("Received jetway data message for request ID {}, but no data handler is set.", dataMsg.dwRequestID);
+                    }
+                }
+                break;
+                default:
+                    logger.warn("Received unexpected message ID {} for jetway data request.", msg.dwID);
+                    break;
+                }
+            }, false);
+        simConnectMessageHandler_.connection().requestJetwayData(requestId, icaoCode, jetwayIndices);
+        return Request{ requestId, [this, requestId]() {
+            // No specific stop function for jetway data request, so just unregister the handler
+            this->removeHandler(requestId);
+            } };
     }
 };
 } // namespace SimConnect

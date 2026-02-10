@@ -405,6 +405,35 @@ enum FacilitiesListScope {
 
 using FacilityDefinitionId = unsigned long;   ///< The type used for facility definition IDs.
 
+namespace Facilities {
+
+
+    enum class JetwayStatus : int {
+        Reset = 0,
+        ApproachOutside = 1,
+        ApproachDoor = 2,
+        HoodConnect = 3,
+        HoodDisconnect = 4,
+        RetractOutside = 5,
+        RetractHome = 6,
+        FullyAttached = 7,
+    };
+
+    struct Jetway {
+        std::array<char, 8> icaoCode;               ///< The ICAO code of the airport where the jetway is located.
+        int parkingIndex;                           ///< The parking index where the jetway is located.
+        DataTypes::LatLonAlt position;              ///< The position of the jetway.
+        DataTypes::PitchBankHeading orientation;    ///< The orientation of the jetway.
+        JetwayStatus state;                         ///< The state of the jetway.
+        int doorIndex;                              ///< The index of the door the jetway is connected to.
+        DataTypes::XYZ exitDoorPosition;            ///< The relative position of the exit door the jetway is connected to.
+        DataTypes::XYZ mainHandlePosition;          ///< The relative position of the main handle (IK_MainHandle), world pos, in meters.
+        DataTypes::XYZ secondaryHandlePosition;     ///< The relative position of the secondary handle (IK_SecondaryHandle), world pos, in meters.
+        DataTypes::XYZ wheelGroundLockPosition;     ///< The relative position of the wheel ground lock (IK_WheelsGroundLock), world pos, in meters.
+        SimObjectId jetwayObjectId;                 ///< The SimObject ID of the jetway.
+        SimObjectId attachedObjectId;               ///< The SimObject ID of the object currently attached to the jetway.
+    };
+}
 using SimConnectEventId = unsigned long;        ///< The type used for SimConnect (internal)event IDs.
 using EventId = unsigned long;                  ///< The type used for client event IDs.
 using EventGroupId = unsigned long;             ///< The type used for event group IDs.

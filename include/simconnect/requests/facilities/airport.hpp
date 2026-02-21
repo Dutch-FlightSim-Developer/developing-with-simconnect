@@ -188,7 +188,7 @@ struct AirportFacility {
     AirportData data;
 
     inline bool haveRunways() const noexcept { return !runways.empty(); }
-    std::vector<RunwayData> runways;
+    std::vector<RunwayFacility> runways;
     // inline bool haveStarts() const noexcept { return !starts.empty(); }
     // std::vector<StartFacility> starts;
     inline bool haveFrequencies() const noexcept { return !frequencies.empty(); }

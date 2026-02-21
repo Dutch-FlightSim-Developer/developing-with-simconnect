@@ -110,13 +110,13 @@ public:
         for (std::size_t index = 0; index < builder.definition.fieldCount; ++index) {
             const unsigned fieldId = static_cast<std::size_t>(builder.definition.fields[index]);
 
-            if (!this->simConnectMessageHandler_.connection().addToFacilityDefinition(defId, Facilities::facilityFieldInfos[fieldId].name)) {
+            if (!this->simConnectMessageHandler_.connection().addToFacilityDefinition(defId, Facilities::facilityFieldInfos[fieldId].data())) {
                 this->logger().error("Failed to add field {} ('{}') to facility definition {}.",
-                                                        fieldId, Facilities::facilityFieldInfos[fieldId].name, defId);
+                                                        fieldId, Facilities::facilityFieldInfos[fieldId], defId);
             }
             else {
                 this->logger().debug("Added field {} ('{}') to facility definition {}.",
-                                                        fieldId, Facilities::facilityFieldInfos[fieldId].name, defId);
+                                                        fieldId, Facilities::facilityFieldInfos[fieldId], defId);
             }
         }
         return defId;

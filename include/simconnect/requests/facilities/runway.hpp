@@ -19,85 +19,21 @@
  #include <simconnect/simconnect.hpp>
  #include <simconnect/requests/facilities/facility_definition.hpp>
  #include <simconnect/requests/facilities/facility_definition_builder.hpp>
+ #include <simconnect/requests/facilities/pavement.hpp>
+ #include <simconnect/requests/facilities/approach_lights.hpp>
+ #include <simconnect/requests/facilities/vasi.hpp>
 
 
  #include <cstdint>
 
  #include <array>
+ #include <optional>
  #include <string_view>
 
 
 namespace SimConnect::Facilities {
 
 #pragma pack(push, 1)
-
-
-class PavementData {
-    float length_;      // LENGTH
-    float width_;       // WIDTH
-    int32_t enable_;     // ENABLE
-
-public:
-    constexpr float length() const noexcept { return length_; }
-    constexpr float lengthMeters() const noexcept { return length_; }
-    constexpr float lengthFeet() const noexcept { return length_ * MetersToFeetFactor; }
-    constexpr float width() const noexcept { return width_; }
-    constexpr float widthMeters() const noexcept { return width_; }
-    constexpr float widthFeet() const noexcept { return width_ * MetersToFeetFactor; }
-    constexpr bool isEnabled() const noexcept { return enable_ != 0; }
-};
-
-
-class ApproachLightsData {
-    ApproachLightsSystem system_;          // SYSTEM
-    int32_t strobeCount_;    // STROBE_COUNT
-    int32_t hasEndLights_;   // HAS_END_LIGHTS
-    int32_t hasREILLights_;  // HAS_REIL_LIGHTS
-    int32_t hasTouchdownLights_; // HAS_TOUCHDOWN_LIGHTS
-    int32_t onGround_;       // ON_GROUND
-    int32_t enable_;         // ENABLE
-    float offset_;           // OFFSET
-    float spacing_;          // SPACING
-    float slope_;            // SLOPE
-
-public:
-    constexpr ApproachLightsSystem system() const noexcept { return system_; }
-    constexpr int32_t strobeCount() const noexcept { return strobeCount_; }
-    constexpr bool hasEndLights() const noexcept { return hasEndLights_ != 0; }
-    constexpr bool hasREILLights() const noexcept { return hasREILLights_ != 0; }
-    constexpr bool hasTouchdownLights() const noexcept { return hasTouchdownLights_ != 0; }
-    constexpr bool onGround() const noexcept { return onGround_ != 0; }
-    constexpr bool isEnabled() const noexcept { return enable_ != 0; }
-    constexpr float offset() const noexcept { return offset_; }
-    constexpr float spacing() const noexcept { return spacing_; }
-    constexpr float slope() const noexcept { return slope_; }
-};
-
-
-class VASIData {
-    VASIType type_;       // TYPE
-    float biasX_;      // BIAS_X
-    float biasZ_;      // BIAS_Z
-    float spacing_;    // SPACING
-    float angle_;      // ANGLE
-
-
-    static constexpr std::array<std::string_view, 14> VASITypeNames = {
-        "None", "VASI 2/1", "VASI 2/2", "VASI 2/3", "VASI 3/1", "VASI 3/2", "VASI 3/3",
-        "PAPI 2", "PAPI 4", "Tricolor", "PVASI", "TVASI", "Ball", "APAP"
-    };
-
-public:
-    constexpr VASIType typeCode() const noexcept { return type_; }
-    constexpr std::string_view type() const noexcept {
-        const auto index = static_cast<std::size_t>(type_);
-        return (index < VASITypeNames.size()) ? VASITypeNames[index] : "Invalid";
-    }
-    constexpr float biasX() const noexcept { return biasX_; }
-    constexpr float biasZ() const noexcept { return biasZ_; }
-    constexpr float spacing() const noexcept { return spacing_; }
-    constexpr float angle() const noexcept { return angle_; }
-};
 
 
 class RunwayData {
@@ -124,14 +60,6 @@ class RunwayData {
     IlsType primaryIlsType_; // PRIMARY_ILS_TYPE
     RunwayNumber primaryNumber_; // PRIMARY_NUMBER
     RunwayDesignator primaryDesignator_; // PRIMARY_DESIGNATOR
-#if MSFS_2024_SDK
-    PavementData primaryThreshold_; // PRIMARY_THRESHOLD
-    PavementData primaryBlastpad_; // PRIMARY_BLASTPAD
-    PavementData primaryOverrun_; // PRIMARY_OVERRUN
-    ApproachLightsData primaryApproachLights_; // PRIMARY_APPROACH_LIGHTS
-    VASIData primaryLeftVasi_; // PRIMARY_LEFT_VASI
-    VASIData primaryRightVasi_; // PRIMARY_RIGHT_VASI
-#endif
     std::array<char, ICAOLength> secondaryIlsIcao_; // SECONDARY_ILS_ICAO
     std::array<char, RegionLength> secondaryIlsRegion_; // SECONDARY_ILS_REGION
 #if MSFS_2024_SDK
@@ -142,14 +70,6 @@ class RunwayData {
     IlsType secondaryIlsType_; // SECONDARY_ILS_TYPE
     RunwayNumber secondaryNumber_; // SECONDARY_NUMBER
     RunwayDesignator secondaryDesignator_; // SECONDARY_DESIGNATOR
-#if MSFS_2024_SDK
-    PavementData secondaryThreshold_; // SECONDARY_THRESHOLD
-    PavementData secondaryBlastpad_; // SECONDARY_BLASTPAD
-    PavementData secondaryOverrun_; // SECONDARY_OVERRUN
-    ApproachLightsData secondaryApproachLights_; // SECONDARY_APPROACH_LIGHTS
-    VASIData secondaryLeftVasi_; // SECONDARY_LEFT_VASI
-    VASIData secondaryRightVasi_; // SECONDARY_RIGHT_VASI
-#endif
 
     static constexpr std::array<std::string_view, 46> RunwayNumberNames = {
         "",
@@ -186,11 +106,11 @@ public:
 
     constexpr float length() const noexcept { return length_; }
     constexpr float lengthMeters() const noexcept { return length_; }
-    constexpr float lengthFeet() const noexcept { return length_ * MetersToFeetFactor; }
+    constexpr float lengthFeet() const noexcept { return static_cast<float>(length_ * MetersToFeetFactor); }
 
     constexpr float width() const noexcept { return width_; }
     constexpr float widthMeters() const noexcept { return width_; }
-    constexpr float widthFeet() const noexcept { return width_ * MetersToFeetFactor; }
+    constexpr float widthFeet() const noexcept { return static_cast<float>(width_ * MetersToFeetFactor); }
 
     constexpr float patternAltitude() const noexcept { return patternAltitude_; }
     constexpr float slope() const noexcept { return slope_; }
@@ -225,14 +145,6 @@ public:
         const auto index = static_cast<std::size_t>(primaryDesignator_);
         return (index < RunwayDesignatorNames.size()) ? RunwayDesignatorNames[index] : "Invalid";
     }
-#if MSFS_2024_SDK
-    constexpr const PavementData& primaryThreshold() const noexcept { return primaryThreshold_; }
-    constexpr const PavementData& primaryBlastpad() const noexcept { return primaryBlastpad_; }
-    constexpr const PavementData& primaryOverrun() const noexcept { return primaryOverrun_; }
-    constexpr const ApproachLightsData& primaryApproachLights() const noexcept { return primaryApproachLights_; }
-    constexpr const VASIData& primaryLeftVasi() const noexcept { return primaryLeftVasi_; }
-    constexpr const VASIData& primaryRightVasi() const noexcept { return primaryRightVasi_; }
-#endif
     // Secondary runway data getters
     constexpr std::string_view secondaryIlsIcao() const noexcept { return { secondaryIlsIcao_.data(), ICAOLength }; }
     constexpr std::string_view secondaryIlsRegion() const noexcept { return { secondaryIlsRegion_.data(), RegionLength }; }
@@ -252,17 +164,34 @@ public:
         const auto index = static_cast<std::size_t>(secondaryDesignator_);
         return (index < RunwayDesignatorNames.size()) ? RunwayDesignatorNames[index] : "Invalid";
     }
-#if MSFS_2024_SDK
-    constexpr const PavementData& secondaryThreshold() const noexcept { return secondaryThreshold_; }
-    constexpr const PavementData& secondaryBlastpad() const noexcept { return secondaryBlastpad_; }
-    constexpr const PavementData& secondaryOverrun() const noexcept { return secondaryOverrun_; }
-    constexpr const ApproachLightsData& secondaryApproachLights() const noexcept { return secondaryApproachLights_; }
-    constexpr const VASIData& secondaryLeftVasi() const noexcept { return secondaryLeftVasi_; }
-    constexpr const VASIData& secondaryRightVasi() const noexcept { return secondaryRightVasi_; }
-#endif
 };
 
 #pragma pack(pop)
+
+/**
+ * A version of the RunwayData structure that includes (optionally) child data.
+ * According to MSFS SDK, the threshold/blastpad/overrun/approach lights/VASI
+ * are singleton child records, not structured fields.
+ */
+struct RunwayFacility {
+    RunwayData data;
+
+    // Primary runway child records (singleton, hence std::optional)
+    std::optional<PavementData> primaryThreshold;
+    std::optional<PavementData> primaryBlastpad;
+    std::optional<PavementData> primaryOverrun;
+    std::optional<ApproachLightsData> primaryApproachLights;
+    std::optional<VASIData> primaryLeftVasi;
+    std::optional<VASIData> primaryRightVasi;
+
+    // Secondary runway child records (singleton, hence std::optional)
+    std::optional<PavementData> secondaryThreshold;
+    std::optional<PavementData> secondaryBlastpad;
+    std::optional<PavementData> secondaryOverrun;
+    std::optional<ApproachLightsData> secondaryApproachLights;
+    std::optional<VASIData> secondaryLeftVasi;
+    std::optional<VASIData> secondaryRightVasi;
+};
 
 template <std::size_t MaxLength = 256>
 struct RunwayBuilder
@@ -277,40 +206,40 @@ struct RunwayBuilder
 
     // Children builders
     constexpr PavementBuilder<MaxLength> primaryThreshold() const {
-        return PavementBuilder<MaxLength>{ definition.push(FacilityField::pavementOpen) };
+        return PavementBuilder<MaxLength>{ definition.push(FacilityField::runwayPrimaryThresholdOpen), FacilityField::runwayPrimaryThresholdClose };
     }
     constexpr PavementBuilder<MaxLength> primaryBlastpad() const {
-        return PavementBuilder<MaxLength>{ definition.push(FacilityField::pavementOpen) };
+        return PavementBuilder<MaxLength>{ definition.push(FacilityField::runwayPrimaryBlastpadOpen), FacilityField::runwayPrimaryBlastpadClose };
     }
     constexpr PavementBuilder<MaxLength> primaryOverrun() const {
-        return PavementBuilder<MaxLength>{ definition.push(FacilityField::pavementOpen) };
+        return PavementBuilder<MaxLength>{ definition.push(FacilityField::runwayPrimaryOverrunOpen), FacilityField::runwayPrimaryOverrunClose };
     }
     constexpr ApproachLightsBuilder<MaxLength> primaryApproachLights() const {
-        return ApproachLightsBuilder<MaxLength>{ definition.push(FacilityField::approachLightsOpen) };
+        return ApproachLightsBuilder<MaxLength>{ definition.push(FacilityField::runwayPrimaryApproachLightsOpen), FacilityField::runwayPrimaryApproachLightsClose };
     }
     constexpr VasiBuilder<MaxLength> primaryLeftVasi() const {
-        return VasiBuilder<MaxLength>{ definition.push(FacilityField::vasiOpen) };
+        return VasiBuilder<MaxLength>{ definition.push(FacilityField::runwayPrimaryLeftVASIOpen), FacilityField::runwayPrimaryLeftVASIClose };
     }
     constexpr VasiBuilder<MaxLength> primaryRightVasi() const {
-        return VasiBuilder<MaxLength>{ definition.push(FacilityField::vasiOpen) };
+        return VasiBuilder<MaxLength>{ definition.push(FacilityField::runwayPrimaryRightVASIOpen), FacilityField::runwayPrimaryRightVASIClose };
     }
     constexpr PavementBuilder<MaxLength> secondaryThreshold() const {
-        return PavementBuilder<MaxLength>{ definition.push(FacilityField::pavementOpen) };
+        return PavementBuilder<MaxLength>{ definition.push(FacilityField::runwaySecondaryThresholdOpen), FacilityField::runwaySecondaryThresholdClose };
     }
     constexpr PavementBuilder<MaxLength> secondaryBlastpad() const {
-        return PavementBuilder<MaxLength>{ definition.push(FacilityField::pavementOpen) };
+        return PavementBuilder<MaxLength>{ definition.push(FacilityField::runwaySecondaryBlastpadOpen), FacilityField::runwaySecondaryBlastpadClose };
     }
     constexpr PavementBuilder<MaxLength> secondaryOverrun() const {
-        return PavementBuilder<MaxLength>{ definition.push(FacilityField::pavementOpen) };
+        return PavementBuilder<MaxLength>{ definition.push(FacilityField::runwaySecondaryOverrunOpen), FacilityField::runwaySecondaryOverrunClose };
     }
     constexpr ApproachLightsBuilder<MaxLength> secondaryApproachLights() const {
-        return ApproachLightsBuilder<MaxLength>{ definition.push(FacilityField::approachLightsOpen) };
+        return ApproachLightsBuilder<MaxLength>{ definition.push(FacilityField::runwaySecondaryApproachLightsOpen), FacilityField::runwaySecondaryApproachLightsClose };
     }
     constexpr VasiBuilder<MaxLength> secondaryLeftVasi() const {
-        return VasiBuilder<MaxLength>{ definition.push(FacilityField::vasiOpen) };
+        return VasiBuilder<MaxLength>{ definition.push(FacilityField::runwaySecondaryLeftVASIOpen), FacilityField::runwaySecondaryLeftVASIClose };
     }
     constexpr VasiBuilder<MaxLength> secondaryRightVasi() const {
-        return VasiBuilder<MaxLength>{ definition.push(FacilityField::vasiOpen) };
+        return VasiBuilder<MaxLength>{ definition.push(FacilityField::runwaySecondaryRightVASIOpen), FacilityField::runwaySecondaryRightVASIClose };
     }
 
     // Field setters
@@ -427,14 +356,6 @@ struct RunwayBuilder
                 .push(FacilityField::runwayPrimaryILSType)
                 .push(FacilityField::runwayPrimaryNumber)
                 .push(FacilityField::runwayPrimaryDesignator)
-#if MSFS_2024_SDK                                                   // These should be available!?!?
-                .push(FacilityField::runwayPrimaryThreshold)
-                .push(FacilityField::runwayPrimaryBlastpad)
-                .push(FacilityField::runwayPrimaryOverrun)
-                .push(FacilityField::runwayPrimaryApproachLights)
-                .push(FacilityField::runwayPrimaryLeftVASI)
-                .push(FacilityField::runwayPrimaryRightVASI)
-#endif
                 .push(FacilityField::runwaySecondaryILSICAO)
                 .push(FacilityField::runwaySecondaryILSRegion)
 #if MSFS_2024_SDK
@@ -445,14 +366,6 @@ struct RunwayBuilder
                 .push(FacilityField::runwaySecondaryILSType)
                 .push(FacilityField::runwaySecondaryNumber)
                 .push(FacilityField::runwaySecondaryDesignator)
-#if MSFS_2024_SDK                                                   // These should be available!?!?
-                .push(FacilityField::runwaySecondaryThreshold)
-                .push(FacilityField::runwaySecondaryBlastpad)
-                .push(FacilityField::runwaySecondaryOverrun)
-                .push(FacilityField::runwaySecondaryApproachLights)
-                .push(FacilityField::runwaySecondaryLeftVASI)
-                .push(FacilityField::runwaySecondaryRightVASI)
-#endif
         };
     }
 };

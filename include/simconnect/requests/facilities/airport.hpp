@@ -23,6 +23,7 @@
 #include <simconnect/requests/facilities/facility_definition_builder.hpp>
 
 #include <simconnect/requests/facilities/runway.hpp>
+#include <simconnect/requests/facilities/start_position.hpp>
 #include <simconnect/requests/facilities/taxi_parking.hpp>
 #include <simconnect/requests/facilities/frequency.hpp>
 

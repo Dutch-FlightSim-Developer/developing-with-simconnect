@@ -207,6 +207,9 @@ static void handleException(const SIMCONNECT_RECV_EXCEPTION& msg)
     case SIMCONNECT_EXCEPTION_INTERNAL:
         std::cerr << "An internal SimConnect error has occurred.\n";
         break;
+    case SIMCONNECT_EXCEPTION_CAMERA_API:
+        std::cerr << "An error related to the Camera API has occurred.\n";
+        break;
 #endif
         // No default; we want an error if we miss one
     }

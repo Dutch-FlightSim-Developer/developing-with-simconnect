@@ -177,20 +177,20 @@ struct RunwayFacility {
     RunwayData data;
 
     // Primary runway child records (singleton, hence std::optional)
-    std::optional<PavementData> primaryThreshold;
-    std::optional<PavementData> primaryBlastpad;
-    std::optional<PavementData> primaryOverrun;
-    std::optional<ApproachLightsData> primaryApproachLights;
-    std::optional<VASIData> primaryLeftVasi;
-    std::optional<VASIData> primaryRightVasi;
+    std::optional<PavementData> primaryThreshold{};
+    std::optional<PavementData> primaryBlastpad{};
+    std::optional<PavementData> primaryOverrun{};
+    std::optional<ApproachLightsData> primaryApproachLights{};
+    std::optional<VASIData> primaryLeftVasi{};
+    std::optional<VASIData> primaryRightVasi{};
 
     // Secondary runway child records (singleton, hence std::optional)
-    std::optional<PavementData> secondaryThreshold;
-    std::optional<PavementData> secondaryBlastpad;
-    std::optional<PavementData> secondaryOverrun;
-    std::optional<ApproachLightsData> secondaryApproachLights;
-    std::optional<VASIData> secondaryLeftVasi;
-    std::optional<VASIData> secondaryRightVasi;
+    std::optional<PavementData> secondaryThreshold{};
+    std::optional<PavementData> secondaryBlastpad{};
+    std::optional<PavementData> secondaryOverrun{};
+    std::optional<ApproachLightsData> secondaryApproachLights{};
+    std::optional<VASIData> secondaryLeftVasi{};
+    std::optional<VASIData> secondaryRightVasi{};
 };
 
 template <std::size_t MaxLength = 256>

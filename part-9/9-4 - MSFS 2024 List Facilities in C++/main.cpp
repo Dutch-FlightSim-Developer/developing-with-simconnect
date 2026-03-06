@@ -498,30 +498,42 @@ static void listAirportDetails(ThisConnectionHandler& connectionHandler, const s
                     auto& runway = airport.runways.back();
                     const auto& pavement = Facilities::PavementData::from(msg);
                     
-                    // Assign based on expected order
+                    // Assign based on expected order, but only if enabled
                     switch (expectedChildRecord) {
                         case RunwayChildRecordState::PrimaryThreshold:
-                            runway.primaryThreshold = pavement;
+                            if (pavement.isEnabled()) {
+                                runway.primaryThreshold = pavement;
+                            }
                             expectedChildRecord = RunwayChildRecordState::PrimaryBlastpad;
                             break;
                         case RunwayChildRecordState::PrimaryBlastpad:
-                            runway.primaryBlastpad = pavement;
+                            if (pavement.isEnabled()) {
+                                runway.primaryBlastpad = pavement;
+                            }
                             expectedChildRecord = RunwayChildRecordState::PrimaryOverrun;
                             break;
                         case RunwayChildRecordState::PrimaryOverrun:
-                            runway.primaryOverrun = pavement;
+                            if (pavement.isEnabled()) {
+                                runway.primaryOverrun = pavement;
+                            }
                             expectedChildRecord = RunwayChildRecordState::PrimaryApproachLights;
                             break;
                         case RunwayChildRecordState::SecondaryThreshold:
-                            runway.secondaryThreshold = pavement;
+                            if (pavement.isEnabled()) {
+                                runway.secondaryThreshold = pavement;
+                            }
                             expectedChildRecord = RunwayChildRecordState::SecondaryBlastpad;
                             break;
                         case RunwayChildRecordState::SecondaryBlastpad:
-                            runway.secondaryBlastpad = pavement;
+                            if (pavement.isEnabled()) {
+                                runway.secondaryBlastpad = pavement;
+                            }
                             expectedChildRecord = RunwayChildRecordState::SecondaryOverrun;
                             break;
                         case RunwayChildRecordState::SecondaryOverrun:
-                            runway.secondaryOverrun = pavement;
+                            if (pavement.isEnabled()) {
+                                runway.secondaryOverrun = pavement;
+                            }
                             expectedChildRecord = RunwayChildRecordState::SecondaryApproachLights;
                             break;
                         default:

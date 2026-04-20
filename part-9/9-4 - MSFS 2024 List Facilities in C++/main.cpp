@@ -49,6 +49,7 @@ using ThisFacilityListHandler = SimConnect::FacilityListHandler<ThisConnectionHa
 #include <simconnect/requests/facilities/facility_definition.hpp>
 #include <simconnect/requests/facilities/facility_definition_builder.hpp>
 #include <simconnect/requests/facilities/airport.hpp>
+#include <simconnect/requests/facilities/runway.hpp>
 #include <simconnect/requests/facilities/frequency.hpp>
 #include <simconnect/requests/facilities/taxi_parking.hpp>
 #include <simconnect/requests/facilities/vor.hpp>
@@ -450,6 +451,102 @@ enum class RunwayChildRecordState : std::uint8_t {
 
 
 /**
+ * Handle a single pavement data message, updating the runway and expected child record state.
+ *
+ * @param runway               The runway facility being built up.
+ * @param pavement             The incoming pavement data.
+ * @param expectedChildRecord  State tracking which runway child record to expect next.
+ */
+static void handlePavementData(Facilities::RunwayFacility& runway, const Facilities::PavementData& pavement, RunwayChildRecordState& expectedChildRecord)
+{
+    switch (expectedChildRecord) {
+        case RunwayChildRecordState::PrimaryThreshold:
+            if (pavement.isEnabled()) { runway.primaryThreshold = pavement; }
+            expectedChildRecord = RunwayChildRecordState::PrimaryBlastpad;
+            break;
+        case RunwayChildRecordState::PrimaryBlastpad:
+            if (pavement.isEnabled()) { runway.primaryBlastpad = pavement; }
+            expectedChildRecord = RunwayChildRecordState::PrimaryOverrun;
+            break;
+        case RunwayChildRecordState::PrimaryOverrun:
+            if (pavement.isEnabled()) { runway.primaryOverrun = pavement; }
+            expectedChildRecord = RunwayChildRecordState::PrimaryApproachLights;
+            break;
+        case RunwayChildRecordState::SecondaryThreshold:
+            if (pavement.isEnabled()) { runway.secondaryThreshold = pavement; }
+            expectedChildRecord = RunwayChildRecordState::SecondaryBlastpad;
+            break;
+        case RunwayChildRecordState::SecondaryBlastpad:
+            if (pavement.isEnabled()) { runway.secondaryBlastpad = pavement; }
+            expectedChildRecord = RunwayChildRecordState::SecondaryOverrun;
+            break;
+        case RunwayChildRecordState::SecondaryOverrun:
+            if (pavement.isEnabled()) { runway.secondaryOverrun = pavement; }
+            expectedChildRecord = RunwayChildRecordState::SecondaryApproachLights;
+            break;
+        default:
+            break;
+    }
+}
+
+
+/**
+ * Handle a single approach lights data message, updating the runway and expected child record state.
+ *
+ * @param runway               The runway facility being built up.
+ * @param lights               The incoming approach lights data.
+ * @param expectedChildRecord  State tracking which runway child record to expect next.
+ */
+static void handleApproachLightsData(Facilities::RunwayFacility& runway, const Facilities::ApproachLightsData& lights, RunwayChildRecordState& expectedChildRecord)
+{
+    switch (expectedChildRecord) {
+        case RunwayChildRecordState::PrimaryApproachLights:
+            if (lights.isEnabled()) { runway.primaryApproachLights = lights; }
+            expectedChildRecord = RunwayChildRecordState::PrimaryLeftVasi;
+            break;
+        case RunwayChildRecordState::SecondaryApproachLights:
+            if (lights.isEnabled()) { runway.secondaryApproachLights = lights; }
+            expectedChildRecord = RunwayChildRecordState::SecondaryLeftVasi;
+            break;
+        default:
+            break;
+    }
+}
+
+
+/**
+ * Handle a single VASI data message, updating the runway and expected child record state.
+ * 
+ * @param runway               The runway facility being built up.
+ * @param vasi                 The incoming VASI data.
+ * @param expectedChildRecord  State tracking which runway child record to expect next.
+ */
+static void handleVASIData(Facilities::RunwayFacility& runway, const Facilities::VASIData& vasi, RunwayChildRecordState& expectedChildRecord)
+{
+    switch (expectedChildRecord) {
+        case RunwayChildRecordState::PrimaryLeftVasi:
+            runway.primaryLeftVasi = vasi;
+            expectedChildRecord = RunwayChildRecordState::PrimaryRightVasi;
+            break;
+        case RunwayChildRecordState::PrimaryRightVasi:
+            runway.primaryRightVasi = vasi;
+            expectedChildRecord = RunwayChildRecordState::SecondaryThreshold;
+            break;
+        case RunwayChildRecordState::SecondaryLeftVasi:
+            runway.secondaryLeftVasi = vasi;
+            expectedChildRecord = RunwayChildRecordState::SecondaryRightVasi;
+            break;
+        case RunwayChildRecordState::SecondaryRightVasi:
+            runway.secondaryRightVasi = vasi;
+            expectedChildRecord = RunwayChildRecordState::None;
+            break;
+        default:
+            break;
+    }
+}
+
+
+/**
  * Handle a single facility data message, updating the airport and expected child record state.
  *
  * @param airport              The airport facility being built up.
@@ -470,79 +567,21 @@ static void handleFacilityDataMsg(Facilities::AirportFacility& airport, RunwayCh
         if (!airport.runways.empty()) {
             auto& runway = airport.runways.back();
             const auto& pavement = Facilities::PavementData::from(msg);
-            // Assign based on expected order, but only if enabled
-            switch (expectedChildRecord) {
-                case RunwayChildRecordState::PrimaryThreshold:
-                    if (pavement.isEnabled()) { runway.primaryThreshold = pavement; }
-                    expectedChildRecord = RunwayChildRecordState::PrimaryBlastpad;
-                    break;
-                case RunwayChildRecordState::PrimaryBlastpad:
-                    if (pavement.isEnabled()) { runway.primaryBlastpad = pavement; }
-                    expectedChildRecord = RunwayChildRecordState::PrimaryOverrun;
-                    break;
-                case RunwayChildRecordState::PrimaryOverrun:
-                    if (pavement.isEnabled()) { runway.primaryOverrun = pavement; }
-                    expectedChildRecord = RunwayChildRecordState::PrimaryApproachLights;
-                    break;
-                case RunwayChildRecordState::SecondaryThreshold:
-                    if (pavement.isEnabled()) { runway.secondaryThreshold = pavement; }
-                    expectedChildRecord = RunwayChildRecordState::SecondaryBlastpad;
-                    break;
-                case RunwayChildRecordState::SecondaryBlastpad:
-                    if (pavement.isEnabled()) { runway.secondaryBlastpad = pavement; }
-                    expectedChildRecord = RunwayChildRecordState::SecondaryOverrun;
-                    break;
-                case RunwayChildRecordState::SecondaryOverrun:
-                    if (pavement.isEnabled()) { runway.secondaryOverrun = pavement; }
-                    expectedChildRecord = RunwayChildRecordState::SecondaryApproachLights;
-                    break;
-                default:
-                    break;
-            }
+            handlePavementData(runway, pavement, expectedChildRecord);
         }
     }
     else if (Facilities::ApproachLightsData::isApproachLightsData(msg)) {
         if (!airport.runways.empty()) {
             auto& runway = airport.runways.back();
             const auto& lights = Facilities::ApproachLightsData::from(msg);
-            switch (expectedChildRecord) {
-                case RunwayChildRecordState::PrimaryApproachLights:
-                    runway.primaryApproachLights = lights;
-                    expectedChildRecord = RunwayChildRecordState::PrimaryLeftVasi;
-                    break;
-                case RunwayChildRecordState::SecondaryApproachLights:
-                    runway.secondaryApproachLights = lights;
-                    expectedChildRecord = RunwayChildRecordState::SecondaryLeftVasi;
-                    break;
-                default:
-                    break;
-            }
+            handleApproachLightsData(runway, lights, expectedChildRecord);
         }
     }
     else if (Facilities::VASIData::isVASIData(msg)) {
         if (!airport.runways.empty()) {
             auto& runway = airport.runways.back();
             const auto& vasi = Facilities::VASIData::from(msg);
-            switch (expectedChildRecord) {
-                case RunwayChildRecordState::PrimaryLeftVasi:
-                    runway.primaryLeftVasi = vasi;
-                    expectedChildRecord = RunwayChildRecordState::PrimaryRightVasi;
-                    break;
-                case RunwayChildRecordState::PrimaryRightVasi:
-                    runway.primaryRightVasi = vasi;
-                    expectedChildRecord = RunwayChildRecordState::SecondaryThreshold;
-                    break;
-                case RunwayChildRecordState::SecondaryLeftVasi:
-                    runway.secondaryLeftVasi = vasi;
-                    expectedChildRecord = RunwayChildRecordState::SecondaryRightVasi;
-                    break;
-                case RunwayChildRecordState::SecondaryRightVasi:
-                    runway.secondaryRightVasi = vasi;
-                    expectedChildRecord = RunwayChildRecordState::None;
-                    break;
-                default:
-                    break;
-            }
+            handleVASIData(runway, vasi, expectedChildRecord);
         }
     }
     else if (Facilities::FrequencyData::isFrequencyData(msg)) {

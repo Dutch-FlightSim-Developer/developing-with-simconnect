@@ -131,6 +131,7 @@ add_subdirectory(part-7)
 add_subdirectory(part-8)
 add_subdirectory(part-9)
 add_subdirectory(part-10)
+add_subdirectory(part-11)
 
 
 # Don't even look at tests if we're not top level

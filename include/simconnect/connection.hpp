@@ -48,6 +48,7 @@
 namespace SimConnect {
 
 
+/// A no-op mutex for single-threaded use, satisfying the BasicLockable and Lockable requirements.
 class NoMutex
 {
 public:
@@ -56,6 +57,7 @@ public:
     bool try_lock() noexcept { return true; }
 };
 
+/// A no-op lock guard for single-threaded use, satisfying the BasicLockable requirement.
 class NoGuard
 {
 public:
@@ -64,6 +66,7 @@ public:
     explicit NoGuard(const NoMutex&) noexcept {}
 };
 
+/// A no-op placeholder type used for optional template type parameters (e.g., cv_type when not thread-safe).
 class Nothing
 { };
 
@@ -170,6 +173,7 @@ protected:
 	 * @param userMessageId The user message identifier.
 	 * @param windowsEventHandle The Windows event handle.
 	 * @param configIndex The index of the configuration section to use, defaults to 0 meaning use the default configuration.
+	 * @returns A reference to the derived connection for chaining.
 	 */
 	Derived& callOpen(HWND hWnd, DWORD userMessageId, HANDLE windowsEventHandle, unsigned configIndex = 0) {
         guard_type guard(mutex_);
@@ -210,7 +214,9 @@ protected:
 
 
 public:
+	/// Default constructor; uses "SimConnect client" as the client name.
 	Connection() : clientName_("SimConnect client") {}
+	/// Constructs a connection with the given client name.
 	Connection(std::string_view name) : clientName_(name) {}
 
 	// We don't want copied or moved Connections.
@@ -262,7 +268,7 @@ public:
 
 	/**
 	 * Closes the connection.
-	 * @throws SimConnectException if the call fails. This should only happen if the handle is invalid.
+	 * @returns A reference to the derived connection for chaining.
 	 */
 	Derived& close() {
         guard_type guard(mutex_);
@@ -369,11 +375,12 @@ public:
 
 
 	/**
-	 * Requests a system state.
+	 * Requests a system state using an explicit request ID.
 	 * @param stateName The name of the state to request.
-	 * @returns The request ID used to identify the request.
+	 * @param requestId The request ID to use for identifying the response.
+	 * @returns A reference to the derived connection for chaining.
 	 */
-	Derived& requestSystemState(std::string stateName, RequestId requestId) {
+	Derived& requestSystemState(std::string stateName, RequestId requestId){
         guard_type guard(mutex_);
 
         state(SimConnect_RequestSystemState(hSimConnect_, requestId, stateName.c_str()));
@@ -396,6 +403,7 @@ public:
      * 
      * @param groupId The notification group ID.
      * @param priority The priority to set.
+     * @returns A reference to the derived connection for chaining.
      */
     Derived& setNotificationGroupPriority(NotificationGroupId groupId, int priority) {
         guard_type guard(mutex_);
@@ -416,6 +424,7 @@ public:
      * @param groupId The notification group ID.
      * @param evt The event to add.
      * @param maskable True if the event is maskable.
+     * @returns A reference to the derived connection for chaining.
      */
     Derived& addClientEventToNotificationGroup(NotificationGroupId groupId, event evt, bool maskable = false) {
         guard_type guard(mutex_);
@@ -435,6 +444,7 @@ public:
      * 
      * @param groupId The notification group ID.
      * @param evt The event to remove.
+     * @returns A reference to the derived connection for chaining.
      */
     Derived& removeClientEventFromNotificationGroup(NotificationGroupId groupId, event evt) {
         guard_type guard(mutex_);
@@ -453,6 +463,7 @@ public:
      * Clears all events from a notification group.
      * 
      * @param groupId The notification group ID.
+     * @returns A reference to the derived connection for chaining.
      */
     Derived& clearNotificationGroup(NotificationGroupId groupId) {
         guard_type guard(mutex_);
@@ -471,6 +482,7 @@ public:
      * Requests notification group information.
      * 
      * @param groupId The notification group ID.
+     * @returns A reference to the derived connection for chaining.
      */
     Derived& requestNotificationGroup(NotificationGroupId groupId) {
         guard_type guard(mutex_);
@@ -495,6 +507,7 @@ public:
      * The event will be mapped using its own name.
      * 
      * @param evt The event to map.
+     * @returns A reference to the derived connection for chaining.
      */
     Derived& mapClientEvent(event evt) {
         guard_type guard(mutex_);
@@ -528,8 +541,9 @@ public:
      * @param evt The event to send.
      * @param groupId The notification group ID.
      * @param data The optional data to send with the event.
+     * @returns A reference to the derived connection for chaining.
      */
-    Derived& transmitClientEvent(SimObjectId objectId, event evt, NotificationGroupId groupId, unsigned long data = 0) {
+    Derived& transmitClientEvent(SimObjectId objectId, event evt, NotificationGroupId groupId, unsigned long data = 0){
         guard_type guard(mutex_);
 
         state(SimConnect_TransmitClientEvent(hSimConnect_, objectId, evt.id(), data, groupId, 0));
@@ -550,8 +564,9 @@ public:
      * @param evt The event to send.
      * @param priority The priority of the event.
      * @param data The optional data to send with the event.
+     * @returns A reference to the derived connection for chaining.
      */
-    Derived& transmitClientEventWithPriority(SimObjectId objectId, event evt, Events::Priority priority, unsigned long data = 0) {
+    Derived& transmitClientEventWithPriority(SimObjectId objectId, event evt, Events::Priority priority, unsigned long data = 0){
         guard_type guard(mutex_);
 
         state(SimConnect_TransmitClientEvent(hSimConnect_, objectId, evt.id(), data, priority, Events::groupIdIsPriority));
@@ -576,6 +591,7 @@ public:
      * @param data2 The third data value to send with the event.
      * @param data3 The fourth data value to send with the event.
      * @param data4 The fifth data value to send with the event.
+     * @returns A reference to the derived connection for chaining.
      */
     Derived& transmitClientEvent(SimObjectId objectId, event evt, NotificationGroupId groupId, unsigned long data0, unsigned long data1, unsigned long data2 = 0, unsigned long data3 = 0, unsigned long data4 = 0) {
         guard_type guard(mutex_);
@@ -602,6 +618,7 @@ public:
      * @param data2 The third data value to send with the event.
      * @param data3 The fourth data value to send with the event.
      * @param data4 The fifth data value to send with the event.
+     * @returns A reference to the derived connection for chaining.
      */
     Derived& transmitClientEventWithPriority(SimObjectId objectId, event evt, Events::Priority priority, unsigned long data0, unsigned long data1, unsigned long data2 = 0, unsigned long data3 = 0, unsigned long data4 = 0) {
         guard_type guard(mutex_);
@@ -623,6 +640,7 @@ public:
     /**
      * Subscribe to an event.
      * @param event The event to subscribe to.
+     * @returns A reference to the derived connection for chaining.
      */
 	Derived& subscribeToSystemEvent(event event) {
         guard_type guard(mutex_);
@@ -640,6 +658,7 @@ public:
     /**
     * Unsubscribe from an event.
     * @param event The event to unsubscribe from.
+    * @returns A reference to the derived connection for chaining.
     */
     Derived& unsubscribeFromSystemEvent(event event) {
         guard_type guard(mutex_);
@@ -853,6 +872,7 @@ public:
 
     /**
      * Data Definitions are managed by the DataDefinitions class.
+     * @returns The singleton DataDefinitions object.
      */
     [[nodiscard]]
     DataDefinitions& dataDefinitions() {
@@ -870,6 +890,7 @@ public:
      * @param itemDataType The data type of the simulation variable.
      * @param itemEpsilon The epsilon value for change detection.
      * @param itemDatumId The datum ID for the item.
+     * @returns A reference to the derived connection for chaining.
      */
     Derived& addDataDefinition(DataDefinitionId dataDef, const std::string& itemName, const std::string& itemUnits,
                            DataType itemDataType, float itemEpsilon = 0.0f, unsigned long itemDatumId = unused) {
@@ -901,6 +922,7 @@ public:
      * @param limits The limits for the request in numbers of "periods".
      * @param objectId The object ID to request data for. Defaults to the current user's Avatar or Aircraft.
      * @param sendOnlyWhenChanged If true, the data will only be sent when it changes.
+     * @returns A reference to the derived connection for chaining.
      */
     Derived& requestData(DataDefinitionId dataDef, RequestId requestId,
         DataFrequency frequency = DataFrequency::once(),
@@ -936,6 +958,7 @@ public:
      * @param limits The limits for the request in numbers of "periods".
      * @param objectId The object ID to request data for. Defaults to the current user's Avatar or Aircraft.
      * @param sendOnlyWhenChanged If true, the data will only be sent when it changes.
+     * @returns A reference to the derived connection for chaining.
      */
     Derived& requestDataTagged(DataDefinitionId dataDef, RequestId requestId,
         DataFrequency frequency = DataFrequency::once(),
@@ -969,6 +992,7 @@ public:
      * @param dataDef The data definition ID.
      * @param requestId The request ID.
      * @param objectId The object ID to stop the request for. Defaults to the current user's Avatar or Aircraft.
+     * @returns A reference to the derived connection for chaining.
      */
     Derived& stopDataRequest(DataDefinitionId dataDef, RequestId requestId, SimObjectId objectId = SimObject::userCurrent)
     {
@@ -993,6 +1017,7 @@ public:
 	 * @param requestId The request ID.
 	 * @param radiusInMeters The radius in meters to request data for. If 0, only the user's aircraft is in scope.
 	 * @param objectType The type of SimObject to request data for.
+	 * @returns A reference to the derived connection for chaining.
 	 */
 	Derived& requestDataByType(DataDefinitionId dataDef, RequestId requestId,
 		unsigned long radiusInMeters, SimObjectType objectType)
@@ -1015,6 +1040,7 @@ public:
      * @param dataDef The data definition ID.
      * @param objectId The object ID to send the data to.
      * @param data The data to send.
+     * @returns A reference to the derived connection for chaining.
      */
     template <typename T>
     Derived& sendData(DataDefinitionId dataDef, SimObjectId objectId, const T& data)
@@ -1039,6 +1065,7 @@ public:
      * @param data The data to send.
      * @param count The number of data blocks to send. Defaults to 1.
      * @param blockSize The size of each data block, defaults to 0. If 0, the size is calculated as data.size() / count.
+     * @returns A reference to the derived connection for chaining.
      */
     Derived& sendData(DataDefinitionId dataDef, SimObjectId objectId, std::span<const uint8_t> data, unsigned long count = 1, unsigned long blockSize = 0)
     {
@@ -1064,13 +1091,14 @@ public:
 
 
     /**
-     * Sends raw data to a SimObject.
+     * Sends raw data to a SimObject in tagged format.
      * 
      * @param dataDef The data definition ID.
      * @param objectId The object ID to send the data to.
      * @param data The data to send.
      * @param count The number of data blocks to send. Defaults to 1.
      * @param blockSize The size of each data block, defaults to 0. If 0, the size is calculated as data.size() / count.
+     * @returns A reference to the derived connection for chaining.
      */
     Derived& sendDataTagged(DataDefinitionId dataDef, SimObjectId objectId, std::span<const uint8_t> data, unsigned long count = 1, unsigned long blockSize = 0)
     {
@@ -1346,19 +1374,19 @@ public:
     /**
      * Requests Jetway data for a specific airport, with a specific jetway index.
      * 
-     * @param requestId The request ID.
+     * @note SimConnect_RequestJetwayData does not take a request ID; responses are matched by airport ICAO code.
      * @param icaoCode The ICAO code of the airport to request jetway data for.
      * @param jetwayIndex The index of the jetway to request data for.
      * @return The connection reference for chaining.
      */
-    Derived& requestJetwayData(RequestId requestId, std::string_view icaoCode, int jetwayIndex) {
+    Derived& requestJetwayData(std::string_view icaoCode, int jetwayIndex) {
         guard_type guard(mutex_);
 
         state(SimConnect_RequestJetwayData(hSimConnect_, icaoCode.data(), 1, &jetwayIndex));
         if (failed()) {
             logger_.error("SimConnect_RequestJetwayData failed with error code 0x{:08X}.", state());
         } else {
-            logger_.debug("Requested Jetway data for airport {}, jetway index {} (requestId={}, sendId={})", icaoCode, jetwayIndex, requestId, fetchSendIdInternal());
+            logger_.debug("Requested Jetway data for airport {}, jetway index {} (sendId={})", icaoCode, jetwayIndex, fetchSendIdInternal());
         }
         return static_cast<Derived&>(*this);
     }
@@ -1367,19 +1395,19 @@ public:
     /**
      * Requests Jetway data for a specific airport, with multiple jetway indices.
      * 
-     * @param requestId The request ID.
+     * @note SimConnect_RequestJetwayData does not take a request ID; responses are matched by airport ICAO code.
      * @param icaoCode The ICAO code of the airport to request jetway data for.
      * @param jetwayIndices A span of jetway indices to request data for.
      * @return The connection reference for chaining.
      */
-    Derived& requestJetwayData(RequestId requestId, std::string_view icaoCode, std::span<const int> jetwayIndices) {
+    Derived& requestJetwayData(std::string_view icaoCode, std::span<const int> jetwayIndices) {
         guard_type guard(mutex_);
         
         state(SimConnect_RequestJetwayData(hSimConnect_, icaoCode.data(), static_cast<unsigned long>(jetwayIndices.size()), const_cast<int*>(jetwayIndices.data())));
         if (failed()) {
             logger_.error("SimConnect_RequestJetwayData failed with error code 0x{:08X}.", state());
         } else {
-            logger_.debug("Requested Jetway data for airport {}, multiple jetway indices (requestId={}, sendId={})", icaoCode, requestId, fetchSendIdInternal());
+            logger_.debug("Requested Jetway data for airport {}, multiple jetway indices (sendId={})", icaoCode, fetchSendIdInternal());
         }
         return static_cast<Derived&>(*this);
     }
@@ -1395,6 +1423,7 @@ public:
      * @param tailNumber The tail number of the aircraft.
      * @param initPos The initial position of the aircraft.
      * @param requestId The request ID.
+     * @returns A reference to the derived connection for chaining.
      */
     Derived& createNonATCAircraft(std::string title, std::string tailNumber,
         Data::InitPosition initPos,
@@ -1420,6 +1449,7 @@ public:
      * @param tailNumber The tail number of the aircraft.
      * @param initPos The initial position of the aircraft.
      * @param requestId The request ID.
+     * @returns A reference to the derived connection for chaining.
      */
     Derived& createNonATCAircraft(std::string title, std::string livery, std::string tailNumber,
         Data::InitPosition initPos,
@@ -1464,6 +1494,7 @@ public:
      * @param tailNumber The tail number of the aircraft.
      * @param airportIcao The ICAO of the airport to park at.
      * @param requestId The request ID.
+     * @returns A reference to the derived connection for chaining.
      */
     Derived& createParkedAircraft(std::string title, std::string tailNumber, std::string airportIcao, RequestId requestId)
     {
@@ -1487,6 +1518,7 @@ public:
      * @param tailNumber The tail number of the aircraft.
      * @param airportIcao The ICAO of the airport to park at.
      * @param requestId The request ID.
+     * @returns A reference to the derived connection for chaining.
      */
     Derived& createParkedAircraft(std::string title, std::string livery, std::string tailNumber, std::string airportIcao, RequestId requestId)
     {
@@ -1518,6 +1550,7 @@ public:
      * @param title The title of the aircraft container.
      * @param initPos The initial position of the SimObject.
      * @param requestId The request ID.
+     * @returns A reference to the derived connection for chaining.
      */
     Derived& createSimObject(std::string title, Data::InitPosition initPos, RequestId requestId)
     {
@@ -1540,6 +1573,7 @@ public:
      * @param livery The livery of the aircraft.
      * @param initPos The initial position of the SimObject.
      * @param requestId The request ID.
+     * @returns A reference to the derived connection for chaining.
      */
     Derived& createSimObject(std::string title, std::string livery, Data::InitPosition initPos, RequestId requestId)
     {
@@ -1569,6 +1603,7 @@ public:
      * 
      * @param objectId The object ID of the SimObject to remove.
      * @param requestId The request ID.
+     * @returns A reference to the derived connection for chaining.
      */
     Derived& removeSimObject(SimObjectId objectId, RequestId requestId)
     {

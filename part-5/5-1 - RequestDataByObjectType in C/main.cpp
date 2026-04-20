@@ -240,6 +240,9 @@ static void handleException(const SIMCONNECT_RECV_EXCEPTION& msg)
         std::cerr << "The input event name was not found. (SetInputEvent)\n";
         break;
 #if MSFS_2024_SDK
+    case SIMCONNECT_EXCEPTION_EVENT_NAME_RESERVED:
+        std::cerr << "The event name is reserved and cannot be used.\n";
+        break;
     case SIMCONNECT_EXCEPTION_INTERNAL:
         std::cerr << "An internal SimConnect error has occurred.\n";
         break;

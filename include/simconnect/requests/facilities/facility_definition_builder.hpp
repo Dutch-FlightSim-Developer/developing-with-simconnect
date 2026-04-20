@@ -932,7 +932,6 @@ template<std::size_t MaxLength> struct ArrivalBuilder;
 template<std::size_t MaxLength> struct TaxiParkingBuilder;
 template<std::size_t MaxLength> struct TaxiPathBuilder;
 template<std::size_t MaxLength> struct TaxiPointBuilder;
-template<std::size_t MaxLength> struct TaxiNameBuilder;
 template<std::size_t MaxLength> struct JetwayBuilder;
 template<std::size_t MaxLength> struct VDGSBuilder;
 template<std::size_t MaxLength> struct HoldingPatternBuilder;

@@ -26,6 +26,7 @@
 #include <simconnect/requests/facilities/start_position.hpp>
 #include <simconnect/requests/facilities/taxi_parking.hpp>
 #include <simconnect/requests/facilities/frequency.hpp>
+#include <simconnect/requests/facilities/taxi_name.hpp>
 
 
 #include <cstdint>
@@ -208,8 +209,8 @@ struct AirportFacility {
     // std::vector<TaxiPathFacility> taxiPaths;
     // inline bool haveTaxiPoints() const noexcept { return !taxiPoints.empty(); }
     // std::vector<TaxiPointFacility> taxiPoints;
-    // inline bool haveTaxiNames() const noexcept { return !taxiNames.empty(); }
-    // std::vector<TaxiNameFacility> taxiNames;
+    inline bool haveTaxiNames() const noexcept { return !taxiNames.empty(); }
+    std::vector<std::string> taxiNames;
     // inline bool haveJetways() const noexcept { return !jetways.empty(); }
     // std::vector<JetwayFacility> jetways;
     // inline bool haveVDGS() const noexcept { return !vdgs.empty(); }
@@ -262,9 +263,6 @@ struct AirportBuilder
     }
     constexpr TaxiPointBuilder<MaxLength> taxiPoint() const {
         return TaxiPointBuilder<MaxLength>{ definition.push(FacilityField::taxiPointOpen) };
-    }
-    constexpr TaxiNameBuilder<MaxLength> taxiName() const {
-        return TaxiNameBuilder<MaxLength>{ definition.push(FacilityField::taxiNameOpen) };
     }
     constexpr JetwayBuilder<MaxLength> jetway() const {
         return JetwayBuilder<MaxLength>{ definition.push(FacilityField::jetwayOpen) };
@@ -359,8 +357,16 @@ struct AirportBuilder
     constexpr AirportBuilder<MaxLength> taxiPaths() const {
         return AirportBuilder<MaxLength>{ definition.push(FacilityField::airportTaxiPaths) };
     }
-    constexpr AirportBuilder<MaxLength> taxiNames() const {
+    constexpr AirportBuilder<MaxLength> nTaxiNames() const {
         return AirportBuilder<MaxLength>{ definition.push(FacilityField::airportTaxiNames) };
+    }
+    constexpr AirportBuilder<MaxLength> taxiNames() const {
+        return AirportBuilder<MaxLength>{
+            definition
+                .push(FacilityField::taxiNameOpen)
+                .push(FacilityField::taxiNameName)
+                .push(FacilityField::taxiNameClose)
+        };
     }
     constexpr AirportBuilder<MaxLength> jetways() const {
         return AirportBuilder<MaxLength>{ definition.push(FacilityField::airportJetways) };

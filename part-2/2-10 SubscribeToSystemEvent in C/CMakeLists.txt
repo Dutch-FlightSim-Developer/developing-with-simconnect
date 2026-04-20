@@ -11,8 +11,8 @@ endif()
 add_executable(2-10-SubscribeToSystemEvent-in-C main.cpp)
 
 target_compile_options(2-10-SubscribeToSystemEvent-in-C PRIVATE
-    -Wno-missing-declarations
-    -Wno-error  # Disable warnings-as-errors
+    $<$<CXX_COMPILER_ID:GNU,Clang>:-Wno-missing-declarations>
+    $<$<CXX_COMPILER_ID:GNU,Clang>:-Wno-error>
 )
 
 # Link to project options (includes SimConnect SDK paths and libraries)

@@ -107,7 +107,8 @@
             "displayName": "clang Debug MSFS 2020 (with tests)",
             "cacheVariables": {
                 "BUILD_TESTING": "ON",
-                "MSFS_SDK_VERSION": "2020"
+                "MSFS_SDK_VERSION": "2020",
+                "cmake_cpp_simconnect_ENABLE_CLANG_TIDY": "OFF"
             },
             "inherits": [
                 "windows-clang-debug-2020"
@@ -119,7 +120,8 @@
             "displayName": "clang Debug MSFS 2024 (with tests)",
             "cacheVariables": {
                 "BUILD_TESTING": "ON",
-                "MSFS_SDK_VERSION": "2024"
+                "MSFS_SDK_VERSION": "2024",
+                "cmake_cpp_simconnect_ENABLE_CLANG_TIDY": "ON"
             },
             "inherits": [
                 "windows-clang-debug-2024"

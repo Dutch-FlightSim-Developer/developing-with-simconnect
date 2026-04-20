@@ -238,7 +238,7 @@ public:
                 break;
             }
         }, false);
-        simConnectMessageHandler_.connection().requestJetwayData(requestId, icaoCode, jetwayIndex);
+        simConnectMessageHandler_.connection().requestJetwayData(icaoCode, jetwayIndex);
         return Request{ requestId, [this, requestId]() {
             // No specific stop function for jetway data request, so just unregister the handler
             this->removeHandler(requestId);
@@ -285,7 +285,7 @@ public:
                     break;
                 }
             }, false);
-        simConnectMessageHandler_.connection().requestJetwayData(requestId, icaoCode, jetwayIndices);
+        simConnectMessageHandler_.connection().requestJetwayData(icaoCode, jetwayIndices);
         return Request{ requestId, [this, requestId]() {
             // No specific stop function for jetway data request, so just unregister the handler
             this->removeHandler(requestId);

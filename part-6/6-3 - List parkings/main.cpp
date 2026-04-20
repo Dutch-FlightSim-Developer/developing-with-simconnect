@@ -276,6 +276,9 @@ inline const Recv* toRecvPtr(const void* ptr) { return reinterpret_cast<const Re
 struct AirportData {
     char icao[8];
     char region[8];
+    char name[32];
+    char longName[64];
+
     double latitude;
     double longitude;
     double altitude;
@@ -361,12 +364,11 @@ static void handle_messages(std::string icao, std::string region, std::string pa
             {
                 handleException(*toRecvPtr<SIMCONNECT_RECV_EXCEPTION>(pData));
             }
-                break;
+            break;
 
             case SIMCONNECT_RECV_ID_OPEN:
             {
                 const SIMCONNECT_RECV_OPEN* pOpen = toRecvPtr<SIMCONNECT_RECV_OPEN>(pData);
-
 
                 std::cerr << std::format("[Connected to '{}' version {}.{} (build {}.{}) using SimConnect version {}.{} (build {}.{})]\n",
                     pOpen->szApplicationName,
@@ -395,15 +397,24 @@ static void handle_messages(std::string icao, std::string region, std::string pa
                 if (pFacilityData->Type == SIMCONNECT_FACILITY_DATA_AIRPORT) {
                     const auto* pAirport = reinterpret_cast<const AirportData*>(&(pFacilityData->Data));
                     if (icao != pAirport->icao) {
-						std::cerr << std::format("Received data for unexpected airport '{}', expected '{}'.\n", pAirport->icao, icao);
-						return; // Not the airport we requested
-					}
+		        std::cerr << std::format("Received data for unexpected airport '{}', expected '{}'.\n", pAirport->icao, icao);
+		        return; // Not the airport we requested
+		    }
 
                     if (!region.empty() && region != pAirport->region) {
                         std::cerr << std::format("Received data for unexpected airport '{}' in region '{}', expected region '{}'.\n", pAirport->icao, pAirport->region, region);
                         return; // Not the region we requested
-					}
+		    }
                     lastAirport = *pAirport;
+
+                    std::cout << std::format("Airport {} (Region {}) '{}' (full name '{}'): Lat {:.6f} Lon {:.6f} Alt {:.2f}m\n",
+                                lastAirport.icao,
+                                lastAirport.region,
+                                lastAirport.name,
+                                lastAirport.longName,
+                                lastAirport.latitude,
+                                lastAirport.longitude,
+                        lastAirport.altitude);
                 }
                 else if (pFacilityData->Type == SIMCONNECT_FACILITY_DATA_TAXI_PARKING) {
                     const auto* pParking = reinterpret_cast<const ParkingData*>(&(pFacilityData->Data));
@@ -416,13 +427,13 @@ static void handle_messages(std::string icao, std::string region, std::string pa
                             parkingName += " ";
                         }
                         parkingName += std::to_string(pParking->number);
-					}
+		    }
                     if (pParking->suffix > 0) {
                         if (!parkingName.empty()) {
                             parkingName += " ";
                         }
                         parkingName += static_cast<char>('A' + (pParking->suffix - 1));
-					}
+		    }
 
                     if (!parking.empty() && parking != parkingName) {
                         continue; // Not the parking spot we are looking for
@@ -448,7 +459,7 @@ static void handle_messages(std::string icao, std::string region, std::string pa
                 }
                 else {
                     std::cerr << std::format("Received unexpected facility data type {}.\n", pFacilityData->Type);
-				}
+		}
             }
             break;
 
@@ -486,58 +497,63 @@ static void addToFacilityDef(DWORD defId, const char* name) {
 }
 
 
+/*
+ * List all parkings for a given airport
+ */
 auto main(int argc, const char* argv[]) -> int
 {
-	args.clear();
-	int fixedArg{ 0 };
+    args.clear();
+    int fixedArg{ 0 };
 
-	args["Arg" + std::to_string(fixedArg++)] = argv[0];
+    args["Arg" + std::to_string(fixedArg++)] = argv[0];
 
-	for (int i = 1; i < argc; ++i) {
-		std::string arg = argv[i];
-		if (arg.starts_with("--")) {
-			auto eq = arg.find('=');
-			if (eq != std::string::npos) {
-				std::string key = arg.substr(2, eq - 2);
-				std::string value = arg.substr(eq + 1);
-				args[key] = value;
-			}
-			else {
-				args[arg.substr(2)] = ""; // No value provided
-			}
-		}
-		else {
-			args["Arg" + std::to_string(fixedArg++)] = arg;
-		}
+    for (int i = 1; i < argc; ++i) {
+	std::string arg = argv[i];
+	if (arg.starts_with("--")) {
+	    auto eq = arg.find('=');
+	    if (eq != std::string::npos) {
+		std::string key = arg.substr(2, eq - 2);
+		std::string value = arg.substr(eq + 1);
+		args[key] = value;
+	    }
+	    else {
+		args[arg.substr(2)] = ""; // No value provided
+	    }
 	}
+	else {
+	    args["Arg" + std::to_string(fixedArg++)] = arg;
+	}
+    }
 
-	std::string region{ "" };
+    std::string region{ "" };
     if (args.find("region") != args.end()) {
         region = args["region"];
-	}
+    }
 
-	std::string icao{ "EHGG" };
+    std::string icao{ "EHGG" };
     if (args.find("icao") != args.end()) {
         icao = args["icao"];
     }
     else {
         std::cerr << std::format("No ICAO code provided, using default '{}'.\n", icao);
-	}
+    }
 
-	std::string parking{ "" };
+    std::string parking{ "" };
     if (args.find("parking") != args.end()) {
         parking = args["parking"];
-	}
+    }
 
     if (!connect()) {
-		return -1;
-	}
-	std::cerr << "[Connected to MSFS 2020]\n";
+	return -1;
+    }
+    std::cerr << "[Connected to MSFS]\n";
 
     addToFacilityDef(DEFINITION_ID, "OPEN AIRPORT");
 
     addToFacilityDef(DEFINITION_ID, "ICAO");
     addToFacilityDef(DEFINITION_ID, "REGION");
+    addToFacilityDef(DEFINITION_ID, "NAME");
+    addToFacilityDef(DEFINITION_ID, "NAME64");
 
     addToFacilityDef(DEFINITION_ID, "LATITUDE");
     addToFacilityDef(DEFINITION_ID, "LONGITUDE");
@@ -564,9 +580,9 @@ auto main(int argc, const char* argv[]) -> int
     else {
         std::cerr << std::format("[Requested parking data for airport '{}'...]\n", icao);
     }
-	handle_messages(icao, region, parking);
+    handle_messages(icao, region, parking);
 
     disconnect();
 
-	return 0;
+    return 0;
 }

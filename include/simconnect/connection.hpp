@@ -1109,7 +1109,7 @@ public:
     Derived& enumerateSimObjectsAndLiveries([[maybe_unused]] RequestId requestId, [[maybe_unused]] SimObjectType simObjectType) {
         guard_type guard(mutex_);
 
-#if MSFS_SDK_2024
+#if MSFS_2024_SDK
         state(SimConnect_EnumerateSimObjectsAndLiveries(hSimConnect_, requestId, simObjectType));
         if (failed()) {
             logger_.error("SimConnect_EnumerateSimObjectsAndLiveries failed with error code 0x{:08X}.", state());
@@ -1140,7 +1140,7 @@ public:
 
         switch (scope) {
         case FacilitiesListScope::allFacilities:
-#if MSFS_SDK_2024
+#if MSFS_2024_SDK
             state(SimConnect_RequestAllFacilities(hSimConnect_, type, requestId));
             if (failed()) {
                 logger_.error("SimConnect_RequestAllFacilities failed with error code 0x{:08X}.", state());
@@ -1266,6 +1266,7 @@ public:
     Derived& requestFacilityData(RequestId requestId, FacilityDefinitionId facilityDefId, std::string_view icaoCode, std::string_view region = "") {
         guard_type guard(mutex_);
 
+        logger_.debug("Requesting facility data for definition {} with ICAO code '{}' and region '{}'", facilityDefId, icaoCode, region);
         state(SimConnect_RequestFacilityData(hSimConnect_, facilityDefId, requestId, icaoCode.data(), region.data()));
         if (failed()) {
             logger_.error("SimConnect_RequestFacilityData failed with error code 0x{:08X}.", state());
@@ -1426,7 +1427,7 @@ public:
     {
         guard_type guard(mutex_);
 
-#if MSFS_SDK_2024
+#if MSFS_2024_SDK
         state(SimConnect_AICreateNonATCAircraft_EX1(hSimConnect_, title.c_str(), livery.c_str(), tailNumber.c_str(), initPos, requestId));
         if (failed()) {
           logger_.error("SimConnect_AICreateNonATCAircraft_EX1 failed with error code 0x{:08X}.", state());
@@ -1491,7 +1492,7 @@ public:
     {
         guard_type guard(mutex_);
 
-#if MSFS_SDK_2024
+#if MSFS_2024_SDK
         state(SimConnect_AICreateParkedATCAircraft_EX1(hSimConnect_, title.c_str(), livery.c_str(), tailNumber.c_str(), airportIcao.c_str(), requestId));
         if (failed()) {
             logger_.error("SimConnect_AICreateParkedATCAircraft_EX1 failed with error code 0x{:08X}.", state());
@@ -1544,7 +1545,7 @@ public:
     {
         guard_type guard(mutex_);
 
-#if MSFS_SDK_2024
+#if MSFS_2024_SDK
         state(SimConnect_AICreateSimulatedObject_EX1(hSimConnect_, title.c_str(), livery.c_str(), initPos, requestId));
         if (failed()) {
             logger_.error("SimConnect_AICreateSimulatedObject_EX1 failed with error code 0x{:08X}.", state());

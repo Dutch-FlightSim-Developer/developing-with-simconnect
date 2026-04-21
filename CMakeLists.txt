@@ -77,6 +77,27 @@ endif()
 
 message(STATUS "Using SimConnect library: ${SIMCONNECT_LIB_PATH}")
 
+# ---- PMDG 737 NG3 SDK (optional) ----
+# Override the default by passing -DPMDG_NG3_SDK_PATH=<path> at configure time.
+# The default is derived from %LOCALAPPDATA% and the selected MSFS SDK version.
+set(PMDG_NG3_SDK_PATH "" CACHE PATH "Path to the PMDG 737 NG3 SDK folder (containing PMDG_NG3_SDK.h)")
+if(NOT PMDG_NG3_SDK_PATH AND DEFINED ENV{LOCALAPPDATA})
+  if(MSFS_SDK_VERSION STREQUAL "2020")
+    set(_pmdg_default "$ENV{LOCALAPPDATA}/Packages/Microsoft.FlightSimulator_8wekyb3d8bbwe/LocalCache/Packages/Community/pmdg-aircraft-737/Documentation/SDK")
+  else()
+    set(_pmdg_default "$ENV{LOCALAPPDATA}/Packages/Microsoft.Limitless_8wekyb3d8bbwe/LocalCache/Packages/Community/pmdg-aircraft-738/Documentation/SDK")
+  endif()
+  if(EXISTS "${_pmdg_default}/PMDG_NG3_SDK.h")
+    set(PMDG_NG3_SDK_PATH "${_pmdg_default}" CACHE PATH "Path to the PMDG 737 NG3 SDK folder (containing PMDG_NG3_SDK.h)" FORCE)
+  endif()
+  unset(_pmdg_default)
+endif()
+if(PMDG_NG3_SDK_PATH)
+  message(STATUS "Using PMDG 737 NG3 SDK from: ${PMDG_NG3_SDK_PATH}")
+else()
+  message(STATUS "PMDG 737 NG3 SDK not found — PMDG-specific targets will be skipped")
+endif()
+
 cmake_cpp_simconnect_setup_options()
 
 cmake_cpp_simconnect_global_options()

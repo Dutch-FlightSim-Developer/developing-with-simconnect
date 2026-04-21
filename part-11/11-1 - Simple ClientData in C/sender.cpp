@@ -296,7 +296,7 @@ static bool setupClientData()
 
     // Step 2 — allocate the data area; MESSAGE_SIZE bytes, write-protected (only this client may write)
     hr = SimConnect_CreateClientData(hSimConnect, CLIENT_DATA_ID, MESSAGE_SIZE,
-        SIMCONNECT_CREATE_CLIENT_DATA_FLAG_PROTECTED);
+        SIMCONNECT_CREATE_CLIENT_DATA_FLAG_READ_ONLY);
     if (FAILED(hr)) {
         std::cerr << std::format("[Failed to create client data area: 0x{:08X}]\n", hr);
         return false;

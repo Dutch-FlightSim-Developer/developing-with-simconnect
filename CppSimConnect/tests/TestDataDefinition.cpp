@@ -22,7 +22,7 @@
 
 #include "gtest/gtest.h"
 
-#include <simconnect/data_definition.hpp>
+#include <simconnect/data/data_definition.hpp>
 #include <simconnect/data/data_block_builder.hpp>
 #include <simconnect/data/data_block_reader.hpp>
 

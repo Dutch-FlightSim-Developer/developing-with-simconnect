@@ -22,7 +22,7 @@
 
 #include <simconnect/data/data_block_builder.hpp>
 #include <simconnect/data/data_block_reader.hpp>
-#include <simconnect/data_definition.hpp>
+#include <simconnect/data/data_definition.hpp>
 
 
 static constexpr int32_t zeroInt32{ 0 };

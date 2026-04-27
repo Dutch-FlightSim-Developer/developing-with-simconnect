@@ -23,6 +23,7 @@ file(GLOB TEST_SOURCES
     DataBlockTests.cpp
     DataBlockReaderTests.cpp
     DataBlockBuilderTests.cpp
+    TestClientDataDefinition.cpp
     TestDataDefinition.cpp
     TestDataDefinition_Float32.cpp
     TestDataDefinition_Float64.cpp
@@ -30,6 +31,7 @@ file(GLOB TEST_SOURCES
     TestDataDefinition_Int64.cpp
     TestDataDefinition_TestString.cpp
     TestDataFrequency.cpp
+    TestClientDataFrequency.cpp
     TestLogger.cpp
     TestPeriodLimits.cpp
     TestSimObjectType.cpp

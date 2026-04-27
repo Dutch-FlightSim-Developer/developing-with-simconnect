@@ -72,8 +72,14 @@
     <ClInclude Include="..\include\simconnect\connection.hpp">
       <Filter>Header Files\SimConnect</Filter>
     </ClInclude>
-    <ClInclude Include="..\include\simconnect\data_definition.hpp">
-      <Filter>Header Files\SimConnect</Filter>
+    <ClInclude Include="..\include\simconnect\data\data_definitions.hpp">
+      <Filter>Header Files\SimConnect\Data</Filter>
+    </ClInclude>
+    <ClInclude Include="..\include\simconnect\data\client_data_definitions.hpp">
+      <Filter>Header Files\SimConnect\Data</Filter>
+    </ClInclude>
+    <ClInclude Include="..\include\simconnect\data\client_data_definition.hpp">
+      <Filter>Header Files\SimConnect\Data</Filter>
     </ClInclude>
     <ClInclude Include="..\include\simconnect\data_frequency.hpp">
       <Filter>Header Files\SimConnect</Filter>

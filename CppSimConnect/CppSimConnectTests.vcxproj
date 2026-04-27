@@ -109,6 +109,7 @@
     <ClCompile Include=".\tests\TestLogger.cpp" />
     <ClCompile Include=".\tests\TestPeriodLimits.cpp" />
     <ClCompile Include=".\tests\TestSimObjectType.cpp" />
+    <ClCompile Include=".\tests\TestClientDataDefinition.cpp" />
     <ClCompile Include=".\tests\TestDataDefinition.cpp" />
     <ClCompile Include=".\tests\TestDataDefinition_Float32.cpp" />
     <ClCompile Include=".\tests\TestDataDefinition_Float64.cpp" />

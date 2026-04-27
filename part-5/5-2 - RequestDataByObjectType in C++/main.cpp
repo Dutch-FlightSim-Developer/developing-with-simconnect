@@ -32,7 +32,7 @@
 #include <simconnect/windows_event_connection.hpp>
 #include <simconnect/windows_event_handler.hpp>
 
-#include <simconnect/data_definition.hpp>
+#include <simconnect/data/data_definition.hpp>
 #include <simconnect/requests/simobject_data_handler.hpp>
 
 #include <simconnect/util/console_logger.hpp>

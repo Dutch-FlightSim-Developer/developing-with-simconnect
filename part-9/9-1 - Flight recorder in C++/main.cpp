@@ -40,7 +40,7 @@
 #include <simconnect/events/event_handler.hpp>
 #include <simconnect/events/input_group.hpp>
 
-#include <simconnect/data_definition.hpp>
+#include <simconnect/data/data_definition.hpp>
 #include <simconnect/data_frequency.hpp>
 #include <simconnect/requests/request.hpp>
 #include <simconnect/requests/simobject_data_handler.hpp>

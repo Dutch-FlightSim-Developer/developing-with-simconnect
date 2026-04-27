@@ -50,6 +50,11 @@ constexpr static SIMCONNECT_CLIENT_DATA_DEFINITION_ID DEF_ID{ 1 };
 constexpr static SIMCONNECT_DATA_REQUEST_ID REQ_ID{ 1 };
 
 
+/**
+ * Handle SimConnect Exception messages.
+ *
+ * @param msg The exception message to handle.
+ */
 static void handleException(const SIMCONNECT_RECV_EXCEPTION& msg)
 {
     std::cerr << std::format("Received an exception type {}:\n", msg.dwException);
@@ -62,7 +67,7 @@ static void handleException(const SIMCONNECT_RECV_EXCEPTION& msg)
 
     const SIMCONNECT_EXCEPTION exc{ static_cast<SIMCONNECT_EXCEPTION>(msg.dwException) };
     switch (exc) {
-    case SIMCONNECT_EXCEPTION_NONE:
+    case SIMCONNECT_EXCEPTION_NONE: // Should never happen
         std::cerr << "No exception.\n";
         break;
     case SIMCONNECT_EXCEPTION_ERROR:
@@ -101,19 +106,19 @@ static void handleException(const SIMCONNECT_RECV_EXCEPTION& msg)
     case SIMCONNECT_EXCEPTION_TOO_MANY_REQUESTS:
         std::cerr << "The maximum number of requests has been reached. (currently 1000)\n";
         break;
-    case SIMCONNECT_EXCEPTION_WEATHER_INVALID_PORT:
+    case SIMCONNECT_EXCEPTION_WEATHER_INVALID_PORT: // Legacy
         std::cerr << "The weather port is invalid.\n";
         break;
-    case SIMCONNECT_EXCEPTION_WEATHER_INVALID_METAR:
+    case SIMCONNECT_EXCEPTION_WEATHER_INVALID_METAR: // Legacy
         std::cerr << "The METAR string is invalid.\n";
         break;
-    case SIMCONNECT_EXCEPTION_WEATHER_UNABLE_TO_GET_OBSERVATION:
+    case SIMCONNECT_EXCEPTION_WEATHER_UNABLE_TO_GET_OBSERVATION: // Legacy
         std::cerr << "Unable to get the observation.\n";
         break;
-    case SIMCONNECT_EXCEPTION_WEATHER_UNABLE_TO_CREATE_STATION:
+    case SIMCONNECT_EXCEPTION_WEATHER_UNABLE_TO_CREATE_STATION: // Legacy
         std::cerr << "Unable to create the station.\n";
         break;
-    case SIMCONNECT_EXCEPTION_WEATHER_UNABLE_TO_REMOVE_STATION:
+    case SIMCONNECT_EXCEPTION_WEATHER_UNABLE_TO_REMOVE_STATION: // Legacy
         std::cerr << "Unable to remove the station.\n";
         break;
     case SIMCONNECT_EXCEPTION_INVALID_DATA_TYPE:
@@ -210,6 +215,40 @@ static void handleException(const SIMCONNECT_RECV_EXCEPTION& msg)
 }
 
 
+/**
+ * Handle the initial Open message from SimConnect, confirming the connection.
+ *
+ * @param msg The open message to handle.
+ */
+static void handleOpen(const SIMCONNECT_RECV_OPEN& msg)
+{
+    std::cerr << std::format("[Connected to '{}' version {}.{} (build {}.{}) using SimConnect version {}.{} (build {}.{})]\n",
+        msg.szApplicationName,
+        msg.dwApplicationVersionMajor,
+        msg.dwApplicationVersionMinor,
+        msg.dwApplicationBuildMajor,
+        msg.dwApplicationBuildMinor,
+        msg.dwSimConnectVersionMajor,
+        msg.dwSimConnectVersionMinor,
+        msg.dwSimConnectBuildMajor,
+        msg.dwSimConnectBuildMinor);
+}
+
+
+/**
+ * Handle the Quit message from SimConnect, indicating the simulator is shutting down.
+ */
+static void handleClose()
+{
+    std::cerr << "[Simulator is shutting down]\n";
+}
+
+
+/**
+ * Connect to the simulator. This will also create a Windows Event for message handling.
+ *
+ * @return true if the connection was successful, false otherwise.
+ */
 static bool connect()
 {
     if (hEvent == nullptr) {
@@ -230,6 +269,9 @@ static bool connect()
 }
 
 
+/**
+ * Disconnect from the simulator and close the Windows Event.
+ */
 static void disconnect()
 {
     if (hSimConnect != nullptr) {
@@ -245,6 +287,13 @@ static void disconnect()
 }
 
 
+/**
+ * Helper to convert a SIMCONNECT_RECV pointer to a more specific type.
+ *
+ * @tparam Recv The specific SIMCONNECT_RECV type to convert to.
+ * @param ptr The pointer to convert.
+ * @return The converted pointer.
+ */
 template <typename Recv>
 inline const Recv* toRecvPtr(const void* ptr) { return reinterpret_cast<const Recv*>(ptr); }
 
@@ -312,6 +361,10 @@ static bool sendPing()
 }
 
 
+/**
+ * Run the message loop until the simulator shuts down, responding to Pong messages
+ * by scheduling a new Ping after a brief delay.
+ */
 static void handleMessages()
 {
     std::optional<std::chrono::steady_clock::time_point> replyAt{};
@@ -333,17 +386,16 @@ static void handleMessages()
 
             case SIMCONNECT_RECV_ID_OPEN:
             {
-                const auto* pOpen = toRecvPtr<SIMCONNECT_RECV_OPEN>(pData);
-                std::cerr << std::format("[Connected to '{}' version {}.{} using SimConnect {}.{}]\n",
-                    pOpen->szApplicationName,
-                    pOpen->dwApplicationVersionMajor, pOpen->dwApplicationVersionMinor,
-                    pOpen->dwSimConnectVersionMajor, pOpen->dwSimConnectVersionMinor);
+                handleOpen(*toRecvPtr<SIMCONNECT_RECV_OPEN>(pData));
             }
             break;
 
             case SIMCONNECT_RECV_ID_QUIT:
-                std::cerr << "[Simulator is shutting down.]\n";
+            {
+                handleClose();
                 return;
+            }
+            break;
 
             case SIMCONNECT_RECV_ID_CLIENT_DATA:
             {

@@ -24,6 +24,7 @@
 #include <simconnect/events/notification_group.hpp>
 #include <simconnect/requests/requests.hpp>
 
+#include <simconnect/data/client_data_definitions.hpp>
 #include <simconnect/data/data_definitions.hpp>
 #include <simconnect/data/init_position.hpp>
 #include <simconnect/data_frequency.hpp>
@@ -868,7 +869,7 @@ public:
 
 #pragma endregion
 
-#pragma region Data Definitions
+#pragma region SimObject Data Definitions
 
     /**
      * Data Definitions are managed by the DataDefinitions class.
@@ -911,7 +912,9 @@ public:
 
 #pragma endregion
 
-#pragma region Data Requests
+#pragma region SimObject Data
+
+#pragma region SimObject Data Requests
 
     /**
      * Request data on the given object.
@@ -985,28 +988,9 @@ public:
 		return static_cast<Derived&>(*this);
     }
 
+#pragma endregion // SimObject Data Requests
 
-    /**
-     * Stops a data request.
-     * 
-     * @param dataDef The data definition ID.
-     * @param requestId The request ID.
-     * @param objectId The object ID to stop the request for. Defaults to the current user's Avatar or Aircraft.
-     * @returns A reference to the derived connection for chaining.
-     */
-    Derived& stopDataRequest(DataDefinitionId dataDef, RequestId requestId, SimObjectId objectId = SimObject::userCurrent)
-    {
-        guard_type guard(mutex_);
-
-        state(SimConnect_RequestDataOnSimObject(hSimConnect_, requestId, dataDef, objectId, DataPeriods::never));
-        if (failed()) {
-            logger_.error("SimConnect_RequestDataOnSimObject failed with error code 0x{:08X}.", state());
-        } else {
-            logger_.debug("Stopped data request (dataDef={}, requestId={}, objectId={}, sendId={})", dataDef, requestId, objectId, fetchSendIdInternal());
-        }
-        return static_cast<Derived&>(*this);
-    }
-
+#pragma region SimObject Data by Type
 
 	/**
 	 * Requests data for all SimObjects of a specific type.
@@ -1033,6 +1017,9 @@ public:
         return static_cast<Derived&>(*this);
 	}
 
+#pragma endregion // SimObject Data by Type
+
+#pragma region SimObject Data Sending
 
     /**
      * Sends data to a SimObject.
@@ -1122,8 +1109,353 @@ public:
         return static_cast<Derived&>(*this);
     }
 
+#pragma endregion // SimObject Data Sending
 
-#pragma endregion
+#pragma region Stopping SimObject Data Requests
+
+    /**
+     * Stops a data request.
+     * 
+     * @param dataDef The data definition ID.
+     * @param requestId The request ID.
+     * @param objectId The object ID to stop the request for. Defaults to the current user's Avatar or Aircraft.
+     * @returns A reference to the derived connection for chaining.
+     */
+    Derived& stopDataRequest(DataDefinitionId dataDef, RequestId requestId, SimObjectId objectId = SimObject::userCurrent)
+    {
+        guard_type guard(mutex_);
+
+        state(SimConnect_RequestDataOnSimObject(hSimConnect_, requestId, dataDef, objectId, DataPeriods::never));
+        if (failed()) {
+            logger_.error("SimConnect_RequestDataOnSimObject failed with error code 0x{:08X}.", state());
+        } else {
+            logger_.debug("Stopped data request (dataDef={}, requestId={}, objectId={}, sendId={})", dataDef, requestId, objectId, fetchSendIdInternal());
+        }
+        return static_cast<Derived&>(*this);
+    }
+
+#pragma endregion // Stopping SimObject Data Requests
+
+#pragma endregion // SimObject Data
+
+#pragma region Client Data
+
+#pragma region Mapping and Creation
+
+    /**
+     * Maps a client data name to a client data ID.
+     * 
+     * @param clientDataId The client data ID to map.
+     * @param name The client data name to map.
+     * @return The connection reference for chaining.
+     */
+    Derived& mapClientDataName(ClientDataId clientDataId, std::string_view name) {
+        guard_type guard(mutex_);
+
+        state(SimConnect_MapClientDataNameToID(hSimConnect_, name.data(), clientDataId));
+        if (failed()) {
+            logger_.error("SimConnect_MapClientDataNameToID failed with error code 0x{:08X}.", state());
+        } else {
+            logger_.debug("Mapped client data name '{}' to ID {} (sendId={})", name, clientDataId, fetchSendIdInternal());
+        }
+        return static_cast<Derived&>(*this);
+    }
+
+    /**
+     * Creates a client data area with the given ID and size.
+     * 
+     * @param clientDataId The client data ID to create.
+     * @param dataSize The size of the client data area in bytes.
+     * @param isWritable Whether the client data area should be writable by other clients. If false, the client data area will be read-only to other clients.
+     * @return The connection reference for chaining.
+     */
+    Derived& createClientData(ClientDataId clientDataId, std::size_t dataSize, bool isWritable = false) {
+        guard_type guard(mutex_);
+
+        state(SimConnect_CreateClientData(hSimConnect_, clientDataId, static_cast<unsigned long>(dataSize), isWritable ? ClientDataCreateFlags::defaultFlag : ClientDataCreateFlags::readOnly));
+        if (failed()) {
+            logger_.error("SimConnect_CreateClientData failed with error code 0x{:08X}.", state());
+        } else {
+            logger_.debug("Created {} client data with ID {} and size {} (sendId={})", isWritable ? "writable" : "read-only", clientDataId, dataSize, fetchSendIdInternal());
+        }
+        return static_cast<Derived&>(*this);
+    }
+
+#pragma endregion // Mapping and Creation
+
+#pragma region Client Data Definitions
+
+    /**
+     * Client Data Definitions are managed by the ClientDataDefinitions class.
+     * @returns The singleton ClientDataDefinitions object.
+     */
+    [[nodiscard]]
+    ClientDataDefinitions& clientDataDefinitions() {
+        static ClientDataDefinitions dataDefs;
+
+        return dataDefs;
+    }
+    
+
+    /**
+     * Adds a client data definition item to a client data definition.
+     * 
+     * @param defId The client data definition ID to add the item to.
+     * @param size The size of the item in bytes.
+     * @param offset The offset of the item in the client data area.
+     * @param itemDatumId The datum ID for the item, or unused if not applicable.
+     * @return The connection reference for chaining.
+     */
+    Derived& addClientDataDefinition(ClientDataDefinitionId defId, std::size_t size, std::size_t offset = clientDataAutoOffset, unsigned long itemDatumId = unused) {
+        guard_type guard(mutex_);
+
+        state(SimConnect_AddToClientDataDefinition(hSimConnect_, defId, static_cast<DWORD>(offset), static_cast<DWORD>(size), 0.0f, itemDatumId));
+        if (failed()) {
+            logger_.error("SimConnect_AddToClientDataDefinition failed with error code 0x{:08X}.", state());
+        } else {
+            logger_.debug("Added to client data definition {}: offset={}, size={}, datumId={} (sendId={})",
+                defId, offset, size, itemDatumId, fetchSendIdInternal());
+        }
+        return static_cast<Derived&>(*this);
+    }
+
+
+    /**
+     * Adds a typed client data definition item to a client data definition.
+     *
+     * Use this overload when the field is a primitive type rather than a raw struct blob.
+     * The type sentinel (e.g. ClientDataType::float64) is passed directly as dwSizeOrType.
+     *
+     * @param defId The client data definition ID to add the item to.
+     * @param type The primitive type of the item.
+     * @param offset The offset of the item in the client data area.
+     * @param epsilon The epsilon value for change detection. Only used when sendOnlyWhenChanged is set on the request. Defaults to 0.0f.
+     * @param itemDatumId The datum ID for the item, or unused if not applicable.
+     * @return The connection reference for chaining.
+     */
+    Derived& addClientDataDefinition(ClientDataDefinitionId defId, ClientDataType type, std::size_t offset = clientDataAutoOffset, float epsilon = 0.0f, unsigned long itemDatumId = unused) {
+        guard_type guard(mutex_);
+
+        state(SimConnect_AddToClientDataDefinition(hSimConnect_, defId, static_cast<DWORD>(offset), static_cast<DWORD>(type), epsilon, itemDatumId));
+        if (failed()) {
+            logger_.error("SimConnect_AddToClientDataDefinition failed with error code 0x{:08X}.", state());
+        } else {
+            logger_.debug("Added typed field to client data definition {}: offset={}, type={}, epsilon={}, datumId={} (sendId={})",
+                defId, offset, static_cast<DWORD>(type), epsilon, itemDatumId, fetchSendIdInternal());
+        }
+        return static_cast<Derived&>(*this);
+    }
+
+
+    /**
+     * Clears a client data definition, removing all items from the definition.
+     * 
+     * @param defId The client data definition ID to clear.
+     * @return The connection reference for chaining.
+     */
+    Derived& clearClientDataDefinition(ClientDataDefinitionId defId) {
+        guard_type guard(mutex_);
+
+        state(SimConnect_ClearClientDataDefinition(hSimConnect_, defId));
+        if (failed()) {
+            logger_.error("SimConnect_ClearClientDataDefinition failed with error code 0x{:08X}.", state());
+        } else {
+            logger_.debug("Cleared client data definition {} (sendId={})", defId, fetchSendIdInternal());
+        }
+        return static_cast<Derived&>(*this);
+    }
+
+
+#pragma endregion // Client Data Definitions
+
+#pragma region Client Data Requests
+
+    /**
+     * Requests data from a client data area.
+     * 
+     * @param clientDataId The client data ID to request data from.
+     * @param defId The client data definition ID to use for the request.
+     * @param requestId The request ID.
+     * @param frequency The frequency at which to request the data.
+     * @param limits The period limits for the data request.
+     * @param sendOnlyWhenChanged If true, the data will only be sent when it changes.
+     * @return The connection reference for chaining.
+     */
+    Derived& requestClientData(ClientDataId clientDataId, ClientDataDefinitionId defId, RequestId requestId,
+        ClientDataFrequency frequency = ClientDataFrequency::once(),
+        PeriodLimits limits = PeriodLimits::none(),
+        bool sendOnlyWhenChanged = false)
+    {
+        guard_type guard(mutex_);
+
+        state(SimConnect_RequestClientData(hSimConnect_, clientDataId, requestId, defId,
+            frequency,
+            sendOnlyWhenChanged ? ClientDataRequestFlags::whenChanged : ClientDataRequestFlags::defaultFlag,
+            limits.origin,
+            frequency.interval,
+            limits.limit));
+        if (failed()) {
+            logger_.error("SimConnect_RequestClientData failed with error code 0x{:08X}.", state());
+        } else {
+            logger_.debug("Requested client data {} (defId={}, requestId={}, period={}, interval={}, sendOnlyWhenChanged={}, sendId={})",
+                clientDataId, defId, requestId, static_cast<int>(frequency.getPeriod()), frequency.getInterval(), sendOnlyWhenChanged, fetchSendIdInternal());
+        }
+        return static_cast<Derived&>(*this);
+    }
+
+
+    /**
+     * Requests data from a client data area once.
+     *
+     * @param clientDataId The client data ID to request data from.
+     * @param defId The client data definition ID to use for the request.
+     * @param requestId The request ID.
+     * @param sendOnlyWhenChanged If true, the data will only be sent when it changes.
+     * @return The connection reference for chaining.
+     */
+    Derived& requestClientDataOnce(ClientDataId clientDataId, ClientDataDefinitionId defId, RequestId requestId,
+        bool sendOnlyWhenChanged = false)
+    {
+        return requestClientData(clientDataId, defId, requestId, ClientDataFrequency::once(), PeriodLimits::none(), sendOnlyWhenChanged);
+    }
+
+
+    /**
+     * Requests tagged data from a client data area.
+     *
+     * @param clientDataId The client data ID to request data from.
+     * @param defId The client data definition ID to use for the request.
+     * @param requestId The request ID.
+     * @param frequency The frequency at which to request the data.
+     * @param limits The period limits for the data request.
+     * @param sendOnlyWhenChanged If true, the data will only be sent when it changes.
+     * @return The connection reference for chaining.
+     */
+    Derived& requestClientDataTagged(ClientDataId clientDataId, ClientDataDefinitionId defId, RequestId requestId,
+        ClientDataFrequency frequency = ClientDataFrequency::once(),
+        PeriodLimits limits = PeriodLimits::none(),
+        bool sendOnlyWhenChanged = false)
+    {
+        guard_type guard(mutex_);
+
+        state(SimConnect_RequestClientData(hSimConnect_, clientDataId, requestId, defId,
+            frequency,
+            (sendOnlyWhenChanged ? ClientDataRequestFlags::whenChanged : ClientDataRequestFlags::defaultFlag) | ClientDataRequestFlags::tagged,
+            limits.origin,
+            frequency.interval,
+            limits.limit));
+        if (failed()) {
+            logger_.error("SimConnect_RequestClientData (tagged) failed with error code 0x{:08X}.", state());
+        } else {
+            logger_.debug("Requested tagged client data {} (requestId={}, frequency={}, sendOnlyWhenChanged={}, sendId={})",
+                clientDataId, requestId, frequency, sendOnlyWhenChanged, fetchSendIdInternal());
+        }
+        return static_cast<Derived&>(*this);
+    }
+
+
+    /**
+     * Requests tagged data from a client data area once.
+     *
+     * @param clientDataId The client data ID to request data from.
+     * @param defId The client data definition ID to use for the request.
+     * @param requestId The request ID.
+     * @param sendOnlyWhenChanged If true, the data will only be sent when it changes.
+     * @return The connection reference for chaining.
+     */
+    Derived& requestClientDataOnceTagged(ClientDataId clientDataId, ClientDataDefinitionId defId, RequestId requestId,
+        bool sendOnlyWhenChanged = false)
+    {
+        return requestClientDataTagged(clientDataId, defId, requestId, ClientDataFrequency::once(), PeriodLimits::none(), sendOnlyWhenChanged);
+    }
+
+
+#pragma endregion // Client Data Requests
+
+#pragma region Client Data Sending
+
+    /**
+     * Sends data to a client data area.
+     * 
+     * @param clientDataId The client data ID to send data to.
+     * @param defId The client data definition ID to use for the request.
+     * @param data The data to send.
+     * @return The connection reference for chaining.
+     */
+    template <typename T>
+    Derived& sendClientData(ClientDataId clientDataId, ClientDataDefinitionId defId, const T& data)
+    {
+        guard_type guard(mutex_);
+
+        state(SimConnect_SetClientData(hSimConnect_, clientDataId, defId, ClientDataSetFlags::defaultFlag, 1, sizeof(T), const_cast<void*>(&data)));
+        if (failed()) {
+            logger_.error("SimConnect_SetClientData failed with error code 0x{:08X}.", state());
+        } else {
+            logger_.debug("Sent data to client data {} (defId={}, size={}, sendId={})", clientDataId, defId, sizeof(T), fetchSendIdInternal());
+        }
+        return static_cast<Derived&>(*this);
+    }
+
+
+    /**
+     * Sends raw data to a client data area.
+     * 
+     * @param clientDataId The client data ID to send data to.
+     * @param defId The client data definition ID to use for the request.
+     * @param data The data to send.
+     * @param count The number of data blocks to send. Defaults to 1.
+     * @param blockSize The size of each data block, defaults to 0. If 0, the size is calculated as data.size() / count.
+     * @return The connection reference for chaining.
+     */
+    Derived& sendClientData(ClientDataId clientDataId, ClientDataDefinitionId defId, std::span<const uint8_t> data, unsigned long count = 1, unsigned long blockSize = 0)
+    {
+        if (blockSize == 0) {
+            blockSize = data.size() / count;
+        }
+        if (data.size() != blockSize * count) {
+            logger_.error("Data size {} does not match count {} * blockSize {}", data.size(), count, blockSize);
+            state(E_INVALIDARG);
+            return static_cast<Derived&>(*this);
+        }
+
+        guard_type guard(mutex_);
+
+        state(SimConnect_SetClientData(hSimConnect_, clientDataId, defId, ClientDataSetFlags::defaultFlag, count, blockSize, const_cast<uint8_t*>(data.data())));
+        if (failed()) {
+            logger_.error("SimConnect_SetClientData failed with error code 0x{:08X}.", state());
+        } else {
+            logger_.debug("Sent data to client data {} (defId={}, size={}, count={}, blockSize={}, sendId={})", clientDataId, defId, data.size(), count, blockSize, fetchSendIdInternal());
+        }
+        return static_cast<Derived&>(*this);
+    }
+
+#pragma endregion // Client Data Sending
+
+#pragma region Stopping Client Data Requests
+
+    /**
+     * Stops a client data request.
+     * 
+     * @param clientDataId The client data ID to stop the request for.
+     * @param dataDef The client data definition ID that was used for the request.
+     * @param requestId The request ID.
+     * @return The connection reference for chaining.
+     */
+    Derived& stopClientDataRequest(ClientDataId clientDataId, ClientDataDefinitionId dataDef, RequestId requestId) {
+        guard_type guard(mutex_);
+
+        state(SimConnect_RequestClientData(hSimConnect_, clientDataId, requestId, dataDef, ClientDataFrequency::never()));
+        if (failed()) {
+            logger_.error("SimConnect_RequestClientData (stop) failed with error code 0x{:08X}.", state());
+        } else {
+            logger_.debug("Stopped client data request for client data {} (dataDef={}, requestId={}, sendId={})", clientDataId, dataDef, requestId, fetchSendIdInternal());
+        }
+        return static_cast<Derived&>(*this);
+    }
+
+#pragma endregion // Stopping Client Data Requests
+
+#pragma endregion // Client Data
 
 #pragma region Titles and Liveries
 

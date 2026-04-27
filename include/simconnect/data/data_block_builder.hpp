@@ -41,12 +41,46 @@ public:
 
 
     /**
+     * Add a raw block of bytes to the block.
+     *
+     * @param data The span of bytes to add.
+     * @return A reference to the current object.
+     */
+    DataBlockBuilder& addBytes(std::span<const uint8_t> data) {
+        return add<DataBlockBuilder>(data);
+    }
+
+
+    /**
+     * Add a raw block of bytes to the block.
+     *
+     * @param data Pointer to the bytes to add.
+     * @param size Number of bytes to add.
+     * @return A reference to the current object.
+     */
+    DataBlockBuilder& addBytes(const uint8_t* data, size_t size) {
+        return addBytes(std::span<const uint8_t>(data, size));
+    }
+
+
+    /**
      * Add an integer value of type `DataTypes::Int8` to the block.
      * 
      * @param value The integer value to add.
      * @return A reference to the current object.
      */
     DataBlockBuilder& addInt8(int8_t value) {
+        return add<DataBlockBuilder>(std::span<const uint8_t>(reinterpret_cast<const uint8_t*>(&value), sizeof(value)));
+    }
+
+
+    /**
+     * Add an integer value of type `ClientDataType::int16` to the block.
+     *
+     * @param value The integer value to add.
+     * @return A reference to the current object.
+     */
+    DataBlockBuilder& addInt16(int16_t value) {
         return add<DataBlockBuilder>(std::span<const uint8_t>(reinterpret_cast<const uint8_t*>(&value), sizeof(value)));
     }
 

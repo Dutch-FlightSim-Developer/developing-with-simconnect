@@ -182,6 +182,23 @@ namespace Messages {
 
     inline constexpr MessageId enumerateInputEventParams{ SIMCONNECT_RECV_ID_ENUMERATE_INPUT_EVENT_PARAMS };
     using EnumerateInputEventParamsMsg = SIMCONNECT_RECV_ENUMERATE_INPUT_EVENT_PARAMS;
+
+#if MSFS_2024_SDK
+    inline constexpr MessageId cameraData{ SIMCONNECT_RECV_ID_CAMERA_DATA };
+    using CameraDataMsg = SIMCONNECT_RECV_CAMERA_DATA;
+
+    inline constexpr MessageId cameraDefinitionList{ SIMCONNECT_RECV_ID_CAMERA_DEFINITION_LIST };
+    using CameraDefinitionListMsg = SIMCONNECT_RECV_CAMERA_DEFINITION_LIST;
+
+    inline constexpr MessageId cameraStatus{ SIMCONNECT_RECV_ID_CAMERA_STATUS };
+    using CameraStatusMsg = SIMCONNECT_RECV_CAMERA_STATUS;
+
+    inline constexpr MessageId cameraWorldLocker{ SIMCONNECT_RECV_ID_CAMERA_WORLD_LOCKER };
+    using CameraWorldLockerMsg = SIMCONNECT_RECV_CAMERA_WORLD_LOCKER;
+
+    inline constexpr MessageId commBus{ SIMCONNECT_RECV_ID_COMM_BUS };
+    using CommBusMsg = SIMCONNECT_RECV_COMM_BUS;
+#endif
 }
 
 using ExceptionCode = unsigned long;                                                            ///< The type used for exception codes.
@@ -235,6 +252,8 @@ namespace Exceptions {
     inline constexpr ExceptionCode getInputEventFailed{ SIMCONNECT_EXCEPTION_GET_INPUT_EVENT_FAILED };
     inline constexpr ExceptionCode setInputEventFailed{ SIMCONNECT_EXCEPTION_SET_INPUT_EVENT_FAILED };
 #if MSFS_2024_SDK
+    inline constexpr ExceptionCode eventNameReserved{ SIMCONNECT_EXCEPTION_EVENT_NAME_RESERVED };
+    inline constexpr ExceptionCode cameraApi{ SIMCONNECT_EXCEPTION_CAMERA_API };
     inline constexpr ExceptionCode internal{ SIMCONNECT_EXCEPTION_INTERNAL };
 #endif
 }
@@ -284,6 +303,8 @@ namespace SimObjectTypes {
 using RequestId = unsigned long;                ///< The type used for request IDs.
 
 inline constexpr RequestId noRequest{ 0 };    ///< Constant representing no request ID.
+
+#pragma region Data Request and Definition Types
 
 using DataPeriod = SIMCONNECT_PERIOD;           ///< The type used for data request periods.
 
@@ -351,6 +372,67 @@ namespace DataSetFlags {
     inline constexpr DataSetFlag defaultFlag{ SIMCONNECT_DATA_SET_FLAG_DEFAULT };    ///< Default data set flag.
     inline constexpr DataSetFlag tagged{ SIMCONNECT_DATA_SET_FLAG_TAGGED };        ///< Tagged data set flag.
 }
+
+using DataItemId = unsigned long;         ///< The type used for data item IDs.
+
+#pragma endregion
+
+#pragma region Client Data
+
+using ClientDataId = SIMCONNECT_CLIENT_DATA_ID;             ///< The type used for client data IDs.
+
+inline constexpr ClientDataId noClientDataId{ 0 };          ///< Constant representing no client data ID.
+
+using ClientDataCreateFlag = SIMCONNECT_CREATE_CLIENT_DATA_FLAG;   ///< The type used for client data create flags.
+
+namespace ClientDataCreateFlags {
+    inline constexpr ClientDataCreateFlag defaultFlag{ SIMCONNECT_CREATE_CLIENT_DATA_FLAG_DEFAULT };    ///< Default client data create flag.
+    inline constexpr ClientDataCreateFlag readOnly{ SIMCONNECT_CREATE_CLIENT_DATA_FLAG_READ_ONLY };     ///< Read-only client data create flag.
+}
+
+using ClientDataRequestFlag = SIMCONNECT_CLIENT_DATA_REQUEST_FLAG;   ///< The type used for client data request flags.
+
+namespace ClientDataRequestFlags {
+    inline constexpr ClientDataRequestFlag defaultFlag{ SIMCONNECT_CLIENT_DATA_REQUEST_FLAG_DEFAULT };   ///< Default client data request flag.
+    inline constexpr ClientDataRequestFlag whenChanged{ SIMCONNECT_CLIENT_DATA_REQUEST_FLAG_CHANGED };   ///< Changed client data request flag.
+    inline constexpr ClientDataRequestFlag tagged{ SIMCONNECT_CLIENT_DATA_REQUEST_FLAG_TAGGED };         ///< Tagged client data request flag.
+}
+
+using ClientDataSetFlag = SIMCONNECT_CLIENT_DATA_SET_FLAG;   ///< The type used for client data set flags.
+
+namespace ClientDataSetFlags {
+    inline constexpr ClientDataSetFlag defaultFlag{ SIMCONNECT_CLIENT_DATA_SET_FLAG_DEFAULT };    ///< Default client data set flag.
+    inline constexpr ClientDataSetFlag tagged{ SIMCONNECT_CLIENT_DATA_SET_FLAG_TAGGED };          ///< Tagged client data set flag.
+}
+
+using ClientDataPeriod = SIMCONNECT_CLIENT_DATA_PERIOD;   ///< The type used for client data periods.
+
+namespace ClientDataPeriods {
+    inline constexpr ClientDataPeriod never{ SIMCONNECT_CLIENT_DATA_PERIOD_NEVER };                   ///< Client data period never.
+    inline constexpr ClientDataPeriod once{ SIMCONNECT_CLIENT_DATA_PERIOD_ONCE };                     ///< Client data period once.
+    inline constexpr ClientDataPeriod visualFrame{ SIMCONNECT_CLIENT_DATA_PERIOD_VISUAL_FRAME };      ///< Client data period visual frame.
+    inline constexpr ClientDataPeriod onSet{ SIMCONNECT_CLIENT_DATA_PERIOD_ON_SET };                  ///< Client data period on set.
+    inline constexpr ClientDataPeriod second{ SIMCONNECT_CLIENT_DATA_PERIOD_SECOND };                 ///< Client data period second.
+}
+
+using ClientDataDefinitionId = SIMCONNECT_CLIENT_DATA_DEFINITION_ID;    ///< The type used for client data definition IDs.
+
+enum class ClientDataType : DWORD {
+    int8 = SIMCONNECT_CLIENTDATATYPE_INT8,                     ///< 8-bit integer client data type.
+    int16 = SIMCONNECT_CLIENTDATATYPE_INT16,                   ///< 16-bit integer client data type.
+    int32 = SIMCONNECT_CLIENTDATATYPE_INT32,                   ///< 32-bit integer client data type.
+    int64 = SIMCONNECT_CLIENTDATATYPE_INT64,                   ///< 64-bit integer client data type.
+    float32 = SIMCONNECT_CLIENTDATATYPE_FLOAT32,               ///< 32-bit floating point client data type.
+    float64 = SIMCONNECT_CLIENTDATATYPE_FLOAT64,               ///< 64-bit floating point client data type.
+};
+
+constexpr std::size_t clientDataAutoOffset{ static_cast<std::size_t>(SIMCONNECT_CLIENTDATAOFFSET_AUTO) };   ///< Constant representing an automatic offset for client data definitions.
+
+using ClientDataItemId = unsigned long;         ///< The type used for client data item IDs.
+
+#pragma endregion
+
+#pragma region Facility Types
 
 using FacilityListType = SIMCONNECT_FACILITY_LIST_TYPE;
 
@@ -434,7 +516,11 @@ namespace Facilities {
         SimObjectId attachedObjectId;               ///< The SimObject ID of the object currently attached to the jetway.
     };
 }
+
+#pragma endregion
+
 using SimConnectEventId = unsigned long;        ///< The type used for SimConnect (internal)event IDs.
+
 using EventId = unsigned long;                  ///< The type used for client event IDs.
 using EventGroupId = unsigned long;             ///< The type used for event group IDs.
 using NotificationGroupId = EventGroupId;       ///< The type used for notification group IDs.

@@ -1,6 +1,6 @@
 #pragma once
 /*
- * Copyright (c) 2025. Bert Laverman
+ * Copyright (c) 2025, 2026. Bert Laverman
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,8 +16,11 @@
  */
 
 #include <unordered_map>
+#include <string>
+#include <string_view>
+#include <type_traits>
 
-
+#include <simconnect.hpp>
 #include <simconnect/simconnect.hpp>
 #include <simconnect/simobject_type.hpp>
 #include <simconnect/message_handler.hpp>
@@ -35,11 +38,11 @@ struct SimObjectIdHolder {
 
     constexpr SimObjectIdHolder() = default;
     constexpr SimObjectIdHolder(SimObjectId id) : objectId(id) {}
-	SimObjectIdHolder(const Messages::SimObjectDataMsg& msg) : objectId(msg.dwObjectID) {}
-	SimObjectIdHolder(const SimObjectIdHolder&) = default;
-    SimObjectIdHolder(SimObjectIdHolder&&) = default;
-    SimObjectIdHolder& operator=(const SimObjectIdHolder&) = default;
-    SimObjectIdHolder& operator=(SimObjectIdHolder&&) = default;
+	constexpr SimObjectIdHolder(const Messages::SimObjectDataMsg& msg) : objectId(msg.dwObjectID) {}
+	constexpr SimObjectIdHolder(const SimObjectIdHolder&) = default;
+    constexpr SimObjectIdHolder(SimObjectIdHolder&&) = default;
+    constexpr SimObjectIdHolder& operator=(const SimObjectIdHolder&) = default;
+    constexpr SimObjectIdHolder& operator=(SimObjectIdHolder&&) = default;
 };
 
 
@@ -58,6 +61,9 @@ class SimObjectDataHandler
 public:
     using simconnect_message_handler_type = M;
     using connection_type = typename M::connection_type;
+    using mutex_type = typename connection_type::mutex_type;
+    using guard_type = typename connection_type::guard_type;
+    using lock_type = typename connection_type::lock_type;
 
 private:
     simconnect_message_handler_type& simConnectMessageHandler_;
@@ -125,6 +131,8 @@ public:
     // For each group, there are methods to request the data once or repeatedly, and tagged. (again once or repeatedly)
 
     // First, request the data and pass a handler that will receive the raw message data.
+
+#pragma region Requesting SimObject Data
 
 #pragma region Raw message data requests
 
@@ -722,6 +730,8 @@ public:
 	}
 
 #pragma endregion
+
+#pragma endregion // Requesting SimObject Data
 
 #pragma region Send data methods
 

@@ -68,12 +68,38 @@ public:
 
 
     /**
+     * "Read" a span of bytes from the block, checking if the read is within bounds.
+     * 
+     * @param size The size of the block to read.
+     * @return A span of the data.
+     */
+    std::span<const uint8_t> readBytes(size_t size) {
+        if (next_ + size > this->size()) {
+            throw std::out_of_range("Attempt to read beyond the end of the data block.");
+        }
+        auto value = getSpan(next_, size);
+        next_ += size;
+        return value;
+    }
+
+
+    /**
      * Read a value of type `DataTypes::Int8` from the block.
      * 
      * @return The read integer value.
      */
     int8_t readInt8() {
         return read<int8_t>();
+    }
+
+
+    /**
+     * Read a value of type `ClientDataType::int16` from the block.
+     *
+     * @return The read integer value.
+     */
+    int16_t readInt16() {
+        return read<int16_t>();
     }
 
 

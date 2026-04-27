@@ -41,11 +41,22 @@
 //   UNUSED     -> ANSI dim
 
 #pragma warning(push, 3)
-#include <Windows.h>
+
+#include <Windows.h> // NOLINT(misc-include-cleaner) — needed for console handling and SimConnect, but we don't want to see warnings from it
+
+#include <WinBase.h>
+#include <winnt.h>
+#include <minwindef.h>
+#include <consoleapi.h>
+#include <processenv.h>
+
 #include "PMDG_NG3_SDK.h"
+
 #pragma warning(pop)
 
 #include <array>
+#include <cstdint>
+#include <cstddef>
 #include <cctype>
 #include <exception>
 #include <format>
@@ -93,9 +104,9 @@ static constexpr std::array<std::string_view, 6> CDU_FG_COLORS = {{
 
 static void enableAnsiVT()
 {
-    const HANDLE hOut = GetStdHandle(STD_OUTPUT_HANDLE);
+    const HANDLE hOut = GetStdHandle(STD_OUTPUT_HANDLE); //NOLINT(misc-misplaced-const)
     DWORD mode{ 0 };
-    if (GetConsoleMode(hOut, &mode)) {
+    if (GetConsoleMode(hOut, &mode) != 0) {
         SetConsoleMode(hOut, mode | ENABLE_VIRTUAL_TERMINAL_PROCESSING);
     }
 }
@@ -113,30 +124,35 @@ static void printTitle(int cduIndex)
                              cduIndex == 0 ? "LEFT " : "RIGHT");
 }
 
+
+inline constexpr uint8_t cduFlagReverse = static_cast<uint8_t>(PMDG_NG3_CDU_FLAG_REVERSE);
+inline constexpr uint8_t cduFlagSmallFont = static_cast<uint8_t>(PMDG_NG3_CDU_FLAG_SMALL_FONT);
+inline constexpr uint8_t cduFlagUnused = static_cast<uint8_t>(PMDG_NG3_CDU_FLAG_UNUSED);
+
 static void renderCell(const PMDG_NG3_CDU_Cell& cell)
 {
     std::cout << ANSI_RESET << ANSI_BG_BLACK;
 
-    if (cell.Flags & PMDG_NG3_CDU_FLAG_REVERSE) {
+    if ((cell.Flags & cduFlagReverse) != 0) {
         std::cout << ANSI_REVERSE;
     }
 
-    const auto colorIdx = (static_cast<std::size_t>(cell.Color) < CDU_FG_COLORS.size())
-        ? static_cast<std::size_t>(cell.Color) : std::size_t{ 0 };
-    std::cout << CDU_FG_COLORS[colorIdx];
+    const unsigned int colorIdx = (static_cast<std::size_t>(cell.Color) < CDU_FG_COLORS.size()) ? cell.Color : 0U;
+    std::cout << CDU_FG_COLORS[colorIdx]; // NOLINT(cppcoreguidelines-pro-bounds-constant-array-index)
 
-    if (cell.Flags & PMDG_NG3_CDU_FLAG_UNUSED) {
+    if ((cell.Flags & cduFlagUnused) != 0) {
         std::cout << ANSI_DIM;
     }
 
     // Printable ASCII range only; everything else is a space.
-    char sym = (cell.Symbol >= 0x20 && cell.Symbol < 0x7F)
-        ? static_cast<char>(cell.Symbol) : ' ';
+    constexpr unsigned char asciiStart{ 0x20U };
+    constexpr unsigned char asciiEnd{ 0x7EU };
+    int sym = (cell.Symbol >= asciiStart && cell.Symbol <= asciiEnd) ? cell.Symbol : ' ';
 
     // SMALL_FONT marks label/header rows — render as lowercase alpha
     // as a visual hint, since we can't change the font size.
-    if ((cell.Flags & PMDG_NG3_CDU_FLAG_SMALL_FONT) && std::isalpha(static_cast<unsigned char>(sym))) {
-        sym = static_cast<char>(std::tolower(static_cast<unsigned char>(sym)));
+    if (((cell.Flags & cduFlagSmallFont) != 0) && (std::isalpha(sym) != 0)) {
+        sym = std::tolower(sym);
     }
 
     std::cout << sym;
@@ -153,7 +169,8 @@ static void renderScreen(const PMDG_NG3_CDU_Screen& screen)
             std::cout << ANSI_RESET << ANSI_BG_BLACK
                       << std::string(CDU_COLUMNS, ' ') << ANSI_RESET;
         }
-        moveTo(CONSOLE_ROW_OFFSET + CDU_ROWS / 2, CONSOLE_COL_OFFSET + 7);
+        constexpr int columnOffset = 7; // center "CDU OFF" in the 24-char-wide CDU area
+        moveTo(CONSOLE_ROW_OFFSET + (CDU_ROWS / 2), CONSOLE_COL_OFFSET + columnOffset);
         std::cout << "\033[90m[ CDU OFF ]" << ANSI_RESET;
     }
     else {
@@ -161,8 +178,8 @@ static void renderScreen(const PMDG_NG3_CDU_Screen& screen)
         for (int row = 0; row < CDU_ROWS; ++row) {
             moveTo(CONSOLE_ROW_OFFSET + row, CONSOLE_COL_OFFSET);
             std::cout << ANSI_BG_BLACK;
-            for (int col = 0; col < CDU_COLUMNS; ++col) {
-                renderCell(screen.Cells[col][row]);
+            for (const auto& column : screen.Cells) {
+                renderCell(column[row]); // NOLINT(cppcoreguidelines-pro-bounds-constant-array-index)
             }
             std::cout << ANSI_RESET;
         }

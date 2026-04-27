@@ -25,5 +25,4 @@ target_link_libraries(11-4-PMDG-CDU-Screen-CPP
 
 set_target_properties(11-4-PMDG-CDU-Screen-CPP PROPERTIES
     RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}"
-    CXX_CLANG_TIDY ""
 )

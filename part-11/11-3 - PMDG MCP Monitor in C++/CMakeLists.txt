@@ -25,5 +25,4 @@ target_link_libraries(11-3-PMDG-MCP-Monitor-CPP
 
 set_target_properties(11-3-PMDG-MCP-Monitor-CPP PROPERTIES
     RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}"
-    CXX_CLANG_TIDY ""
 )

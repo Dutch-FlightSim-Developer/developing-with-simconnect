@@ -69,9 +69,19 @@ ctest --preset <test-preset> -R <test-name>
 cmake --preset windows-clang-debug-tests -DBUILD_TESTING=ON
 ```
 
-Test structure:
+### Test structure:
 - **Unit tests**: `CppSimConnect/tests/` — Pure C++ library tests (no simulator required)
 - **Live tests**: `CppSimConnect/live-tests/` — Integration tests requiring a running simulator
+
+## SimConnect API references
+
+### Location
+- The Simconnect SDK uses the environment variable `MSFS_SDK` or `MSFS2020_SDK` for MSFS 2020, and `MSFS2024_SDK` for MSFS 2024.
+- The SimConnect API headers are located in the `SimConnect SDK/include/` directory of the respective SDK.
+
+### Restrictions
+- Never suggest likely SimConnect API calls, types, or constants that do not actually exist in the SDK.
+
 
 ## Architecture
 

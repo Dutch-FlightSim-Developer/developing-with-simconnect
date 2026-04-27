@@ -35,7 +35,6 @@
 //     (typically found in the PMDG work folder inside your Community folder).
 
 #pragma warning(push, 3)
-#include <Windows.h>
 #include "PMDG_NG3_SDK.h"
 #pragma warning(pop)
 
@@ -61,61 +60,60 @@ using namespace SimConnect;
 // Last seen MCP state — sentinel values mean "not yet received".
 struct McpState {
     bool           powered{ false };
-    unsigned short heading{ 0xFFFFu };
-    unsigned short altitude{ 0xFFFFu };
-    float          iasMach{ -1.0f };
+    unsigned short heading{ static_cast<unsigned short>(-1) };
+    unsigned short altitude{ static_cast<unsigned short>(-1) };
+    float          iasMach{ -1.0F };
     bool           iasBlank{ true };
     short          vertSpeed{ 0 };
     bool           vsBlank{ true };
 };
 
-static McpState g_mcp;
 
-
-static void processMcpData(const PMDG_NG3_Data& data)
+static void processMcpData(const PMDG_NG3_Data& data, McpState& state)
 {
     if (!data.MCP_indication_powered) {
-        if (g_mcp.powered) {
-            g_mcp.powered = false;
+        if (state.powered) {
+            state.powered = false;
             std::cout << "[MCP] Power OFF\n";
         }
         return;
     }
 
-    if (!g_mcp.powered) {
-        g_mcp.powered = true;
+    if (!state.powered) {
+        state.powered = true;
         std::cout << "[MCP] Power ON\n";
     }
 
-    if (data.MCP_Heading != g_mcp.heading) {
-        g_mcp.heading = data.MCP_Heading;
-        std::cout << std::format("[MCP] Heading:    {:03}\n", g_mcp.heading);
+    if (data.MCP_Heading != state.heading) {
+        state.heading = data.MCP_Heading;
+        std::cout << std::format("[MCP] Heading:    {:03}\n", state.heading);
     }
 
-    if (data.MCP_Altitude != g_mcp.altitude) {
-        g_mcp.altitude = data.MCP_Altitude;
-        std::cout << std::format("[MCP] Altitude:   {} ft\n", g_mcp.altitude);
+    if (data.MCP_Altitude != state.altitude) {
+        state.altitude = data.MCP_Altitude;
+        std::cout << std::format("[MCP] Altitude:   {} ft\n", state.altitude);
     }
 
-    if (data.MCP_IASBlank != g_mcp.iasBlank || data.MCP_IASMach != g_mcp.iasMach) {
-        g_mcp.iasBlank = data.MCP_IASBlank;
-        g_mcp.iasMach  = data.MCP_IASMach;
-        if (g_mcp.iasBlank) {
+    if (data.MCP_IASBlank != state.iasBlank || data.MCP_IASMach != state.iasMach) {
+        constexpr float machThreshold{ 10.0F }; // PMDG uses the Mach number field for IAS above 10 knots, so treat anything below that as an IAS value
+        state.iasBlank = data.MCP_IASBlank;
+        state.iasMach  = data.MCP_IASMach;
+        if (state.iasBlank) {
             std::cout << "[MCP] Speed:      ---\n";
-        } else if (g_mcp.iasMach < 10.0f) {
-            std::cout << std::format("[MCP] Speed:      M{:.2f}\n", g_mcp.iasMach);
+        } else if (state.iasMach < machThreshold) {
+            std::cout << std::format("[MCP] Speed:      M{:.2f}\n", state.iasMach);
         } else {
-            std::cout << std::format("[MCP] Speed:      {:.0f} kts\n", g_mcp.iasMach);
+            std::cout << std::format("[MCP] Speed:      {:.0f} kts\n", state.iasMach);
         }
     }
 
-    if (data.MCP_VertSpeedBlank != g_mcp.vsBlank || data.MCP_VertSpeed != g_mcp.vertSpeed) {
-        g_mcp.vsBlank   = data.MCP_VertSpeedBlank;
-        g_mcp.vertSpeed = data.MCP_VertSpeed;
-        if (g_mcp.vsBlank) {
+    if (data.MCP_VertSpeedBlank != state.vsBlank || data.MCP_VertSpeed != state.vertSpeed) {
+        state.vsBlank   = data.MCP_VertSpeedBlank;
+        state.vertSpeed = data.MCP_VertSpeed;
+        if (state.vsBlank) {
             std::cout << "[MCP] Vert Speed: ---\n";
         } else {
-            std::cout << std::format("[MCP] Vert Speed: {:+} fpm\n", static_cast<int>(g_mcp.vertSpeed));
+            std::cout << std::format("[MCP] Vert Speed: {:+} fpm\n", static_cast<int>(state.vertSpeed));
         }
     }
 }
@@ -339,14 +337,15 @@ void runTest()
 
         // PMDG data areas are identified by name only — the numeric IDs in the SDK
         // header are irrelevant. Let the handler allocate its own ID.
-        ClientDataId dataId = dataHandler.mapClientDataName(PMDG_NG3_DATA_NAME);
+        const ClientDataId dataId = dataHandler.mapClientDataName(PMDG_NG3_DATA_NAME);
 
         ClientDataDefinition<PMDG_NG3_Data> pmdgDef;
         pmdgDef.addRaw();
 
+        McpState state{}; // default-initialized to "not yet received" sentinel values
         auto pmdgReq = dataHandler.requestClientData<PMDG_NG3_Data>(
             dataId, pmdgDef,
-            processMcpData,
+            [&state](const PMDG_NG3_Data& data) { processMcpData(data, state); },
             ClientDataFrequency::onSet(),
             PeriodLimits::none(),
             /*onlyWhenChanged=*/ true);

@@ -45,6 +45,7 @@
 #include "PMDG_NG3_SDK.h"
 #pragma warning(pop)
 
+#include <array>
 #include <cctype>
 #include <exception>
 #include <format>
@@ -80,15 +81,14 @@ static constexpr std::string_view ANSI_CURSOR_SHOW { "\033[?25h"  };
 static constexpr std::string_view ANSI_CLEAR       { "\033[2J"    };
 
 // Foreground color sequences indexed by PMDG_NG3_CDU_COLOR_* values
-static constexpr const char* CDU_FG_COLORS[] = {
+static constexpr std::array<std::string_view, 6> CDU_FG_COLORS = {{
     "\033[97m",   // 0 WHITE   — bright white
     "\033[96m",   // 1 CYAN    — bright cyan
     "\033[92m",   // 2 GREEN   — bright green
     "\033[95m",   // 3 MAGENTA — bright magenta
     "\033[33m",   // 4 AMBER   — dark yellow (closest ANSI match)
     "\033[91m",   // 5 RED     — bright red
-};
-static constexpr int NUM_CDU_COLORS{ static_cast<int>(std::size(CDU_FG_COLORS)) };
+}};
 
 
 static void enableAnsiVT()
@@ -113,6 +113,35 @@ static void printTitle(int cduIndex)
                              cduIndex == 0 ? "LEFT " : "RIGHT");
 }
 
+static void renderCell(const PMDG_NG3_CDU_Cell& cell)
+{
+    std::cout << ANSI_RESET << ANSI_BG_BLACK;
+
+    if (cell.Flags & PMDG_NG3_CDU_FLAG_REVERSE) {
+        std::cout << ANSI_REVERSE;
+    }
+
+    const auto colorIdx = (static_cast<std::size_t>(cell.Color) < CDU_FG_COLORS.size())
+        ? static_cast<std::size_t>(cell.Color) : std::size_t{ 0 };
+    std::cout << CDU_FG_COLORS[colorIdx];
+
+    if (cell.Flags & PMDG_NG3_CDU_FLAG_UNUSED) {
+        std::cout << ANSI_DIM;
+    }
+
+    // Printable ASCII range only; everything else is a space.
+    char sym = (cell.Symbol >= 0x20 && cell.Symbol < 0x7F)
+        ? static_cast<char>(cell.Symbol) : ' ';
+
+    // SMALL_FONT marks label/header rows — render as lowercase alpha
+    // as a visual hint, since we can't change the font size.
+    if ((cell.Flags & PMDG_NG3_CDU_FLAG_SMALL_FONT) && std::isalpha(static_cast<unsigned char>(sym))) {
+        sym = static_cast<char>(std::tolower(static_cast<unsigned char>(sym)));
+    }
+
+    std::cout << sym;
+}
+
 static void renderScreen(const PMDG_NG3_CDU_Screen& screen)
 {
     std::cout << ANSI_CURSOR_HIDE;
@@ -132,35 +161,8 @@ static void renderScreen(const PMDG_NG3_CDU_Screen& screen)
         for (int row = 0; row < CDU_ROWS; ++row) {
             moveTo(CONSOLE_ROW_OFFSET + row, CONSOLE_COL_OFFSET);
             std::cout << ANSI_BG_BLACK;
-
             for (int col = 0; col < CDU_COLUMNS; ++col) {
-                const PMDG_NG3_CDU_Cell& cell = screen.Cells[col][row];
-
-                // Attributes: reset first, then apply flags and color.
-                std::cout << ANSI_RESET << ANSI_BG_BLACK;
-
-                if (cell.Flags & PMDG_NG3_CDU_FLAG_REVERSE) {
-                    std::cout << ANSI_REVERSE;
-                }
-
-                const int colorIdx = (cell.Color < NUM_CDU_COLORS) ? cell.Color : 0;
-                std::cout << CDU_FG_COLORS[colorIdx];
-
-                if (cell.Flags & PMDG_NG3_CDU_FLAG_UNUSED) {
-                    std::cout << ANSI_DIM;
-                }
-
-                // Printable ASCII range only; everything else is a space.
-                char sym = (cell.Symbol >= 0x20 && cell.Symbol < 0x7F)
-                    ? static_cast<char>(cell.Symbol) : ' ';
-
-                // SMALL_FONT marks label/header rows — render as lowercase alpha
-                // as a visual hint, since we can't change the font size.
-                if ((cell.Flags & PMDG_NG3_CDU_FLAG_SMALL_FONT) && std::isalpha(static_cast<unsigned char>(sym))) {
-                    sym = static_cast<char>(std::tolower(static_cast<unsigned char>(sym)));
-                }
-
-                std::cout << sym;
+                renderCell(screen.Cells[col][row]);
             }
             std::cout << ANSI_RESET;
         }
@@ -376,17 +378,17 @@ static void handleException(const Messages::ExceptionMsg& msg)
  * Parse command-line arguments and return the CDU index (0=left, 1=right).
  * Returns -1 on invalid input.
  */
-static int gatherArgs(int argc, const char* argv[])
+static int gatherArgs(int argc, const char* argv[]) // NOLINT(cppcoreguidelines-avoid-c-arrays,hicpp-avoid-c-arrays,modernize-avoid-c-arrays)
 {
     if (argc >= 2) {
-        const std::string arg{ argv[1] };
+        const std::string arg{ argv[1] }; // NOLINT(cppcoreguidelines-pro-bounds-pointer-arithmetic)
         if (arg == "1" || arg == "r" || arg == "right") {
             return 1;
         }
         if (arg == "0" || arg == "l" || arg == "left") {
             return 0;
         }
-        std::cerr << std::format("Usage: {} [0|l|left | 1|r|right]\n", argv[0]);
+        std::cerr << std::format("Usage: {} [0|l|left | 1|r|right]\n", argv[0]); // NOLINT(cppcoreguidelines-pro-bounds-pointer-arithmetic)
         return -1;
     }
     return 0; // default: left CDU
@@ -417,7 +419,7 @@ void runTest(int cduIndex)
 
         // PMDG data areas are identified by name only — the numeric IDs in the SDK
         // header are irrelevant. Let the handler allocate its own ID.
-        ClientDataId cduId = dataHandler.mapClientDataName(cduName);
+        const ClientDataId cduId = dataHandler.mapClientDataName(cduName);
 
         ClientDataDefinition<PMDG_NG3_CDU_Screen> cduDef;
         cduDef.addRaw();

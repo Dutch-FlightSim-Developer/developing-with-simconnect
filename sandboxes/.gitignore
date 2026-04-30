@@ -1,0 +1,5 @@
+# Ignore everything inside sandboxes/ ...
+*
+# ... except this .gitignore and the CMakeLists.txt stub.
+!.gitignore
+!CMakeLists.txt

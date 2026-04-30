@@ -1,5 +1,6 @@
 # Ignore everything inside sandboxes/ ...
 *
-# ... except this .gitignore and the CMakeLists.txt stub.
+# ... except this .gitignore, the CMakeLists.txt stub, and the README.
 !.gitignore
 !CMakeLists.txt
+!README.md

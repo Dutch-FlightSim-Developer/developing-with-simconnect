@@ -416,3 +416,5 @@ tester-lib2/
 # CMake build folder
 /build/
 /out
+/.claude
+.codex

@@ -90,11 +90,11 @@ TEST(TestClientDataDefinition, AddRaw_RoundTrip) {
 
     const Data src{ .a = 42, .b = 3.14F, .c = std::numbers::e };
     SimConnect::Data::DataBlockBuilder builder;
-    def.build(builder, src);
+    def.marshal(builder, src);
 
     auto reader = SimConnect::Data::DataBlockReader(builder.dataBlock());
     Data dst{};
-    def.fill(dst, reader);
+    def.unmarshall(reader, dst);
 
     EXPECT_EQ(dst.a, src.a);
     EXPECT_FLOAT_EQ(dst.b, src.b);
@@ -121,11 +121,11 @@ TEST(TestClientDataDefinition, AddInt8_MemberPtr_RoundTrip) {
 
     const Data src{ .value = -42 };
     SimConnect::Data::DataBlockBuilder builder;
-    def.build(builder, src);
+    def.marshal(builder, src);
 
     auto reader = SimConnect::Data::DataBlockReader(builder.dataBlock());
     Data dst{};
-    def.fill(dst, reader);
+    def.unmarshall(reader, dst);
 
     EXPECT_EQ(dst.value, src.value);
 }
@@ -150,11 +150,11 @@ TEST(TestClientDataDefinition, AddInt16_MemberPtr_RoundTrip) {
 
     const Data src{ .value = -1000 };
     SimConnect::Data::DataBlockBuilder builder;
-    def.build(builder, src);
+    def.marshal(builder, src);
 
     auto reader = SimConnect::Data::DataBlockReader(builder.dataBlock());
     Data dst{};
-    def.fill(dst, reader);
+    def.unmarshall(reader, dst);
 
     EXPECT_EQ(dst.value, src.value);
 }
@@ -179,11 +179,11 @@ TEST(TestClientDataDefinition, AddInt32_MemberPtr_RoundTrip) {
 
     const Data src{ .value = 12345678 };
     SimConnect::Data::DataBlockBuilder builder;
-    def.build(builder, src);
+    def.marshal(builder, src);
 
     auto reader = SimConnect::Data::DataBlockReader(builder.dataBlock());
     Data dst{};
-    def.fill(dst, reader);
+    def.unmarshall(reader, dst);
 
     EXPECT_EQ(dst.value, src.value);
 }
@@ -208,11 +208,11 @@ TEST(TestClientDataDefinition, AddInt64_MemberPtr_RoundTrip) {
 
     const Data src{ .value = 0x123456789abcdef0LL };
     SimConnect::Data::DataBlockBuilder builder;
-    def.build(builder, src);
+    def.marshal(builder, src);
 
     auto reader = SimConnect::Data::DataBlockReader(builder.dataBlock());
     Data dst{};
-    def.fill(dst, reader);
+    def.unmarshall(reader, dst);
 
     EXPECT_EQ(dst.value, src.value);
 }
@@ -237,11 +237,11 @@ TEST(TestClientDataDefinition, AddFloat32_MemberPtr_RoundTrip) {
 
     const Data src{ .value = std::numbers::pi_v<float> };
     SimConnect::Data::DataBlockBuilder builder;
-    def.build(builder, src);
+    def.marshal(builder, src);
 
     auto reader = SimConnect::Data::DataBlockReader(builder.dataBlock());
     Data dst{};
-    def.fill(dst, reader);
+    def.unmarshall(reader, dst);
 
     EXPECT_FLOAT_EQ(dst.value, src.value);
 }
@@ -266,11 +266,11 @@ TEST(TestClientDataDefinition, AddFloat64_MemberPtr_RoundTrip) {
 
     const Data src{ .value = std::numbers::e };
     SimConnect::Data::DataBlockBuilder builder;
-    def.build(builder, src);
+    def.marshal(builder, src);
 
     auto reader = SimConnect::Data::DataBlockReader(builder.dataBlock());
     Data dst{};
-    def.fill(dst, reader);
+    def.unmarshall(reader, dst);
 
     EXPECT_DOUBLE_EQ(dst.value, src.value);
 }
@@ -299,11 +299,11 @@ TEST(TestClientDataDefinition, MultipleTypedFields_RoundTrip) {
 
     const Data src{ .a = -7, .b = 1.5F, .c = 9.81, .d = 99, .e = -500, .f = 0x0EADBEEFCAFELL };
     SimConnect::Data::DataBlockBuilder builder;
-    def.build(builder, src);
+    def.marshal(builder, src);
 
     auto reader = SimConnect::Data::DataBlockReader(builder.dataBlock());
     Data dst{};
-    def.fill(dst, reader);
+    def.unmarshall(reader, dst);
 
     EXPECT_EQ(dst.a, src.a);
     EXPECT_FLOAT_EQ(dst.b, src.b);
@@ -335,14 +335,14 @@ TEST(TestClientDataDefinition, StatelessLambdas_RoundTrip) {
     // build() reads from the lambdas (ignores the dummy struct)
     Data dummy{};
     SimConnect::Data::DataBlockBuilder builder;
-    def.build(builder, dummy);
+    def.marshal(builder, dummy);
 
     // reset state, then fill() should restore it via lambdas
     external.count = 0;
     external.speed = 0.0;
 
     auto reader = SimConnect::Data::DataBlockReader(builder.dataBlock());
-    def.fill(dummy, reader);
+    def.unmarshall(reader, dummy);
 
     EXPECT_EQ(external.count, countValue);
     EXPECT_DOUBLE_EQ(external.speed, speedValue);
@@ -370,11 +370,11 @@ TEST(TestClientDataDefinition, StructLambdas_RoundTrip) {
     const double latitudeValue = 52.383917;
     const Data src{ .altitude = altitudeValue, .latitude = latitudeValue };
     SimConnect::Data::DataBlockBuilder builder;
-    def.build(builder, src);   // writes altitude/10 = 1000
+    def.marshal(builder, src);   // writes altitude/10 = 1000
 
     auto reader = SimConnect::Data::DataBlockReader(builder.dataBlock());
     Data dst{};
-    def.fill(dst, reader);     // reads 1000, stores 1000*10 = 10000
+    def.unmarshall(reader, dst);     // reads 1000, stores 1000*10 = 10000
 
     EXPECT_EQ(dst.altitude, src.altitude);
     EXPECT_DOUBLE_EQ(dst.latitude, src.latitude);

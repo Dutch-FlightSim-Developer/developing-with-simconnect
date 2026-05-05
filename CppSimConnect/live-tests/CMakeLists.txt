@@ -28,6 +28,7 @@ file(GLOB TEST_SOURCES
   TestEvents.cpp
   TestMultiClient.cpp
   TestNotificationGroups.cpp
+  TestTaggedClientData.cpp
   TestSystemEvents.cpp
   TestSystemState.cpp
 )

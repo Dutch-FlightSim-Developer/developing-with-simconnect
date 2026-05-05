@@ -227,6 +227,33 @@ public:
 
 #pragma endregion // Stopping Requests
 
+#pragma region Client Data Sending
+
+    /**
+     * Sends a full, untagged data block to a client data area.
+     *
+     * The definition must already be registered via define() before calling this method.
+     *
+     * @tparam StructType The C++ struct type that maps onto the client data area.
+     * @param clientDataId The client data ID to send data to.
+     * @param def The client data definition (must be pre-defined).
+     * @param data The struct value to send.
+     */
+    template <typename StructType>
+    void sendClientData(ClientDataId clientDataId, ClientDataDefinition<StructType>& def, const StructType& data)
+    {
+        simConnectMessageHandler_.connection().sendClientData(clientDataId, def.id(), data);
+    }
+
+
+    template <typename StructType>
+    void sendClientDataTagged(ClientDataId clientDataId, ClientDataDefinition<StructType>& def, const StructType& data)
+    {
+        simConnectMessageHandler_.connection().sendClientDataTagged(clientDataId, def.id(), data);
+    }
+
+#pragma endregion // Client Data Sending
+
 #pragma region Raw message Client Data Requests
 
     /**
@@ -473,6 +500,7 @@ public:
         bool onlyWhenChanged = false)
     {
         dataDef.define(simConnectMessageHandler_.connection());
+        const auto dataDefId = dataDef.id();
 
         const auto requestId = simConnectMessageHandler_.connection().requests().nextRequestID();
 
@@ -480,9 +508,9 @@ public:
             const StructType* data = reinterpret_cast<const StructType*>(&reinterpret_cast<const Messages::ClientDataMsg&>(msg).dwData);
             handler(*data);
             }, frequency.isOnce());
-        simConnectMessageHandler_.connection().requestClientData(clientDataId, dataDef, requestId, frequency, limits, onlyWhenChanged);
+        simConnectMessageHandler_.connection().requestClientData(clientDataId, dataDefId, requestId, frequency, limits, onlyWhenChanged);
 
-        return frequency.isOnce() ? Request{ requestId } : Request{ requestId, [this, clientDataId, &dataDef, requestId]() { this->stopClientDataRequest(clientDataId, dataDef, requestId); } };
+        return frequency.isOnce() ? Request{ requestId } : Request{ requestId, [this, clientDataId, dataDefId, requestId]() { this->stopClientDataRequest(clientDataId, dataDefId, requestId); } };
     }
 
 

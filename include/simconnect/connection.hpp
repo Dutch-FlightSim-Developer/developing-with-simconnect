@@ -1387,7 +1387,7 @@ public:
     {
         guard_type guard(mutex_);
 
-        state(SimConnect_SetClientData(hSimConnect_, clientDataId, defId, ClientDataSetFlags::defaultFlag, 1, sizeof(T), const_cast<void*>(&data)));
+        state(SimConnect_SetClientData(hSimConnect_, clientDataId, defId, ClientDataSetFlags::defaultFlag, 1, sizeof(T), const_cast<T*>(&data)));
         if (failed()) {
             logger_.error("SimConnect_SetClientData failed with error code 0x{:08X}.", state());
         } else {
@@ -1396,6 +1396,27 @@ public:
         return static_cast<Derived&>(*this);
     }
 
+    /**
+     * Sends tagged data to a client data area.
+     * 
+     * @param clientDataId The client data ID to send data to.
+     * @param defId The client data definition ID to use for the request.
+     * @param data The data to send.
+     * @return The connection reference for chaining.
+     */
+    template <typename T>
+    Derived& sendClientDataTagged(ClientDataId clientDataId, ClientDataDefinitionId defId, const T& data)
+    {
+        guard_type guard(mutex_);
+
+        state(SimConnect_SetClientData(hSimConnect_, clientDataId, defId, ClientDataSetFlags::tagged, 1, sizeof(T), const_cast<T*>(&data)));
+        if (failed()) {
+            logger_.error("SimConnect_SetClientData (tagged) failed with error code 0x{:08X}.", state());
+        } else {
+            logger_.debug("Sent tagged data to client data {} (defId={}, size={}, sendId={})", clientDataId, defId, sizeof(T), fetchSendIdInternal());
+        }
+        return static_cast<Derived&>(*this);
+    }
 
     /**
      * Sends raw data to a client data area.

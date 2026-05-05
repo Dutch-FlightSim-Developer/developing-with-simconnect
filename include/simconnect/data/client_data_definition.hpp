@@ -206,37 +206,6 @@ public:
     }
 
 
-    /**
-     * Populate @p data from the next bytes in @p reader.
-     *
-     * For the raw case with useMapping() == true, the caller may prefer a direct
-     * reinterpret_cast of the incoming data pointer over calling fill().
-     */
-    void fill(StructType& data, Data::DataBlockReader& reader) const {
-        for (const auto& field : fields_) {
-            if (field.setter) {
-                field.setter(data, reader);
-            } else if (field.statelessSetter) {
-                field.statelessSetter(reader);
-            }
-        }
-    }
-
-
-    /**
-     * Serialize @p data into @p builder for transmission via connection.sendClientData().
-     */
-    void build(Data::DataBlockBuilder& builder, const StructType& data) const {
-        for (const auto& field : fields_) {
-            if (field.getter) {
-                field.getter(builder, data);
-            } else if (field.statelessGetter) {
-                field.statelessGetter(builder);
-            }
-        }
-    }
-
-
 #pragma region addRaw
 
     /**
@@ -269,7 +238,6 @@ public:
     }
 
 #pragma endregion // addRaw
-
 
 #pragma region addInt8
 
@@ -356,7 +324,6 @@ public:
 
 #pragma endregion // addInt8
 
-
 #pragma region addInt16
 
     ClientDataDefinition& addInt16(std::function<void(int16_t)> setter, std::function<int16_t()> getter, float epsilon = 0.0f) {
@@ -442,7 +409,6 @@ public:
 
 #pragma endregion // addInt16
 
-
 #pragma region addInt32
 
     ClientDataDefinition& addInt32(std::function<void(int32_t)> setter, std::function<int32_t()> getter, float epsilon = 0.0f) {
@@ -509,7 +475,6 @@ public:
     }
 
 #pragma endregion // addInt32
-
 
 #pragma region addInt64
 
@@ -578,7 +543,6 @@ public:
 
 #pragma endregion // addInt64
 
-
 #pragma region addFloat32
 
     ClientDataDefinition& addFloat32(std::function<void(float)> setter, std::function<float()> getter, float epsilon = 0.0f) {
@@ -637,7 +601,6 @@ public:
 
 #pragma endregion // addFloat32
 
-
 #pragma region addFloat64
 
     ClientDataDefinition& addFloat64(std::function<void(double)> setter, std::function<double()> getter, float epsilon = 0.0f) {
@@ -695,6 +658,114 @@ public:
     }
 
 #pragma endregion // addFloat64
+
+#pragma region Marshalling and Unmarshalling
+
+    /**
+     * Marshall the data into a DataBlockBuilder.
+     * 
+     * @param builder The DataBlockBuilder to write to.
+     * @param data The data to marshall.
+     * @param isTagged If true, the data will be written using the tagged format.
+     */
+    void marshal(Data::DataBlockBuilder& builder, const StructType& data, bool isTagged = false) const {
+        for (const auto& field : fields_) {
+            if (isTagged) {
+                if (field.datumId == unused) {
+                    throw SimConnectException("Missing datumId in ClientDataDefinition::marshal() for tagged data",
+                        "Field must have a valid datumId assigned by define() when sending tagged client data");
+                }
+                builder.addInt32(field.datumId);
+            }
+            if (field.getter) {
+                field.getter(builder, data);
+            } else if (field.statelessGetter) {
+                field.statelessGetter(builder);
+            } else {
+                throw SimConnectException("Missing getter in ClientDataDefinition::marshal()",
+                    "No getter function defined for field " + std::to_string(field.datumId));
+            }
+        }
+    }
+
+
+    inline static constexpr int unTagged = -1;
+
+    /**
+     * Unmarshall the data from a DataBlockReader.
+     *
+     * @param reader The DataBlockReader to read from.
+     * @param data The data to unmarshall.
+     * @param numElems The number of elements to read if tagged (default is unTagged).
+     */
+    void unmarshall(Data::DataBlockReader& reader, StructType& data, int numElems = unTagged) const {
+        if (numElems == unTagged) {
+            for (auto& field : fields_) {
+                if (field.setter) {
+                    field.setter(data, reader);
+                }
+                else if (field.statelessSetter) {
+                    field.statelessSetter(reader);
+                }
+                else {
+                    throw SimConnectException("Missing setter in DataDefinition::unmarshall()",
+                        "No setter function defined for field: " + std::to_string(field.datumId));
+                }
+            }
+        }
+        else { // Tagged data
+            while (numElems-- > 0) {
+                size_t id = reader.readInt32();
+                if (id == 0) {
+                    continue; // Skip empty entries
+                }
+                if (id > fields_.size()) {
+                    throw SimConnectException("Invalid field ID in DataDefinition::unmarshall()",
+                        "Field ID out of range: " + std::to_string(id));
+                }
+                auto& field = fields_[id - 1]; // ID is 1-based, fields_ is 0-based
+                if (field.setter) {
+                    field.setter(data, reader);
+                }
+                else if (field.statelessSetter) {
+                    field.statelessSetter(reader);
+                }
+                else {
+                    throw SimConnectException("Missing setter in DataDefinition::unmarshall()",
+                        "No setter function defined for field: " + std::to_string(field.datumId));
+                }
+            }
+        }
+    }
+
+
+    /**
+     * Unmarshall the data from a span of bytes.
+     * 
+     * @param msg The span of bytes containing the data.
+     * @param data The data to unmarshall.
+     * @param numElems The number of elements to read if tagged (default is unTagged).
+     */
+    void unmarshall(std::span<const uint8_t> msg, StructType& data, int numElems = unTagged) const {
+        Data::DataBlockReader reader(msg);
+
+        unmarshall(reader, data, numElems);
+    }
+
+
+    /**
+     * Unmarshall the data from a Messages::SimObjectDataMsg message.
+     *
+     * @param msg The Messages::SimObjectDataMsg message containing the data.
+     * @param data The data to unmarshall.
+     */
+    void unmarshall(const Messages::SimObjectDataMsg& msg, StructType& data) const {
+        Data::DataBlockReader reader(msg);
+
+        unmarshall(reader, data, ((msg.dwFlags & DataRequestFlags::tagged) != 0) ? msg.dwDefineCount : unTagged);
+    }
+
+#pragma endregion // Marshalling and Unmarshalling
 
 };
 

@@ -102,6 +102,26 @@
             }
         },
         {
+            "name": "windows-clang-debug-tidy-2020",
+            "displayName": "clang Debug MSFS 2020 (with clang-tidy)",
+            "description": "Target MSFS 2020 with the clang compiler, debug build, clang-tidy enabled",
+            "cacheVariables": {
+                "cmake_cpp_simconnect_ENABLE_CLANG_TIDY": "ON",
+                "cmake_cpp_simconnect_ENABLE_IPO": "OFF"
+            },
+            "inherits": "windows-clang-debug-2020"
+        },
+        {
+            "name": "windows-clang-debug-tidy-2024",
+            "displayName": "clang Debug MSFS 2024 (with clang-tidy)",
+            "description": "Target MSFS 2024 with the clang compiler, debug build, clang-tidy enabled",
+            "cacheVariables": {
+                "cmake_cpp_simconnect_ENABLE_CLANG_TIDY": "ON",
+                "cmake_cpp_simconnect_ENABLE_IPO": "OFF"
+            },
+            "inherits": "windows-clang-debug-2024"
+        },
+        {
             "name": "windows-clang-debug-tests-2020",
             "description": "Target MSFS 2020 with the clang compiler, debug build, tests included",
             "displayName": "clang Debug MSFS 2020 (with tests)",
@@ -121,7 +141,7 @@
             "cacheVariables": {
                 "BUILD_TESTING": "ON",
                 "MSFS_SDK_VERSION": "2024",
-                "cmake_cpp_simconnect_ENABLE_CLANG_TIDY": "ON"
+                "cmake_cpp_simconnect_ENABLE_CLANG_TIDY": "OFF"
             },
             "inherits": [
                 "windows-clang-debug-2024"

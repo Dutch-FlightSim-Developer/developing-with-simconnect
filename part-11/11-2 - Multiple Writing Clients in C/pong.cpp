@@ -30,6 +30,9 @@
 #include "shared.h"
 
 
+/**
+ * A shorthand test if we need to avoid using MSFS 2024 specific features.
+ */
 #if defined(SIMCONNECT_TYPEDEF)
 #define MSFS_2024_SDK 1     // NOLINT(cppcoreguidelines-macro-usage)
 #else
@@ -290,7 +293,7 @@ static void disconnect()
  * Helper to convert a SIMCONNECT_RECV pointer to a more specific type.
  *
  * @tparam Recv The specific SIMCONNECT_RECV type to convert to.
- * @param ptr The pointer to convert.
+ * @param ptr The raw pointer to convert.
  * @return The converted pointer.
  */
 template <typename Recv>
@@ -336,6 +339,13 @@ static bool subscribeClientData()
 }
 
 
+/**
+ * Write a message string to the client data area.
+ * SimConnect will notify all subscribers when the data changes.
+ *
+ * @param text The message to send (truncated to MESSAGE_SIZE - 1 characters).
+ * @return true if the write succeeded, false otherwise.
+ */
 static bool sendPong()
 {
     PingPongData data{};

@@ -20,7 +20,6 @@
 #include <SimConnect.h>
 #pragma warning(pop)
 
-#include <cstdio>
 #include <iostream>
 #include <format>
 #include <string>
@@ -46,10 +45,7 @@ constexpr static const char* appName = "ClientData Sender";
 static HANDLE hSimConnect{ nullptr };
 static HANDLE hEvent{ nullptr };
 
-// The sender owns this ID — the receiver must use the same value
 constexpr static SIMCONNECT_CLIENT_DATA_ID CLIENT_DATA_ID{ 1 };
-
-// Definition ID for the data layout — both programs define the same layout
 constexpr static SIMCONNECT_CLIENT_DATA_DEFINITION_ID DEF_ID{ 1 };
 
 
@@ -248,7 +244,7 @@ static void handleClose()
 
 
 /**
- * Connect to the simulator and create a Windows Event for async message handling.
+ * Connect to the simulator. This will also create a Windows Event for message handling.
  *
  * @return true if the connection was successful, false otherwise.
  */
@@ -273,7 +269,7 @@ static bool connect()
 
 
 /**
- * Disconnect from the simulator and close the Windows Event handle.
+ * Disconnect from the simulator and close the Windows Event.
  */
 static void disconnect()
 {
@@ -291,11 +287,11 @@ static void disconnect()
 
 
 /**
- * Helper to reinterpret a raw SIMCONNECT_RECV pointer as a more specific type.
+ * Helper to convert a SIMCONNECT_RECV pointer to a more specific type.
  *
  * @tparam Recv The specific SIMCONNECT_RECV type to convert to.
- * @param ptr   The raw pointer to convert.
- * @return      The converted pointer.
+ * @param ptr The raw pointer to convert.
+ * @return The converted pointer.
  */
 template <typename Recv>
 inline const Recv* toRecvPtr(const void* ptr) { return reinterpret_cast<const Recv*>(ptr); }
@@ -304,11 +300,8 @@ inline const Recv* toRecvPtr(const void* ptr) { return reinterpret_cast<const Re
 /**
  * Set up the client data area that this program owns.
  *
- * The sender is responsible for:
- *  1. Mapping the well-known name to a numeric ID.
- *  2. Creating the data area with SimConnect_CreateClientData — only one client
- *     may create an area with a given name; others may only read or write it.
- *  3. Describing the data layout with SimConnect_AddToClientDataDefinition.
+ * The sender is responsible for creating the area (READ_ONLY flag - only the creator may write) and defining its layout; receivers only map the name to the ID and define the layout.
+  * It then defines the data layout.
  *
  * @return true if setup succeeded, false otherwise.
  */
@@ -316,14 +309,13 @@ static bool setupClientData()
 {
     HRESULT hr;
 
-    // Step 1 — register the well-known name so SimConnect resolves it to our ID
     hr = SimConnect_MapClientDataNameToID(hSimConnect, CLIENT_DATA_NAME, CLIENT_DATA_ID);
     if (FAILED(hr)) {
         std::cerr << std::format("[Failed to map client data name '{}': 0x{:08X}]\n", CLIENT_DATA_NAME, hr);
         return false;
     }
 
-    // Step 2 — allocate the data area; MESSAGE_SIZE bytes, write-protected (only this client may write)
+    // Create with READ_ONLY flag so only this program can write to this area.
     hr = SimConnect_CreateClientData(hSimConnect, CLIENT_DATA_ID, MESSAGE_SIZE,
         SIMCONNECT_CREATE_CLIENT_DATA_FLAG_READ_ONLY);
     if (FAILED(hr)) {
@@ -331,7 +323,7 @@ static bool setupClientData()
         return false;
     }
 
-    // Step 3 — declare one field that covers the entire buffer
+    // Define the data layout as a single blob.
     hr = SimConnect_AddToClientDataDefinition(hSimConnect, DEF_ID,
         SIMCONNECT_CLIENTDATAOFFSET_AUTO, MESSAGE_SIZE);
     if (FAILED(hr)) {
@@ -345,7 +337,7 @@ static bool setupClientData()
 
 
 /**
- * Write a message string to the shared client data area.
+ * Write a message string to the client data area.
  * SimConnect will notify all subscribers when the data changes.
  *
  * @param text The message to send (truncated to MESSAGE_SIZE - 1 characters).

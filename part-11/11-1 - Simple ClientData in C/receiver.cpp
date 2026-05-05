@@ -45,13 +45,9 @@ constexpr static const char* appName = "ClientData Receiver";
 static HANDLE hSimConnect{ nullptr };
 static HANDLE hEvent{ nullptr };
 
-// Must match the sender's CLIENT_DATA_ID — SimConnect resolves both by name
 constexpr static SIMCONNECT_CLIENT_DATA_ID CLIENT_DATA_ID{ 1 };
-
-// Must describe the same layout as the sender's definition
 constexpr static SIMCONNECT_CLIENT_DATA_DEFINITION_ID DEF_ID{ 1 };
 
-// Identifies this particular data request in incoming CLIENT_DATA messages
 constexpr static SIMCONNECT_DATA_REQUEST_ID REQ_ID{ 1 };
 
 
@@ -250,7 +246,7 @@ static void handleClose()
 
 
 /**
- * Connect to the simulator and create a Windows Event for async message handling.
+ * Connect to the simulator. This will also create a Windows Event for message handling.
  *
  * @return true if the connection was successful, false otherwise.
  */
@@ -275,7 +271,7 @@ static bool connect()
 
 
 /**
- * Disconnect from the simulator and close the Windows Event handle.
+ * Disconnect from the simulator and close the Windows Event.
  */
 static void disconnect()
 {
@@ -293,11 +289,11 @@ static void disconnect()
 
 
 /**
- * Helper to reinterpret a raw SIMCONNECT_RECV pointer as a more specific type.
+ * Helper to convert a SIMCONNECT_RECV pointer to a more specific type.
  *
  * @tparam Recv The specific SIMCONNECT_RECV type to convert to.
- * @param ptr   The raw pointer to convert.
- * @return      The converted pointer.
+ * @param ptr The raw pointer to convert.
+ * @return The converted pointer.
  */
 template <typename Recv>
 inline const Recv* toRecvPtr(const void* ptr) { return reinterpret_cast<const Recv*>(ptr); }
@@ -308,7 +304,7 @@ inline const Recv* toRecvPtr(const void* ptr) { return reinterpret_cast<const Re
  *
  * The receiver does NOT create the data area — the sender owns it.
  * The receiver only needs to:
- *  1. Map the same well-known name to the same numeric ID.
+ *  1. Map the same well-known name.
  *  2. Describe the same data layout.
  *  3. Request delivery whenever the sender writes new data.
  *
@@ -318,14 +314,13 @@ static bool subscribeClientData()
 {
     HRESULT hr;
 
-    // Step 1 — resolve the well-known name to our local ID
     hr = SimConnect_MapClientDataNameToID(hSimConnect, CLIENT_DATA_NAME, CLIENT_DATA_ID);
     if (FAILED(hr)) {
         std::cerr << std::format("[Failed to map client data name '{}': 0x{:08X}]\n", CLIENT_DATA_NAME, hr);
         return false;
     }
 
-    // Step 2 — declare the same field layout as the sender
+    // Define the data layout as a single blob.
     hr = SimConnect_AddToClientDataDefinition(hSimConnect, DEF_ID,
         SIMCONNECT_CLIENTDATAOFFSET_AUTO, MESSAGE_SIZE);
     if (FAILED(hr)) {
@@ -333,7 +328,7 @@ static bool subscribeClientData()
         return false;
     }
 
-    // Step 3 — subscribe: deliver data to us whenever the sender calls SetClientData
+    // Subscribe to the data with period ON_SET, so we only get it sent when the sender updates it.
     hr = SimConnect_RequestClientData(hSimConnect, CLIENT_DATA_ID, REQ_ID, DEF_ID,
         SIMCONNECT_CLIENT_DATA_PERIOD_ON_SET,
         SIMCONNECT_CLIENT_DATA_REQUEST_FLAG_DEFAULT,

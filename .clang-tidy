@@ -26,6 +26,10 @@ CheckOptions:
     value: 'i|j|x|y|z'
   - key: readability-identifier-length.IgnoredParameterNames
     value: 'v|x|y|z'
+  - key: readability-identifier-length.MinimumVariableNameLength
+    value: 2
+  - key: readability-identifier-length.MinimumParameterNameLength
+    value: 2
 
 
 

@@ -30,6 +30,9 @@
 #include "shared.h"
 
 
+/**
+ * A shorthand test if we need to avoid using MSFS 2024 specific features.
+ */
 #if defined(SIMCONNECT_TYPEDEF)
 #define MSFS_2024_SDK 1     // NOLINT(cppcoreguidelines-macro-usage)
 #else
@@ -44,7 +47,6 @@ constexpr static const char* appName = "PingPong Ping";
 static HANDLE hSimConnect{ nullptr };
 static HANDLE hEvent{ nullptr };
 
-// ping creates the shared area — pong maps the same name to the same ID
 constexpr static SIMCONNECT_CLIENT_DATA_ID CLIENT_DATA_ID{ 1 };
 constexpr static SIMCONNECT_CLIENT_DATA_DEFINITION_ID DEF_ID{ 1 };
 constexpr static SIMCONNECT_DATA_REQUEST_ID REQ_ID{ 1 };
@@ -291,7 +293,7 @@ static void disconnect()
  * Helper to convert a SIMCONNECT_RECV pointer to a more specific type.
  *
  * @tparam Recv The specific SIMCONNECT_RECV type to convert to.
- * @param ptr The pointer to convert.
+ * @param ptr The raw pointer to convert.
  * @return The converted pointer.
  */
 template <typename Recv>
@@ -301,7 +303,7 @@ inline const Recv* toRecvPtr(const void* ptr) { return reinterpret_cast<const Re
 /**
  * Set up the shared client data area.
  *
- * ping is responsible for creating the area (DEFAULT flags — both programs may write).
+ * ping is responsible for creating the area (DEFAULT flags - both programs may write).
  * It then defines the data layout and subscribes to receive updates whenever any client writes.
  *
  * @return true if setup succeeded, false otherwise.
@@ -324,6 +326,7 @@ static bool setupClientData()
         return false;
     }
 
+    // Define the data layout as a single blob.
     hr = SimConnect_AddToClientDataDefinition(hSimConnect, DEF_ID,
         SIMCONNECT_CLIENTDATAOFFSET_AUTO, DATA_SIZE);
     if (FAILED(hr)) {
@@ -344,6 +347,13 @@ static bool setupClientData()
 }
 
 
+/**
+ * Write a message string to the client data area.
+ * SimConnect will notify all subscribers when the data changes.
+ *
+ * @param text The message to send (truncated to MESSAGE_SIZE - 1 characters).
+ * @return true if the write succeeded, false otherwise.
+ */
 static bool sendPing()
 {
     PingPongData data{};

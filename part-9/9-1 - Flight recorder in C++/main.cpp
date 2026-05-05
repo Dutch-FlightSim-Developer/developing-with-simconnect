@@ -292,7 +292,7 @@ static bool writeAircraftInfo(const AircraftInfo& aircraftInfo, const std::strin
 	ofs.imbue(std::locale::classic());
     ofs << "kind: AircraftInfo\n"
         << "metadata:\n"
-        << "  start-time: " << std::format("{:%FT%TZ}", floor<seconds>(system_clock::now())) << "\n"
+        << "  start-time: " << std::format("{:%FT%TZ}", floor<seconds>(system_clock::now())) << "\n" // NOLINT(misc-include-cleaner) MSVC header weirdness
         << "  simulator: \"MSFS2024\"\n"
         << "aircraft:\n"
         << "  title: \"" << std::string_view{ aircraftInfo.title.data(), aircraftInfo.title.size() } << "\"\n"

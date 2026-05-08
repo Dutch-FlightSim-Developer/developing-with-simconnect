@@ -48,7 +48,7 @@
 #include <simconnect/windows_event_connection.hpp>
 #include <simconnect/windows_event_handler.hpp>
 #include <simconnect/requests/client_data_handler.hpp>
-#include <simconnect/data/client_data_definition.hpp>
+#include <simconnect/data/raw_client_data_definition.hpp>
 #include <simconnect/data_frequency.hpp>
 
 #include <simconnect/util/console_logger.hpp>
@@ -339,8 +339,7 @@ void runTest()
         // header are irrelevant. Let the handler allocate its own ID.
         const ClientDataId dataId = dataHandler.mapClientDataName(PMDG_NG3_DATA_NAME);
 
-        ClientDataDefinition<PMDG_NG3_Data> pmdgDef;
-        pmdgDef.addRaw();
+        RawClientDataDefinition<PMDG_NG3_Data> pmdgDef;
 
         McpState state{}; // default-initialized to "not yet received" sentinel values
         auto pmdgReq = dataHandler.requestClientData<PMDG_NG3_Data>(

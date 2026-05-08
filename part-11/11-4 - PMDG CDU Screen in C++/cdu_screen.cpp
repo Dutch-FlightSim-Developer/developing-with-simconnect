@@ -69,7 +69,7 @@
 #include <simconnect/windows_event_connection.hpp>
 #include <simconnect/windows_event_handler.hpp>
 #include <simconnect/requests/client_data_handler.hpp>
-#include <simconnect/data/client_data_definition.hpp>
+#include <simconnect/data/raw_client_data_definition.hpp>
 #include <simconnect/data_frequency.hpp>
 
 #include <simconnect/util/console_logger.hpp>
@@ -438,8 +438,7 @@ void runTest(int cduIndex)
         // header are irrelevant. Let the handler allocate its own ID.
         const ClientDataId cduId = dataHandler.mapClientDataName(cduName);
 
-        ClientDataDefinition<PMDG_NG3_CDU_Screen> cduDef;
-        cduDef.addRaw();
+        RawClientDataDefinition<PMDG_NG3_CDU_Screen> cduDef;
 
         auto cduReq = dataHandler.requestClientData<PMDG_NG3_CDU_Screen>(
             cduId, cduDef,

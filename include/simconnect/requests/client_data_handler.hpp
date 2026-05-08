@@ -28,6 +28,7 @@
 #include <simconnect/simconnect.hpp>
 #include <simconnect/message_handler.hpp>
 #include <simconnect/data/client_data_definition.hpp>
+#include <simconnect/data/raw_client_data_definition.hpp>
 #include <simconnect/data/data_block_reader.hpp>
 
 
@@ -705,8 +706,111 @@ public:
         return requestClientDataTagged(clientDataId, dataDef, handler, ClientDataFrequency::once());
     }
 
-   
+
 #pragma endregion // StructType Client Data Requests
+
+#pragma region RawClientDataDefinition Client Data Requests
+
+    /**
+     * Send a struct to a client data area using a RawClientDataDefinition.
+     */
+    template <typename StructType>
+    void sendClientData(ClientDataId clientDataId, RawClientDataDefinition<StructType>& def, const StructType& data)
+    {
+        simConnectMessageHandler_.connection().sendClientData(clientDataId, def.id(), data);
+    }
+
+
+    /**
+     * Request client data, delivering each update as a const StructType reference.
+     * Defines the area if not yet defined.
+     */
+    template <typename StructType>
+    [[nodiscard]]
+    Request requestClientData(
+        ClientDataId clientDataId, RawClientDataDefinition<StructType>& def,
+        std::function<void(const StructType&)> handler,
+        ClientDataFrequency frequency = ClientDataFrequency::once(),
+        PeriodLimits limits = PeriodLimits::none(),
+        bool onlyWhenChanged = false)
+    {
+        def.define(simConnectMessageHandler_.connection());
+        const auto defId = def.id();
+        const auto requestId = simConnectMessageHandler_.connection().requests().nextRequestID();
+
+        this->registerHandler(requestId, [handler](const Messages::MsgBase& msg) {
+            const StructType* data = reinterpret_cast<const StructType*>(  //NOLINT(cppcoreguidelines-pro-type-reinterpret-cast)
+                &reinterpret_cast<const Messages::ClientDataMsg&>(msg).dwData);  //NOLINT(cppcoreguidelines-pro-type-reinterpret-cast)
+            handler(*data);
+        }, frequency.isOnce());
+        simConnectMessageHandler_.connection().requestClientData(clientDataId, defId, requestId, frequency, limits, onlyWhenChanged);
+
+        return frequency.isOnce()
+            ? Request{ requestId }
+            : Request{ requestId, [this, clientDataId, defId, requestId]() {
+                this->stopClientDataRequest(clientDataId, defId, requestId);
+            }};
+    }
+
+
+    /**
+     * Request client data once, delivering the update as a const StructType reference.
+     */
+    template <typename StructType>
+    [[nodiscard]]
+    Request requestClientDataOnce(
+        ClientDataId clientDataId, RawClientDataDefinition<StructType>& def,
+        std::function<void(const StructType&)> handler)
+    {
+        return requestClientData(clientDataId, def, std::move(handler), ClientDataFrequency::once());
+    }
+
+
+    /**
+     * Request client data in tagged format, delivering each update as a const StructType reference.
+     * For a raw definition there is only one datum, so tagged and untagged deliver identically.
+     */
+    template <typename StructType>
+    [[nodiscard]]
+    Request requestClientDataTagged(
+        ClientDataId clientDataId, RawClientDataDefinition<StructType>& def,
+        std::function<void(const StructType&)> handler,
+        ClientDataFrequency frequency = ClientDataFrequency::once(),
+        PeriodLimits limits = PeriodLimits::none(),
+        bool onlyWhenChanged = false)
+    {
+        def.define(simConnectMessageHandler_.connection());
+        const auto defId = def.id();
+        const auto requestId = simConnectMessageHandler_.connection().requests().nextRequestID();
+
+        this->registerHandler(requestId, [handler](const Messages::MsgBase& msg) {
+            const StructType* data = reinterpret_cast<const StructType*>(  //NOLINT(cppcoreguidelines-pro-type-reinterpret-cast)
+                &reinterpret_cast<const Messages::ClientDataMsg&>(msg).dwData);  //NOLINT(cppcoreguidelines-pro-type-reinterpret-cast)
+            handler(*data);
+        }, frequency.isOnce());
+        simConnectMessageHandler_.connection().requestClientDataTagged(clientDataId, defId, requestId, frequency, limits, onlyWhenChanged);
+
+        return frequency.isOnce()
+            ? Request{ requestId }
+            : Request{ requestId, [this, clientDataId, defId, requestId]() {
+                this->stopClientDataRequest(clientDataId, defId, requestId);
+            }};
+    }
+
+
+    /**
+     * Request client data once in tagged format, delivering the update as a const StructType reference.
+     */
+    template <typename StructType>
+    [[nodiscard]]
+    Request requestClientDataOnceTagged(
+        ClientDataId clientDataId, RawClientDataDefinition<StructType>& def,
+        std::function<void(const StructType&)> handler)
+    {
+        return requestClientDataTagged(clientDataId, def, std::move(handler), ClientDataFrequency::once());
+    }
+
+#pragma endregion // RawClientDataDefinition Client Data Requests
 
 };
 

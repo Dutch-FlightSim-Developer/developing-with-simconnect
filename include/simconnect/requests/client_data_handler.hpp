@@ -290,6 +290,36 @@ public:
 
 
     /**
+     * Request a client data block. The caller passes a handler that will be executed once the data is received.
+     * The handler will receive a const reference to the raw message data.
+     *
+     * @note Discarding or deleting the Request object will stop the request.
+     *
+     * @tparam StructType The type of the client data definition to use for the request.
+     * @param clientDataId The client data ID to request.
+     * @param definition The client data definition to use for the request.
+     * @param handler The handler to execute when the data is received.
+     * @param frequency The frequency at which to request the data.
+     * @param limits The limits for the request in numbers of "periods".
+     * @param onlyWhenChanged Whether to only receive updates when the data has changed.
+     * @return A Request object that can be used to stop the request.
+     */
+    template <typename StructType>
+    [[nodiscard]]
+    Request requestClientData(
+        ClientDataId clientDataId, ClientDataDefinition<StructType>& definition,
+        std::function<void(const Messages::ClientDataMsg&)> handler,
+        ClientDataFrequency frequency = ClientDataFrequency::once(),
+        PeriodLimits limits = PeriodLimits::none(),
+        bool onlyWhenChanged = false)
+    {
+        const auto definitionId = definition.define(simConnectMessageHandler_.connection()).id();
+
+        return requestClientData(clientDataId, definitionId, handler, frequency, limits, onlyWhenChanged);
+    }
+
+
+    /**
      * Request a client data block once. The caller passes a handler that will be executed once the data is received.
      * The handler will receive a const reference to the raw message data.
      *
@@ -305,6 +335,30 @@ public:
         ClientDataId clientDataId, ClientDataDefinitionId definitionId,
         std::function<void(const Messages::ClientDataMsg&)> handler)
     {
+        return requestClientData(clientDataId, definitionId, handler, ClientDataFrequency::once());
+    }
+
+
+    /**
+     * Request a client data block once. The caller passes a handler that will be executed once the data is received.
+     * The handler will receive a const reference to the raw message data.
+     *
+     * @note Discarding or deleting the Request object will stop the request.
+     *
+     * @tparam StructType The type of the client data definition to use for the request.
+     * @param clientDataId The client data ID to request.
+     * @param definition The client data definition to use for the request.
+     * @param handler The handler to execute when the data is received.
+     * @return A Request object that can be used to stop the request.
+     */
+    template <typename StructType>
+    [[nodiscard]]
+    Request requestClientDataOnce(
+        ClientDataId clientDataId, ClientDataDefinition<StructType>& definition,
+        std::function<void(const Messages::ClientDataMsg&)> handler)
+    {
+        const auto definitionId = definition.define(simConnectMessageHandler_.connection()).id();
+        
         return requestClientData(clientDataId, definitionId, handler, ClientDataFrequency::once());
     }
 
@@ -343,6 +397,36 @@ public:
 
 
     /**
+     * Request a client data block in the tagged format. The caller passes a handler that will be executed once the data is received.
+     * The handler will receive a const reference to the raw message data.
+     *
+     * @note Discarding or deleting the Request object will stop the request.
+     *
+     * @tparam StructType The type of the client data definition to use for the request.
+     * @param clientDataId The client data ID to request.
+     * @param definition The client data definition to use for the request.
+     * @param handler The handler to execute when the data is received.
+     * @param frequency The frequency at which to request the data.
+     * @param limits The limits for the request in numbers of "periods".
+     * @param onlyWhenChanged Whether to only receive updates when the data has changed.
+     * @return A Request object that can be used to stop the request.
+     */
+    template <typename StructType>
+    [[nodiscard]]
+    Request requestClientDataTagged(
+        ClientDataId clientDataId, ClientDataDefinition<StructType>& definition,
+        std::function<void(const Messages::ClientDataMsg&)> handler,
+        ClientDataFrequency frequency = ClientDataFrequency::once(),
+        PeriodLimits limits = PeriodLimits::none(),
+        bool onlyWhenChanged = false)
+    {
+        const auto definitionId = definition.define(simConnectMessageHandler_.connection()).id();
+
+        return requestClientDataTagged(clientDataId, definitionId, handler, frequency, limits, onlyWhenChanged);
+    }
+
+
+    /**
      * Request a client data block once in the tagged format. The caller passes a handler that will be executed once the data is received.
      * The handler will receive a const reference to the raw message data.
      *
@@ -358,6 +442,30 @@ public:
         ClientDataId clientDataId, ClientDataDefinitionId definitionId,
         std::function<void(const Messages::ClientDataMsg&)> handler)
     {
+        return requestClientDataTagged(clientDataId, definitionId, handler, ClientDataFrequency::once());
+    }
+
+
+    /**
+     * Request a client data block once in the tagged format. The caller passes a handler that will be executed once the data is received.
+     * The handler will receive a const reference to the raw message data.
+     *
+     * @note Discarding or deleting the Request object will stop the request.
+     *
+     * @tparam StructType The type of the client data definition to use for the request.
+     * @param clientDataId The client data ID to request.
+     * @param definition The client data definition to use for the request.
+     * @param handler The handler to execute when the data is received.
+     * @return A Request object that can be used to stop the request.
+     */
+    template <typename StructType>
+    [[nodiscard]]
+    Request requestClientDataOnceTagged(
+        ClientDataId clientDataId, ClientDataDefinition<StructType>& definition,
+        std::function<void(const Messages::ClientDataMsg&)> handler)
+    {
+        const auto definitionId = definition.define(simConnectMessageHandler_.connection()).id();
+
         return requestClientDataTagged(clientDataId, definitionId, handler, ClientDataFrequency::once());
     }
 
@@ -493,7 +601,7 @@ public:
     template <typename StructType>
     [[nodiscard]]
     Request requestClientData(
-        ClientDataId clientDataId, ClientDataDefinition<StructType> dataDef,
+        ClientDataId clientDataId, ClientDataDefinition<StructType>& dataDef,
         std::function<void(const StructType&)> handler,
         ClientDataFrequency frequency = ClientDataFrequency::once(),
         PeriodLimits limits = PeriodLimits::none(),
@@ -527,7 +635,11 @@ public:
      */
     template <typename StructType>
     [[nodiscard]]
-    Request requestClientDataOnce(ClientDataId clientDataId, ClientDataDefinition<StructType> dataDef, std::function<void(const StructType&)> handler) {
+    Request requestClientDataOnce(
+        ClientDataId clientDataId,
+        ClientDataDefinition<StructType>& dataDef,
+        std::function<void(const StructType&)> handler)
+    {
         return requestClientData(clientDataId, dataDef, handler, ClientDataFrequency::once());
     }
 
@@ -550,7 +662,7 @@ public:
     [[nodiscard]]
     Request requestClientDataTagged(
         ClientDataId clientDataId,
-        ClientDataDefinition<StructType> dataDef,
+        ClientDataDefinition<StructType>& dataDef,
         std::function<void(const StructType&)> handler,
         ClientDataFrequency frequency = ClientDataFrequency::once(),
         PeriodLimits limits = PeriodLimits::none(),
@@ -585,7 +697,11 @@ public:
      */
     template <typename StructType>
     [[nodiscard]]
-    Request requestClientDataOnceTagged(ClientDataId clientDataId, ClientDataDefinition<StructType> dataDef, std::function<void(const StructType&)> handler) {
+    Request requestClientDataOnceTagged(
+        ClientDataId clientDataId,
+        ClientDataDefinition<StructType>& dataDef,
+        std::function<void(const StructType&)> handler)
+    {
         return requestClientDataTagged(clientDataId, dataDef, handler, ClientDataFrequency::once());
     }
 

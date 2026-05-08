@@ -277,17 +277,17 @@ auto main() -> int { // NOLINT(bugprone-exception-escape)
 		SimConnect::EventHandler<MyMessageHandler> eventHandler(handler);
 		SimConnect::SystemEvents<MyMessageHandler> systemEvents(eventHandler);
 
-		systemEvents.subscribeToSystemEvent(SimConnect::Events::sim(), [](const SIMCONNECT_RECV_EVENT& msg) {
-			std::cout << std::format("Received a 'Sim' event with value {}.\n", msg.dwData);
+		systemEvents.onSim([](unsigned long value) {
+			std::cout << std::format("Received a 'Sim' event with value {}.\n", value);
 		});
-		systemEvents.subscribeToSystemEvent(SimConnect::Events::simStart(), []([[maybe_unused]] const SIMCONNECT_RECV_EVENT& msg) {
-			std::cout << std::format("Received a 'SimStart' event.\n");
+		systemEvents.onSimStart([]() {
+			std::cout << "Received a 'SimStart' event.\n";
 		});
-		systemEvents.subscribeToSystemEvent(SimConnect::Events::simStop(), []([[maybe_unused]] const SIMCONNECT_RECV_EVENT& msg) {
-			std::cout << std::format("Received a 'SimStop' event.\n");
+		systemEvents.onSimStop([]() {
+			std::cout << "Received a 'SimStop' event.\n";
         });
-		systemEvents.subscribeToSystemEvent(SimConnect::Events::pause(), [](const SIMCONNECT_RECV_EVENT& msg) {
-			std::cout << std::format("Received a 'Pause' event with value {}.\n", msg.dwData);
+		systemEvents.onPause([](unsigned long value) {
+			std::cout << std::format("Received a 'Pause' event with value {}.\n", value);
         });
 
 		std::cout << "\n\nHandling messages for 30 seconds.\n";

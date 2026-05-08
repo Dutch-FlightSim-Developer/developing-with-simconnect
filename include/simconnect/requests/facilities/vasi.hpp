@@ -40,8 +40,13 @@ class VASIData {
     };
 
 public:
-    inline static bool isVASIData(const Messages::FacilityDataMsg& msg) {
+    inline static bool isVASIData([[maybe_unused]] const Messages::FacilityDataMsg& msg) {
+#if MSFS_2024_SDK
         return msg.Type == FacilityDataTypes::vasi;
+#else
+        // In MSFS 2020, we don't have this type
+        return false;
+#endif
     }
     inline static const VASIData& from(const Messages::FacilityDataMsg& msg) {
         return *reinterpret_cast<const VASIData*>(&msg.Data);

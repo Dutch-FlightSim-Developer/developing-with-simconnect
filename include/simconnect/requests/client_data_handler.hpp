@@ -30,6 +30,7 @@
 #include <simconnect/data/client_data_definition.hpp>
 #include <simconnect/data/raw_client_data_definition.hpp>
 #include <simconnect/data/mapped_client_data_definition.hpp>
+#include <simconnect/data/custom_client_data_definition.hpp>
 #include <simconnect/data/data_block_reader.hpp>
 
 

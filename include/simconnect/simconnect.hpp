@@ -375,6 +375,8 @@ namespace DataSetFlags {
 
 using DataItemId = unsigned long;         ///< The type used for data item IDs.
 
+inline constexpr unsigned long taggingNotUsed{ static_cast<unsigned long>(-1) };     ///< Constant representing the define-count in case no tagging is used, for use in unmarshalling functions.
+
 #pragma endregion
 
 #pragma region Client Data

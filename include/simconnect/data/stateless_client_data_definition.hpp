@@ -109,9 +109,6 @@ public:
     /**
      * Deliver a received client data message to per-datum setters, then call `done`.
      *
-     * - Untagged: setters fire in registration order, each advancing the reader.
-     * - Tagged: datum ID is parsed per entry; only the matching setter fires.
-     *
      * @param msg   The received client data message.
      * @param done  Called after all per-datum setters complete. May be a no-op.
      */
@@ -121,22 +118,9 @@ public:
 
         Data::DataBlockReader reader(static_cast<const Messages::SimObjectDataMsg&>(msg));
 
-        if (isTagged) {
-            auto numElems = msg.dwDefineCount;
-            while (numElems-- > 0) {
-                const auto id = static_cast<size_t>(reader.readInt32());
-                if (id == 0 || id > fields_.size()) {
-                    continue;
-                }
-                fields_[id - 1].setter(reader);
-            }
-        } else {
-            for (const auto& field : fields_) {
-                field.setter(reader);
-            }
-        }
+        unmarshall(reader, isTagged ? msg.dwDefineCount : taggingNotUsed);
 
-        std::invoke(std::forward<HandlerFn>(done));
+        done();
     }
 
 
@@ -154,6 +138,29 @@ public:
                 builder.addInt32(static_cast<int32_t>(field.datumId));
             }
             field.getter(builder);
+        }
+    }
+
+
+    /**
+     * Invoke setters for the given data.
+     * 
+     * @param reader    The DataBlockReader to read from.
+     * @param numElems  The number of tagged entries to read, or taggingNotUsed to read all fields in order.
+     */
+    void unmarshall(Data::DataBlockReader& reader, unsigned long numElems = taggingNotUsed) {
+        if (numElems == taggingNotUsed) {
+            for (const auto& field : fields_) {
+                field.setter(reader);
+            }
+        } else {
+            while (numElems-- > 0) {
+                const auto id = static_cast<size_t>(reader.readInt32());
+                if (id == 0 || id > fields_.size()) {
+                    continue;
+                }
+                fields_[id - 1].setter(reader);
+            }
         }
     }
 

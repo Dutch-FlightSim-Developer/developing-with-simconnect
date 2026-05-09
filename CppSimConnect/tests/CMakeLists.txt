@@ -24,6 +24,7 @@ file(GLOB TEST_SOURCES
     DataBlockReaderTests.cpp
     DataBlockBuilderTests.cpp
     TestClientDataDefinition.cpp
+    TestNewClientDataDefinitions.cpp
     TestDataDefinition.cpp
     TestDataDefinition_Float32.cpp
     TestDataDefinition_Float64.cpp

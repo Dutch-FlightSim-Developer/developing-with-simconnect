@@ -81,24 +81,7 @@ class MappedClientDataDefinition
     std::vector<FieldInfo> fields_;
 
     struct NoState {};
-    [[no_unique_address]] std::conditional_t<TrackChanges, StructType, NoState> lastKnown_{};
-
-
-    void unmarshall(Data::DataBlockReader& reader, StructType& data) const {
-        for (const auto& field : fields_) {
-            field.setter(data, reader);
-        }
-    }
-
-    void unmarshallTagged(Data::DataBlockReader& reader, StructType& data, unsigned long numElems) const {
-        while (numElems-- > 0) {
-            const auto id = static_cast<size_t>(reader.readInt32());
-            if (id == 0 || id > fields_.size()) {
-                continue;
-            }
-            fields_[id - 1].setter(data, reader);
-        }
-    }
+    [[msvc::no_unique_address]] std::conditional_t<TrackChanges, StructType, NoState> lastKnown_{};
 
 
 public:
@@ -156,14 +139,12 @@ public:
         const bool isTagged = (msg.dwFlags & DataRequestFlags::tagged) != 0;
 
         if constexpr (TrackChanges) {
-            if (isTagged) {
-                Data::DataBlockReader reader(static_cast<const Messages::SimObjectDataMsg&>(msg));
-                unmarshallTagged(reader, lastKnown_, msg.dwDefineCount);
-            } else if (useMapping()) {
+            if (useMapping()) {
                 lastKnown_ = *reinterpret_cast<const StructType*>(&msg.dwData);  //NOLINT(cppcoreguidelines-pro-type-reinterpret-cast)
             } else {
                 Data::DataBlockReader reader(static_cast<const Messages::SimObjectDataMsg&>(msg));
-                unmarshall(reader, lastKnown_);
+
+                unmarshall(reader, lastKnown_, isTagged ? msg.dwDefineCount : taggingNotUsed);
             }
             handler(lastKnown_);
         } else {
@@ -172,11 +153,9 @@ public:
             } else {
                 StructType temp{};
                 Data::DataBlockReader reader(static_cast<const Messages::SimObjectDataMsg&>(msg));
-                if (isTagged) {
-                    unmarshallTagged(reader, temp, msg.dwDefineCount);
-                } else {
-                    unmarshall(reader, temp);
-                }
+
+                unmarshall(reader, temp, isTagged ? msg.dwDefineCount : taggingNotUsed);
+
                 handler(temp);
             }
         }
@@ -190,12 +169,50 @@ public:
      * @param data     The struct to serialize.
      * @param isTagged If true, each field is preceded by its datum ID (tagged send format).
      */
-    void marshal(Data::DataBlockBuilder& builder, const StructType& data, bool isTagged = false) const {
-        for (const auto& field : fields_) {
-            if (isTagged) {
-                builder.addInt32(static_cast<int32_t>(field.datumId));
+    void marshal(Data::DataBlockBuilder& builder, const StructType& data, bool isTagged = false) {
+        if (!isTagged && useMapping()) {
+            builder.addBytes(reinterpret_cast<const uint8_t*>(&data), sizeof(StructType));  //NOLINT(cppcoreguidelines-pro-type-reinterpret-cast)
+        }
+        else {
+            for (const auto& field : fields_) {
+                if (isTagged) {
+                    builder.addInt32(static_cast<int32_t>(field.datumId));
+                }
+                field.getter(builder, data);
             }
-            field.getter(builder, data);
+        }
+        if constexpr (TrackChanges) { // we may have multiple writers
+            lastKnown_ = data;
+        }
+    }
+
+
+    /**
+     * Unmarshall a received message into the given struct.
+     * 
+     * @param reader    The DataBlockReader to read from.
+     * @param data      The struct to populate.
+     * @param numElems  The number of tagged entries to read, or taggingNotUsed to read all fields in order.
+     *                  Ignored when useMapping() is true, as the mapping assumes all fields are present in order.
+     */
+    void unmarshall(Data::DataBlockReader& reader, StructType& data, unsigned long numElems = taggingNotUsed) {
+        if (numElems == taggingNotUsed) {
+            if (useMapping()) {
+                data = *reinterpret_cast<const StructType*>(reader.dataBlock().data());  //NOLINT(cppcoreguidelines-pro-type-reinterpret-cast)
+            } else {
+                for (const auto& field : fields_) {
+                    field.setter(data, reader);
+                }
+            }
+        }
+        else {
+            while (numElems-- > 0) {
+                const auto id = static_cast<size_t>(reader.readInt32());
+                if (id == 0 || id > fields_.size()) {
+                    continue;
+                }
+                fields_[id - 1].setter(data, reader);
+            }
         }
     }
 

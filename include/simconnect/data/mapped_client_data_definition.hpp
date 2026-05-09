@@ -15,6 +15,7 @@
  * limitations under the License.
  */
 
+#include <cstring>
 #include <type_traits>
 #include <functional>
 #include <vector>
@@ -74,6 +75,7 @@ class MappedClientDataDefinition
         unsigned long datumId{ unused };
         std::function<void(StructType&, Data::DataBlockReader&)> setter;
         std::function<void(Data::DataBlockBuilder&, const StructType&)> getter;
+        size_t rawByteSize{ 0 };  // >0 → raw bytes field; 0 → typed field
     };
 
     std::vector<FieldInfo> fields_;
@@ -130,7 +132,11 @@ public:
         unsigned long datumId{ 1 };
         for (auto& field : fields_) {
             field.datumId = datumId++;
-            connection.addClientDataDefinition(this->id(), field.type, clientDataAutoOffset, field.epsilon, field.datumId);
+            if (field.rawByteSize > 0) {
+                connection.addClientDataDefinition(this->id(), field.rawByteSize, clientDataAutoOffset, field.datumId);
+            } else {
+                connection.addClientDataDefinition(this->id(), field.type, clientDataAutoOffset, field.epsilon, field.datumId);
+            }
         }
     }
 
@@ -241,6 +247,33 @@ public:
             [field](StructType& data, Data::DataBlockReader& reader) { data.*field = reader.readFloat64(); },
             [field](Data::DataBlockBuilder& builder, const StructType& data) { builder.addFloat64(data.*field); });
         this->size_ += sizeof(double);
+        return *this;
+    }
+
+    /**
+     * Register a raw-bytes field of sizeof(T) bytes.
+     *
+     * Tagged mode uses memcpy; untagged mode uses the direct reinterpret_cast path
+     * when useMapping() is true (i.e. total wire size equals sizeof(StructType)).
+     * No epsilon — change detection is not meaningful for opaque byte blobs.
+     *
+     * @tparam T    Type of the struct member. Must be trivially copyable.
+     * @param field Member pointer into StructType.
+     */
+    template <typename T>
+    MappedClientDataDefinition& addRaw(T StructType::* field) {
+        static_assert(std::is_trivially_copyable_v<T>, "addRaw requires a trivially copyable type");
+        fields_.emplace_back(ClientDataType{}, 0.0f, unused,
+            [field](StructType& data, Data::DataBlockReader& reader) {
+                auto bytes = reader.readBytes(sizeof(T));
+                std::memcpy(&(data.*field), bytes.data(), sizeof(T));
+            },
+            [field](Data::DataBlockBuilder& builder, const StructType& data) {
+                builder.addBytes(reinterpret_cast<const uint8_t*>(&(data.*field)), sizeof(T));  //NOLINT(cppcoreguidelines-pro-type-reinterpret-cast)
+            }
+        );
+        fields_.back().rawByteSize = sizeof(T);
+        this->size_ += sizeof(T);
         return *this;
     }
 

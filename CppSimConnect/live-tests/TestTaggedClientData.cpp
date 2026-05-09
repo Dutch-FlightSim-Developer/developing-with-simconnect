@@ -18,7 +18,6 @@
 
 #include "live_connection.hpp"
 
-#include <simconnect/data/client_data_definition.hpp>
 #include <simconnect/data_frequency.hpp>
 #include <simconnect/requests/client_data_handler.hpp>
 
@@ -60,7 +59,7 @@ struct TwoFields {
 class TaggedSender : public LiveTests::LiveConnection {
 public:
     ClientDataHandler<LiveTests::TestMessageHandler> clientDataHandler;
-    ClientDataDefinition<TwoFields> def;
+    MappedClientDataDefinition<TwoFields> def;
     ClientDataId dataId{ noClientDataId };
 
     explicit TaggedSender(std::string_view name)
@@ -113,7 +112,7 @@ public:
 class TaggedReceiver : public LiveTests::LiveConnection {
 public:
     ClientDataHandler<LiveTests::TestMessageHandler> clientDataHandler;
-    ClientDataDefinition<TwoFields> def;
+    MappedClientDataDefinition<TwoFields> def;
     ClientDataId dataId{ noClientDataId };
 
     explicit TaggedReceiver(std::string_view name)
@@ -168,7 +167,7 @@ TEST(TestTaggedClientData, UntaggedReceive) {
     TwoFields received{};
 
     receiver.def.define(receiver.connection);
-    auto request = receiver.clientDataHandler.requestClientData<TwoFields>(
+    auto request = receiver.clientDataHandler.requestClientData(
         receiver.dataId, receiver.def,
         [&](const TwoFields& data) {
             received = data;

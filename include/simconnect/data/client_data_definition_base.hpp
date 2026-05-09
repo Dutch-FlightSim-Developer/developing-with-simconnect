@@ -31,17 +31,22 @@ namespace SimConnect {
  * Satisfied by any type that can serve as a client data definition for a given connection.
  *
  * Requires:
- *   - `d.id()`             — returns a value convertible to `ClientDataDefinitionId`
- *   - `d.define(connection)` — registers with SimConnect and returns `D&` for chaining
+ *   - `d.id()`               — returns a value convertible to `ClientDataDefinitionId`
+ *   - `d.define(connection)`  — registers with SimConnect and returns `D&` for chaining
+ *   - `d.dispatch(msg, cb)`  — delivers a received `ClientDataMsg` to a `callback_type` handler
  *
- * @tparam D              The definition type (e.g. `RawClientDataDefinition<T>`).
+ * @tparam D              The definition type (e.g. `RawClientDataDefinition<T>`,
+ *                        `MappedClientDataDefinition<T>`).
  * @tparam ConnectionType The SimConnect connection type passed to `define()`.
  */
 template <typename D, typename ConnectionType>
-concept ClientDataDefinitionConcept = requires(D& d, ConnectionType& connection)
+concept ClientDataDefinitionConcept = requires(D& d, ConnectionType& connection,
+                                               const Messages::ClientDataMsg& msg,
+                                               typename D::callback_type cb)
 {
     { d.id() } -> std::convertible_to<ClientDataDefinitionId>;
     { d.define(connection) } -> std::same_as<D&>;
+    { d.dispatch(msg, cb) } -> std::same_as<void>;
 };
 
 /**

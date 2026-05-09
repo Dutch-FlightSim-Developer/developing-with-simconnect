@@ -426,6 +426,19 @@ enum class ClientDataType : DWORD {
     float64 = SIMCONNECT_CLIENTDATATYPE_FLOAT64,               ///< 64-bit floating point client data type.
 };
 
+/** Returns the wire size in bytes for a SimConnect primitive client data type. */
+constexpr std::size_t sizeOf(ClientDataType type) noexcept {
+    switch (type) {
+    case ClientDataType::int8:    return sizeof(int8_t);
+    case ClientDataType::int16:   return sizeof(int16_t);
+    case ClientDataType::int32:   return sizeof(int32_t);
+    case ClientDataType::int64:   return sizeof(int64_t);
+    case ClientDataType::float32: return sizeof(float);
+    case ClientDataType::float64: return sizeof(double);
+    default: return 0;
+    }
+}
+
 constexpr std::size_t clientDataAutoOffset{ static_cast<std::size_t>(SIMCONNECT_CLIENTDATAOFFSET_AUTO) };   ///< Constant representing an automatic offset for client data definitions.
 
 using ClientDataItemId = unsigned long;         ///< The type used for client data item IDs.

@@ -28,22 +28,6 @@
 
 namespace SimConnect {
 
-namespace Detail {
-
-constexpr size_t clientDataTypeWireSize(ClientDataType type) noexcept {
-    switch (type) {
-        case ClientDataType::int8:    return 1;
-        case ClientDataType::int16:   return 2;
-        case ClientDataType::int32:   return 4;
-        case ClientDataType::int64:   return 8;
-        case ClientDataType::float32: return 4;
-        case ClientDataType::float64: return 8;
-        default:                      return 0;
-    }
-}
-
-} // namespace Detail
-
 
 /**
  * Client data definition for a struct whose fields are dispatched via user-supplied
@@ -236,7 +220,7 @@ public:
      * @param epsilon  Change-detection threshold (only meaningful with onlyWhenChanged requests).
      */
     CustomClientDataDefinition& addField(ClientDataType type, Setter setter, Getter getter, float epsilon = 0.0f) {
-        const auto wireSize = Detail::clientDataTypeWireSize(type);
+        const auto wireSize = sizeOf(type);
         fields_.emplace_back(type, epsilon, unused, std::move(setter), std::move(getter));
         this->size_ += wireSize;
         return *this;

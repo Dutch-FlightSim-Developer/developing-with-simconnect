@@ -27,7 +27,6 @@
 #include <simconnect.hpp>
 #include <simconnect/simconnect.hpp>
 #include <simconnect/message_handler.hpp>
-#include <simconnect/data/client_data_definition.hpp>
 #include <simconnect/data/raw_client_data_definition.hpp>
 #include <simconnect/data/mapped_client_data_definition.hpp>
 #include <simconnect/data/custom_client_data_definition.hpp>
@@ -234,24 +233,39 @@ public:
 #pragma region Client Data Sending
 
     /**
-     * Sends a full, untagged data block to a client data area.
-     *
-     * The definition must already be registered via define() before calling this method.
-     *
-     * @tparam StructType The C++ struct type that maps onto the client data area.
-     * @param clientDataId The client data ID to send data to.
-     * @param def The client data definition (must be pre-defined).
-     * @param data The struct value to send.
+     * Send a struct to a client data area using a MappedClientDataDefinition (untagged).
+     * Requires useMapping() == true; the struct wire layout must match sizeof(StructType).
      */
-    template <typename StructType>
-    void sendClientData(ClientDataId clientDataId, ClientDataDefinition<StructType>& def, const StructType& data)
+    template <typename StructType, bool TrackChanges>
+    void sendClientData(ClientDataId clientDataId, MappedClientDataDefinition<StructType, TrackChanges>& def, const StructType& data)
     {
         simConnectMessageHandler_.connection().sendClientData(clientDataId, def.id(), data);
     }
 
+    /**
+     * Send a struct to a client data area using a MappedClientDataDefinition (tagged datum/value format).
+     */
+    template <typename StructType, bool TrackChanges>
+    void sendClientDataTagged(ClientDataId clientDataId, MappedClientDataDefinition<StructType, TrackChanges>& def, const StructType& data)
+    {
+        simConnectMessageHandler_.connection().sendClientDataTagged(clientDataId, def.id(), data);
+    }
 
-    template <typename StructType>
-    void sendClientDataTagged(ClientDataId clientDataId, ClientDataDefinition<StructType>& def, const StructType& data)
+    /**
+     * Send a struct to a client data area using a CustomClientDataDefinition (untagged).
+     * Requires useMapping() == true; the struct wire layout must match sizeof(StructType).
+     */
+    template <typename StructType, bool TrackChanges>
+    void sendClientData(ClientDataId clientDataId, CustomClientDataDefinition<StructType, TrackChanges>& def, const StructType& data)
+    {
+        simConnectMessageHandler_.connection().sendClientData(clientDataId, def.id(), data);
+    }
+
+    /**
+     * Send a struct to a client data area using a CustomClientDataDefinition (tagged datum/value format).
+     */
+    template <typename StructType, bool TrackChanges>
+    void sendClientDataTagged(ClientDataId clientDataId, CustomClientDataDefinition<StructType, TrackChanges>& def, const StructType& data)
     {
         simConnectMessageHandler_.connection().sendClientDataTagged(clientDataId, def.id(), data);
     }
@@ -294,36 +308,6 @@ public:
 
 
     /**
-     * Request a client data block. The caller passes a handler that will be executed once the data is received.
-     * The handler will receive a const reference to the raw message data.
-     *
-     * @note Discarding or deleting the Request object will stop the request.
-     *
-     * @tparam StructType The type of the client data definition to use for the request.
-     * @param clientDataId The client data ID to request.
-     * @param definition The client data definition to use for the request.
-     * @param handler The handler to execute when the data is received.
-     * @param frequency The frequency at which to request the data.
-     * @param limits The limits for the request in numbers of "periods".
-     * @param onlyWhenChanged Whether to only receive updates when the data has changed.
-     * @return A Request object that can be used to stop the request.
-     */
-    template <typename StructType>
-    [[nodiscard]]
-    Request requestClientData(
-        ClientDataId clientDataId, ClientDataDefinition<StructType>& definition,
-        std::function<void(const Messages::ClientDataMsg&)> handler,
-        ClientDataFrequency frequency = ClientDataFrequency::once(),
-        PeriodLimits limits = PeriodLimits::none(),
-        bool onlyWhenChanged = false)
-    {
-        const auto definitionId = definition.define(simConnectMessageHandler_.connection()).id();
-
-        return requestClientData(clientDataId, definitionId, handler, frequency, limits, onlyWhenChanged);
-    }
-
-
-    /**
      * Request a client data block once. The caller passes a handler that will be executed once the data is received.
      * The handler will receive a const reference to the raw message data.
      *
@@ -339,30 +323,6 @@ public:
         ClientDataId clientDataId, ClientDataDefinitionId definitionId,
         std::function<void(const Messages::ClientDataMsg&)> handler)
     {
-        return requestClientData(clientDataId, definitionId, handler, ClientDataFrequency::once());
-    }
-
-
-    /**
-     * Request a client data block once. The caller passes a handler that will be executed once the data is received.
-     * The handler will receive a const reference to the raw message data.
-     *
-     * @note Discarding or deleting the Request object will stop the request.
-     *
-     * @tparam StructType The type of the client data definition to use for the request.
-     * @param clientDataId The client data ID to request.
-     * @param definition The client data definition to use for the request.
-     * @param handler The handler to execute when the data is received.
-     * @return A Request object that can be used to stop the request.
-     */
-    template <typename StructType>
-    [[nodiscard]]
-    Request requestClientDataOnce(
-        ClientDataId clientDataId, ClientDataDefinition<StructType>& definition,
-        std::function<void(const Messages::ClientDataMsg&)> handler)
-    {
-        const auto definitionId = definition.define(simConnectMessageHandler_.connection()).id();
-        
         return requestClientData(clientDataId, definitionId, handler, ClientDataFrequency::once());
     }
 
@@ -401,36 +361,6 @@ public:
 
 
     /**
-     * Request a client data block in the tagged format. The caller passes a handler that will be executed once the data is received.
-     * The handler will receive a const reference to the raw message data.
-     *
-     * @note Discarding or deleting the Request object will stop the request.
-     *
-     * @tparam StructType The type of the client data definition to use for the request.
-     * @param clientDataId The client data ID to request.
-     * @param definition The client data definition to use for the request.
-     * @param handler The handler to execute when the data is received.
-     * @param frequency The frequency at which to request the data.
-     * @param limits The limits for the request in numbers of "periods".
-     * @param onlyWhenChanged Whether to only receive updates when the data has changed.
-     * @return A Request object that can be used to stop the request.
-     */
-    template <typename StructType>
-    [[nodiscard]]
-    Request requestClientDataTagged(
-        ClientDataId clientDataId, ClientDataDefinition<StructType>& definition,
-        std::function<void(const Messages::ClientDataMsg&)> handler,
-        ClientDataFrequency frequency = ClientDataFrequency::once(),
-        PeriodLimits limits = PeriodLimits::none(),
-        bool onlyWhenChanged = false)
-    {
-        const auto definitionId = definition.define(simConnectMessageHandler_.connection()).id();
-
-        return requestClientDataTagged(clientDataId, definitionId, handler, frequency, limits, onlyWhenChanged);
-    }
-
-
-    /**
      * Request a client data block once in the tagged format. The caller passes a handler that will be executed once the data is received.
      * The handler will receive a const reference to the raw message data.
      *
@@ -446,30 +376,6 @@ public:
         ClientDataId clientDataId, ClientDataDefinitionId definitionId,
         std::function<void(const Messages::ClientDataMsg&)> handler)
     {
-        return requestClientDataTagged(clientDataId, definitionId, handler, ClientDataFrequency::once());
-    }
-
-
-    /**
-     * Request a client data block once in the tagged format. The caller passes a handler that will be executed once the data is received.
-     * The handler will receive a const reference to the raw message data.
-     *
-     * @note Discarding or deleting the Request object will stop the request.
-     *
-     * @tparam StructType The type of the client data definition to use for the request.
-     * @param clientDataId The client data ID to request.
-     * @param definition The client data definition to use for the request.
-     * @param handler The handler to execute when the data is received.
-     * @return A Request object that can be used to stop the request.
-     */
-    template <typename StructType>
-    [[nodiscard]]
-    Request requestClientDataOnceTagged(
-        ClientDataId clientDataId, ClientDataDefinition<StructType>& definition,
-        std::function<void(const Messages::ClientDataMsg&)> handler)
-    {
-        const auto definitionId = definition.define(simConnectMessageHandler_.connection()).id();
-
         return requestClientDataTagged(clientDataId, definitionId, handler, ClientDataFrequency::once());
     }
 
@@ -585,132 +491,6 @@ public:
     }
 
 #pragma endregion // DataBlockReader Client Data Requests
-
-#pragma region StructType Client Data Requests
-
-    /**
-     * Request a client data block. The caller passes a handler that will be executed once the data is received.
-     * 
-     * @note Discarding or deleting the Request object will stop the request.
-     * 
-     * @tparam StructType The type of the structure to cast the received data to.
-     * @param clientDataId The client data ID to request.
-     * @param dataDef The client data definition to use for the request.
-     * @param handler The handler to execute when the data is received.
-     * @param frequency The frequency at which to request the data.
-     * @param limits The limits for the request in numbers of "periods".
-     * @param onlyWhenChanged Whether to only receive updates when the data has changed.
-     * @return A Request object that can be used to stop the request.
-     */
-    template <typename StructType>
-    [[nodiscard]]
-    Request requestClientData(
-        ClientDataId clientDataId, ClientDataDefinition<StructType>& dataDef,
-        std::function<void(const StructType&)> handler,
-        ClientDataFrequency frequency = ClientDataFrequency::once(),
-        PeriodLimits limits = PeriodLimits::none(),
-        bool onlyWhenChanged = false)
-    {
-        dataDef.define(simConnectMessageHandler_.connection());
-        const auto dataDefId = dataDef.id();
-
-        const auto requestId = simConnectMessageHandler_.connection().requests().nextRequestID();
-
-        this->registerHandler(requestId, [handler](const Messages::MsgBase& msg) {
-            const StructType* data = reinterpret_cast<const StructType*>(&reinterpret_cast<const Messages::ClientDataMsg&>(msg).dwData);
-            handler(*data);
-            }, frequency.isOnce());
-        simConnectMessageHandler_.connection().requestClientData(clientDataId, dataDefId, requestId, frequency, limits, onlyWhenChanged);
-
-        return frequency.isOnce() ? Request{ requestId } : Request{ requestId, [this, clientDataId, dataDefId, requestId]() { this->stopClientDataRequest(clientDataId, dataDefId, requestId); } };
-    }
-
-
-    /**
-     * Request a client data block once. The caller passes a handler that will be executed once the data is received.
-     * 
-     * @note Discarding or deleting the Request object will stop the request.
-     * 
-     * @tparam StructType The type of the structure to cast the received data to.
-     * @param clientDataId The client data ID to request.
-     * @param dataDef The client data definition to use for the request.
-     * @param handler The handler to execute when the data is received.
-     * @return A Request object that can be used to stop the request.
-     */
-    template <typename StructType>
-    [[nodiscard]]
-    Request requestClientDataOnce(
-        ClientDataId clientDataId,
-        ClientDataDefinition<StructType>& dataDef,
-        std::function<void(const StructType&)> handler)
-    {
-        return requestClientData(clientDataId, dataDef, handler, ClientDataFrequency::once());
-    }
-
-
-    /**
-     * Request a client data block in the tagged format. The caller passes a handler that will be executed once the data is received.
-     * 
-     * @note Discarding or deleting the Request object will stop the request.
-     * 
-     * @tparam StructType The type of the structure to cast the received data to.
-     * @param clientDataId The client data ID to request.
-     * @param dataDef The client data definition to use for the request.
-     * @param handler The handler to execute when the data is received.
-     * @param frequency The frequency at which to request the data.
-     * @param limits The limits for the request in numbers of "periods".
-     * @param onlyWhenChanged Whether to only receive updates when the data has changed.
-     * @return A Request object that can be used to stop the request.
-     */
-    template <typename StructType>
-    [[nodiscard]]
-    Request requestClientDataTagged(
-        ClientDataId clientDataId,
-        ClientDataDefinition<StructType>& dataDef,
-        std::function<void(const StructType&)> handler,
-        ClientDataFrequency frequency = ClientDataFrequency::once(),
-        PeriodLimits limits = PeriodLimits::none(),
-        bool onlyWhenChanged = false)
-    {
-        dataDef.define(simConnectMessageHandler_.connection());
-
-        const auto requestId = simConnectMessageHandler_.connection().requests().nextRequestID();
-
-        // TODO: Tagged client data is encoded as datum/value pairs, not as a raw StructType payload.
-        // Parse it through ClientDataDefinition/DataBlockReader before treating this as a real tagged overload.
-        this->registerHandler(requestId, [handler](const Messages::MsgBase& msg) {
-            const StructType* data = reinterpret_cast<const StructType*>(&reinterpret_cast<const Messages::ClientDataMsg&>(msg).dwData);
-            handler(*data);
-            }, frequency.isOnce());
-        simConnectMessageHandler_.connection().requestClientDataTagged(clientDataId, dataDef, requestId, frequency, limits, onlyWhenChanged);
-
-        return frequency.isOnce() ? Request{ requestId } : Request{ requestId, [this, clientDataId, &dataDef, requestId]() { this->stopClientDataRequest(clientDataId, dataDef, requestId); } };
-    }
-
-
-    /**
-     * Request a client data block once in the tagged format. The caller passes a handler that will be executed once the data is received.
-     * 
-     * @note Discarding or deleting the Request object will stop the request.
-     * 
-     * @tparam StructType The type of the structure to cast the received data to.
-     * @param clientDataId The client data ID to request.
-     * @param dataDef The client data definition to use for the request.
-     * @param handler The handler to execute when the data is received.
-     * @return A Request object that can be used to stop the request.
-     */
-    template <typename StructType>
-    [[nodiscard]]
-    Request requestClientDataOnceTagged(
-        ClientDataId clientDataId,
-        ClientDataDefinition<StructType>& dataDef,
-        std::function<void(const StructType&)> handler)
-    {
-        return requestClientDataTagged(clientDataId, dataDef, handler, ClientDataFrequency::once());
-    }
-
-
-#pragma endregion // StructType Client Data Requests
 
 #pragma region RawClientDataDefinition Client Data Requests
 

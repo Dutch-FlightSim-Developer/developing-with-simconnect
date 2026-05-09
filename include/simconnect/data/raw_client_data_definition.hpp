@@ -69,8 +69,9 @@ public:
         connection.addClientDataDefinition(this->id(), sizeof(StructType), clientDataAutoOffset);
     }
 
-    void dispatch(const Messages::ClientDataMsg& msg, const callback_type& cb) const {
-        cb(*reinterpret_cast<const StructType*>(&msg.dwData));
+    template <typename HandlerFn>
+    void dispatch(const Messages::ClientDataMsg& msg, HandlerFn&& handler) const {
+        handler(*reinterpret_cast<const StructType*>(&msg.dwData));  //NOLINT(cppcoreguidelines-pro-type-reinterpret-cast)
     }
 };
 

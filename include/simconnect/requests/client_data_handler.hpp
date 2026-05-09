@@ -29,6 +29,7 @@
 #include <simconnect/message_handler.hpp>
 #include <simconnect/data/client_data_definition.hpp>
 #include <simconnect/data/raw_client_data_definition.hpp>
+#include <simconnect/data/mapped_client_data_definition.hpp>
 #include <simconnect/data/data_block_reader.hpp>
 
 
@@ -741,10 +742,8 @@ public:
         const auto defId = def.id();
         const auto requestId = simConnectMessageHandler_.connection().requests().nextRequestID();
 
-        this->registerHandler(requestId, [handler](const Messages::MsgBase& msg) {
-            const typename DefType::struct_type* data = reinterpret_cast<const typename DefType::struct_type*>(  //NOLINT(cppcoreguidelines-pro-type-reinterpret-cast)
-                &reinterpret_cast<const Messages::ClientDataMsg&>(msg).dwData);  //NOLINT(cppcoreguidelines-pro-type-reinterpret-cast)
-            handler(*data);
+        this->registerHandler(requestId, [&def, handler](const Messages::MsgBase& msg) {
+            def.dispatch(reinterpret_cast<const Messages::ClientDataMsg&>(msg), handler);  //NOLINT(cppcoreguidelines-pro-type-reinterpret-cast)
         }, frequency.isOnce());
         simConnectMessageHandler_.connection().requestClientData(clientDataId, defId, requestId, frequency, limits, onlyWhenChanged);
 

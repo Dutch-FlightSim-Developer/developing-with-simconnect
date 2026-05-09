@@ -599,6 +599,17 @@ public:
 #pragma region StatelessClientDataDefinition Client Data Requests
 
     /**
+     * Send all bidirectional fields (those with getters) to a client data area.
+     * Fields registered without a getter are skipped. Sends in untagged format.
+     */
+    void sendClientData(ClientDataId clientDataId, StatelessClientDataDefinition& def) {
+        Data::DataBlockBuilder builder;
+        def.marshal(builder);
+        simConnectMessageHandler_.connection().sendClientData(clientDataId, def.id(), builder.dataBlock());
+    }
+
+
+    /**
      * Request client data, firing each datum's own callback on every update.
      * No outer handler — per-datum callbacks registered on `def` handle all delivery.
      */

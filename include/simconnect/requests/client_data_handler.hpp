@@ -31,6 +31,7 @@
 #include <simconnect/data/raw_client_data_definition.hpp>
 #include <simconnect/data/mapped_client_data_definition.hpp>
 #include <simconnect/data/custom_client_data_definition.hpp>
+#include <simconnect/data/stateless_client_data_definition.hpp>
 #include <simconnect/data/data_block_reader.hpp>
 
 
@@ -814,6 +815,57 @@ public:
     }
 
 #pragma endregion // RawClientDataDefinition Client Data Requests
+
+#pragma region StatelessClientDataDefinition Client Data Requests
+
+    /**
+     * Request client data, firing each datum's own callback on every update.
+     * No outer handler — per-datum callbacks registered on `def` handle all delivery.
+     */
+    [[nodiscard]]
+    Request requestClientData(
+        ClientDataId clientDataId,
+        StatelessClientDataDefinition& def,
+        ClientDataFrequency frequency = ClientDataFrequency::once(),
+        PeriodLimits limits = PeriodLimits::none(),
+        bool onlyWhenChanged = false)
+    {
+        return requestClientData(clientDataId, def, [](){}, frequency, limits, onlyWhenChanged);
+    }
+
+
+    /**
+     * Request client data, firing each datum's own callback on every update.
+     * `done` is called after all per-datum callbacks complete each time data arrives.
+     */
+    template <typename HandlerFn>
+        requires std::invocable<HandlerFn>
+    [[nodiscard]]
+    Request requestClientData(
+        ClientDataId clientDataId,
+        StatelessClientDataDefinition& def,
+        HandlerFn done,
+        ClientDataFrequency frequency = ClientDataFrequency::once(),
+        PeriodLimits limits = PeriodLimits::none(),
+        bool onlyWhenChanged = false)
+    {
+        def.define(simConnectMessageHandler_.connection());
+        const auto defId = def.id();
+        const auto requestId = simConnectMessageHandler_.connection().requests().nextRequestID();
+
+        this->registerHandler(requestId, [&def, done](const Messages::MsgBase& msg) {
+            def.dispatch(reinterpret_cast<const Messages::ClientDataMsg&>(msg), done);  //NOLINT(cppcoreguidelines-pro-type-reinterpret-cast)
+        }, frequency.isOnce());
+        simConnectMessageHandler_.connection().requestClientData(clientDataId, defId, requestId, frequency, limits, onlyWhenChanged);
+
+        return frequency.isOnce()
+            ? Request{ requestId }
+            : Request{ requestId, [this, clientDataId, defId, requestId]() {
+                this->stopClientDataRequest(clientDataId, defId, requestId);
+            }};
+    }
+
+#pragma endregion // StatelessClientDataDefinition Client Data Requests
 
 };
 

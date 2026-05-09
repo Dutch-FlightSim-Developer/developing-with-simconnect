@@ -374,7 +374,107 @@ public:
         if (succeeded()) {
             createInternal();
         }
-        
+
+        return std::move(*this);
+    }
+
+
+    /**
+     * Add an input event and register a zero-argument handler for it.
+     *
+     * Combines addEvent() and registerEventHandler() in a single call.
+     * Use when the handler only needs to know that the key was pressed.
+     *
+     * @param evt        The client event to map to.
+     * @param inputEvent The input event name (e.g., "a", "VK_SPACE").
+     * @param handler    Called each time the input fires.
+     * @returns A reference to this input group.
+     */
+    InputGroup& addEvent(event evt, std::string_view inputEvent, std::function<void()> handler) & {
+        guard_type lock(mutex_);
+
+        handler_.mapEvent(evt);
+        state(handler_.connection().mapInputEventToClientEvent(evt, inputEvent, id_));
+        if (succeeded()) {
+            state(handler_.connection().addClientEventToNotificationGroup(id_, evt));
+        }
+        if (succeeded()) {
+            createInternal();
+        }
+        if (succeeded()) {
+            handler_.template registerEventHandler<Messages::EventMsg>(evt.id(),
+                [handler = std::move(handler)](const Messages::EventMsg&) { handler(); });
+        }
+        return *this;
+    }
+    InputGroup&& addEvent(event evt, std::string_view inputEvent, std::function<void()> handler) && {
+        guard_type lock(mutex_);
+
+        handler_.mapEvent(evt);
+        state(handler_.connection().mapInputEventToClientEvent(evt, inputEvent, id_));
+        if (succeeded()) {
+            state(handler_.connection().addClientEventToNotificationGroup(id_, evt));
+        }
+        if (succeeded()) {
+            createInternal();
+        }
+        if (succeeded()) {
+            handler_.template registerEventHandler<Messages::EventMsg>(evt.id(),
+                [handler = std::move(handler)](const Messages::EventMsg&) { handler(); });
+        }
+        return std::move(*this);
+    }
+
+
+    /**
+     * Add an input event and register a handler that receives the group and event IDs.
+     *
+     * Use when a single handler serves multiple events and needs to distinguish
+     * which event fired, or when the group ID is needed for diagnostics.
+     *
+     * @param evt        The client event to map to.
+     * @param inputEvent The input event name (e.g., "a", "VK_SPACE").
+     * @param handler    Called with (uGroupID, uEventID) each time the input fires.
+     * @returns A reference to this input group.
+     */
+    InputGroup& addEvent(event evt, std::string_view inputEvent,
+                         std::function<void(EventGroupId, EventId)> handler) & {
+        guard_type lock(mutex_);
+
+        handler_.mapEvent(evt);
+        state(handler_.connection().mapInputEventToClientEvent(evt, inputEvent, id_));
+        if (succeeded()) {
+            state(handler_.connection().addClientEventToNotificationGroup(id_, evt));
+        }
+        if (succeeded()) {
+            createInternal();
+        }
+        if (succeeded()) {
+            handler_.template registerEventHandler<Messages::EventMsg>(evt.id(),
+                [handler = std::move(handler)](const Messages::EventMsg& msg) {
+                    handler(msg.uGroupID, msg.uEventID);
+                });
+        }
+        return *this;
+    }
+    InputGroup&& addEvent(event evt, std::string_view inputEvent,
+                          std::function<void(EventGroupId, EventId)> handler) && {
+        guard_type lock(mutex_);
+
+        handler_.mapEvent(evt);
+        state(handler_.connection().mapInputEventToClientEvent(evt, inputEvent, id_));
+        if (succeeded()) {
+            state(handler_.connection().addClientEventToNotificationGroup(id_, evt));
+        }
+        if (succeeded()) {
+            createInternal();
+        }
+        if (succeeded()) {
+            handler_.template registerEventHandler<Messages::EventMsg>(evt.id(),
+                [handler = std::move(handler)](const Messages::EventMsg& msg) {
+                    handler(msg.uGroupID, msg.uEventID);
+                });
+        }
         return std::move(*this);
     }
 

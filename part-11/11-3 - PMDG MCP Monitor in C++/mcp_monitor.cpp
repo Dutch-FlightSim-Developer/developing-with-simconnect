@@ -342,8 +342,9 @@ void runTest()
         RawClientDataDefinition<PMDG_NG3_Data> pmdgDef;
 
         McpState state{}; // default-initialized to "not yet received" sentinel values
-        auto pmdgReq = dataHandler.requestClientData<PMDG_NG3_Data>(
-            dataId, pmdgDef,
+        auto pmdgReq = dataHandler.requestClientData(
+            dataId,
+            pmdgDef,
             [&state](const PMDG_NG3_Data& data) { processMcpData(data, state); },
             ClientDataFrequency::onSet(),
             PeriodLimits::none(),

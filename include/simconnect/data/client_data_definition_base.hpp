@@ -17,6 +17,9 @@
 
 #include <cstddef>
 #include <optional>
+#include <concepts>
+#include <functional>
+#include <type_traits>
 
 #include <simconnect/simconnect.hpp>
 
@@ -25,14 +28,49 @@ namespace SimConnect {
 
 
 /**
+ * Satisfied by any type that can serve as a client data definition for a given connection.
+ *
+ * Requires:
+ *   - `d.id()`             — returns a value convertible to `ClientDataDefinitionId`
+ *   - `d.define(connection)` — registers with SimConnect and returns `D&` for chaining
+ *
+ * @tparam D              The definition type (e.g. `RawClientDataDefinition<T>`).
+ * @tparam ConnectionType The SimConnect connection type passed to `define()`.
+ */
+template <typename D, typename ConnectionType>
+concept ClientDataDefinitionConcept = requires(D& d, ConnectionType& connection)
+{
+    { d.id() } -> std::convertible_to<ClientDataDefinitionId>;
+    { d.define(connection) } -> std::same_as<D&>;
+};
+
+/**
+ * Satisfied by any callable that accepts a `const S&` datum and returns void.
+ *
+ * Accepts lambdas, `std::function`, and any other callable matching the signature.
+ *
+ * @tparam F The callable type.
+ * @tparam S The struct type delivered by the client data area.
+ */
+template <typename F, typename S>
+concept ClientDataHandlerConcept = requires(F f, const S& s)
+{
+    { std::invoke(f, s) } -> std::same_as<void>;
+};
+
+
+/**
  * CRTP base for all client data definition types.
  *
- * Manages the ClientDataDefinitionId lifecycle and total wire size.
- * Derived classes implement registerFields(connection) to register
- * their datums with SimConnect via addClientDataDefinition().
+ * Manages the `ClientDataDefinitionId` lifecycle and total wire size.
+ * Derived classes implement `registerFields(connection)` to register
+ * their datums with SimConnect via `addClientDataDefinition()`.
  *
- * The static interface every Derived must satisfy:
- *   - void registerFields(connection_type&)   — called once by define()
+ * Satisfies `ClientDataDefinitionConcept` for any connection type — this is
+ * what allows derived types to be passed directly to `requestClientData()`.
+ *
+ * Every `Derived` must implement:
+ *   - `void registerFields(connection_type&)` — called once by `define()`
  *
  * @tparam Derived  The concrete definition type (CRTP).
  */

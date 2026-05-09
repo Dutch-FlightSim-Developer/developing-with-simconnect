@@ -440,8 +440,9 @@ void runTest(int cduIndex)
 
         RawClientDataDefinition<PMDG_NG3_CDU_Screen> cduDef;
 
-        auto cduReq = dataHandler.requestClientData<PMDG_NG3_CDU_Screen>(
-            cduId, cduDef,
+        auto cduReq = dataHandler.requestClientData(
+            cduId,
+            cduDef,
             renderScreen,
             ClientDataFrequency::onSet(),
             PeriodLimits::none(),

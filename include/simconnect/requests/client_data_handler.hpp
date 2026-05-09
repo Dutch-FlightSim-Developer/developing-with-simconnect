@@ -725,11 +725,14 @@ public:
      * Request client data, delivering each update as a const StructType reference.
      * Defines the area if not yet defined.
      */
-    template <typename StructType>
+    template <typename DefType, typename HandlerType>
+        requires ClientDataDefinitionConcept<DefType, decltype(simConnectMessageHandler_.connection())> &&
+                 ClientDataHandlerConcept<HandlerType, typename DefType::struct_type>
     [[nodiscard]]
     Request requestClientData(
-        ClientDataId clientDataId, RawClientDataDefinition<StructType>& def,
-        std::function<void(const StructType&)> handler,
+        ClientDataId clientDataId,
+        DefType& def,
+        HandlerType handler,
         ClientDataFrequency frequency = ClientDataFrequency::once(),
         PeriodLimits limits = PeriodLimits::none(),
         bool onlyWhenChanged = false)
@@ -739,7 +742,7 @@ public:
         const auto requestId = simConnectMessageHandler_.connection().requests().nextRequestID();
 
         this->registerHandler(requestId, [handler](const Messages::MsgBase& msg) {
-            const StructType* data = reinterpret_cast<const StructType*>(  //NOLINT(cppcoreguidelines-pro-type-reinterpret-cast)
+            const typename DefType::struct_type* data = reinterpret_cast<const typename DefType::struct_type*>(  //NOLINT(cppcoreguidelines-pro-type-reinterpret-cast)
                 &reinterpret_cast<const Messages::ClientDataMsg&>(msg).dwData);  //NOLINT(cppcoreguidelines-pro-type-reinterpret-cast)
             handler(*data);
         }, frequency.isOnce());

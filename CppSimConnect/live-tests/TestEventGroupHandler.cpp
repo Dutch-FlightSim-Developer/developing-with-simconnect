@@ -47,10 +47,10 @@ namespace {
  * @param baseName Optional base name for the event (for debugging)
  * @returns A new unique event
  */
-event createTestEvent() {
+event createTestEvent(LiveTests::TestConnection& conn) {
     static std::atomic<int> eventCounter{ 0 };
     const std::string eventName = "#" + std::to_string(Events::customEventMin + eventCounter++);
-    return event::get(eventName);
+    return conn.event(eventName);
 }
 }
 
@@ -148,8 +148,8 @@ TEST(TestEventGroupHandler, ReceiveNotificationGroupEvent) {
     ASSERT_TRUE(receiver.openAndWait());
 
     // Create unique test events
-    auto brakeEvt = createTestEvent();
-    auto parkingBrakeEvt = createTestEvent();
+    auto brakeEvt = createTestEvent(sender.connection);
+    auto parkingBrakeEvt = createTestEvent(sender.connection);
     
     auto receiverGroup = receiver.createGroupWithEvents({brakeEvt, parkingBrakeEvt});
     EXPECT_TRUE(receiver.succeeded());
@@ -191,8 +191,8 @@ TEST(TestEventGroupHandler, GroupAndIndividualHandlers) {
     ASSERT_TRUE(sender.openAndWait());
     ASSERT_TRUE(receiver.openAndWait());
 
-    auto brakeEvt = createTestEvent();
-    auto parkingBrakeEvt = createTestEvent();
+    auto brakeEvt = createTestEvent(sender.connection);
+    auto parkingBrakeEvt = createTestEvent(sender.connection);
     
     auto receiverGroup = receiver.createGroupWithEvents({brakeEvt, parkingBrakeEvt});
 
@@ -241,9 +241,9 @@ TEST(TestEventGroupHandler, MultipleEventsInGroup) {
     ASSERT_TRUE(sender.openAndWait());
     ASSERT_TRUE(receiver.openAndWait());
 
-    auto brakeEvt = createTestEvent();
-    auto parkingBrakeEvt = createTestEvent();
-    auto gearEvt = createTestEvent();
+    auto brakeEvt = createTestEvent(sender.connection);
+    auto parkingBrakeEvt = createTestEvent(sender.connection);
+    auto gearEvt = createTestEvent(sender.connection);
     
     auto receiverGroup = receiver.createGroupWithEvents({brakeEvt, parkingBrakeEvt, gearEvt});
 
@@ -287,7 +287,7 @@ TEST(TestEventGroupHandler, RemoveGroupHandler) {
     ASSERT_TRUE(sender.openAndWait());
     ASSERT_TRUE(receiver.openAndWait());
 
-    auto brakeEvt = createTestEvent();
+    auto brakeEvt = createTestEvent(sender.connection);
     
     auto receiverGroup = receiver.createGroupWithEvent(brakeEvt);
 
@@ -332,7 +332,7 @@ TEST(TestEventGroupHandler, AutoRemoveGroupHandler) {
     ASSERT_TRUE(sender.openAndWait());
     ASSERT_TRUE(receiver.openAndWait());
 
-    auto brakeEvt = createTestEvent();
+    auto brakeEvt = createTestEvent(sender.connection);
     
     auto receiverGroup = receiver.createGroupWithEvent(brakeEvt);
 
@@ -376,8 +376,8 @@ TEST(TestEventGroupHandler, MultipleGroupHandlers) {
     ASSERT_TRUE(sender.openAndWait());
     ASSERT_TRUE(receiver.openAndWait());
 
-    auto brakeEvt = createTestEvent();
-    auto flapEvt = createTestEvent();
+    auto brakeEvt = createTestEvent(sender.connection);
+    auto flapEvt = createTestEvent(sender.connection);
     
     auto receiverGroup1 = receiver.createGroupWithEvent(brakeEvt);
     auto receiverGroup2 = receiver.createGroupWithEvent(flapEvt);
@@ -425,8 +425,8 @@ TEST(TestEventGroupHandler, InputGroupHandler) {
 
     ASSERT_TRUE(receiver.openAndWait());
 
-    auto brakeEvt = createTestEvent();
-    
+    auto brakeEvt = createTestEvent(receiver.connection);
+
     // Create an input group
     auto inputGroup = receiver.eventHandler
         .createInputGroup()

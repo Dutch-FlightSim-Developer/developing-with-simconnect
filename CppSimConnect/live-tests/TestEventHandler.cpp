@@ -45,10 +45,10 @@ namespace {
  * @param baseName Optional base name for the event (for debugging)
  * @returns A new unique event
  */
-event createTestEvent() {
+event createTestEvent(LiveTests::TestConnection& conn) {
     static std::atomic<int> eventCounter{ 0 };
     const std::string eventName = "#" + std::to_string(Events::customEventMin + eventCounter++);
-    return event::get(eventName);
+    return conn.event(eventName);
 }
 }
 
@@ -131,7 +131,7 @@ TEST(TestEventHandler, SendAndReceiveEvent) {
     ASSERT_TRUE(receiver.openAndWait());
 
     // Create a unique test event
-    auto testEvt = createTestEvent();
+    auto testEvt = createTestEvent(sender.connection);
 
     [[maybe_unused]]
     auto receiverGroup = receiver.createGroupWithEvent(testEvt);
@@ -182,7 +182,7 @@ TEST(TestEventHandler, MultipleHandlersReceiveEvent) {
     ASSERT_TRUE(receiver.openAndWait());
 
     // Create a unique test event
-    auto testEvt = createTestEvent();
+    auto testEvt = createTestEvent(sender.connection);
 
     [[maybe_unused]]
     auto receiverGroup = receiver.createGroupWithEvent(testEvt);
@@ -230,7 +230,7 @@ TEST(TestEventHandler, SendEventWithPriority) {
     ASSERT_TRUE(receiver.openAndWait());
 
     // Create a unique test event
-    auto testEvt = createTestEvent();
+    auto testEvt = createTestEvent(sender.connection);
     [[maybe_unused]]
     auto receiverGroup = receiver.createGroupWithEvent(testEvt);
 
@@ -264,7 +264,7 @@ TEST(TestEventHandler, AutoRemoveEventHandler) {
     ASSERT_TRUE(sender.openAndWait());
     ASSERT_TRUE(receiver.openAndWait());
 
-    auto testEvt = createTestEvent();
+    auto testEvt = createTestEvent(sender.connection);
     [[maybe_unused]]
     auto receiverGroup = receiver.createGroupWithEvent(testEvt);
 
@@ -306,7 +306,7 @@ TEST(TestEventHandler, RemoveEventHandler) {
     ASSERT_TRUE(sender.openAndWait());
     ASSERT_TRUE(receiver.openAndWait());
 
-    auto testEvt = createTestEvent();
+    auto testEvt = createTestEvent(sender.connection);
     [[maybe_unused]]
     auto receiverGroup = receiver.createGroupWithEvent(testEvt);
 

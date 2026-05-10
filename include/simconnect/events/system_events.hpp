@@ -26,36 +26,6 @@
 namespace SimConnect {
 
 
-namespace Events {
-
-    inline event oneSec() { return event::get("1sec"); };
-    inline event fourSec() { return event::get("4sec"); };
-    inline event sixHerz() { return event::get("6Hz"); };
-    inline event aircraftLoaded() { return event::get("AircraftLoaded"); };
-    inline event crashed() { return event::get("Crashed"); };
-    inline event crashReset() { return event::get("CrashReset"); };
-    inline event customMissionActionExecuted() { return event::get("CustomMissionActionExecuted"); };             // Legacy
-    inline event flightLoaded() { return event::get("FlightLoaded"); };
-    inline event flightSaved() { return event::get("FlightSaved"); };
-    inline event flightPlanActivated() { return event::get("FlightPlanActivated"); };
-    inline event flightPlanDeactivated() { return event::get("FlightPlanDeactivated"); };
-    inline event frame() { return event::get("Frame"); };
-    inline event objectAdded() { return event::get("ObjectAdded"); };
-    inline event objectRemoved() { return event::get("ObjectRemoved"); };
-    inline event pause() { return event::get("Pause"); };
-    inline event pause_EX1() { return event::get("Pause_EX1"); };
-    inline event paused() { return event::get("Paused"); };
-    inline event pauseFrame() { return event::get("PauseFrame"); };
-    inline event positionChanged() { return event::get("PositionChanged"); };
-    inline event sim() { return event::get("Sim"); };
-    inline event simStart() { return event::get("SimStart"); };
-    inline event simStop() { return event::get("SimStop"); };
-    inline event sound() { return event::get("Sound"); };
-    inline event unpaused() { return event::get("Unpaused"); };
-    inline event view() { return event::get("View"); };
-    inline event weatherModeChanged() { return event::get("WeatherModeChanged"); };
-}
-
 
 /**
  * This class provides convenient subscription methods for system events.
@@ -188,91 +158,91 @@ public:
     // --- Filename events ---
 
     void onAircraftLoaded(std::function<void(std::string_view)> handler) {
-        subscribeToSystemEvent(Events::aircraftLoaded(), std::move(handler));
+        subscribeToSystemEvent(handler_.connection().event("AircraftLoaded"), std::move(handler));
     }
     void onFlightLoaded(std::function<void(std::string_view)> handler) {
-        subscribeToSystemEvent(Events::flightLoaded(), std::move(handler));
+        subscribeToSystemEvent(handler_.connection().event("FlightLoaded"), std::move(handler));
     }
     void onFlightSaved(std::function<void(std::string_view)> handler) {
-        subscribeToSystemEvent(Events::flightSaved(), std::move(handler));
+        subscribeToSystemEvent(handler_.connection().event("FlightSaved"), std::move(handler));
     }
     void onFlightPlanActivated(std::function<void(std::string_view)> handler) {
-        subscribeToSystemEvent(Events::flightPlanActivated(), std::move(handler));
+        subscribeToSystemEvent(handler_.connection().event("FlightPlanActivated"), std::move(handler));
     }
 
     // --- Object add/remove events ---
 
     void onObjectAdded(std::function<void(SimObjectId, SimObjectType)> handler) {
-        subscribeToSystemEvent(Events::objectAdded(), std::move(handler));
+        subscribeToSystemEvent(handler_.connection().event("ObjectAdded"), std::move(handler));
     }
     void onObjectRemoved(std::function<void(SimObjectId, SimObjectType)> handler) {
-        subscribeToSystemEvent(Events::objectRemoved(), std::move(handler));
+        subscribeToSystemEvent(handler_.connection().event("ObjectRemoved"), std::move(handler));
     }
 
     // --- Frame rate events ---
 
     void onFrame(std::function<void(float, float)> handler) {
-        subscribeToSystemEvent(Events::frame(), std::move(handler));
+        subscribeToSystemEvent(handler_.connection().event("Frame"), std::move(handler));
     }
     void onPauseFrame(std::function<void(float, float)> handler) {
-        subscribeToSystemEvent(Events::pauseFrame(), std::move(handler));
+        subscribeToSystemEvent(handler_.connection().event("PauseFrame"), std::move(handler));
     }
 
     // --- Value events ---
 
     void onSim(std::function<void(unsigned long)> handler) {
-        subscribeToSystemEvent(Events::sim(), std::move(handler));
+        subscribeToSystemEvent(handler_.connection().event("Sim"), std::move(handler));
     }
     void onPause(std::function<void(unsigned long)> handler) {
-        subscribeToSystemEvent(Events::pause(), std::move(handler));
+        subscribeToSystemEvent(handler_.connection().event("Pause"), std::move(handler));
     }
     void onPauseEx1(std::function<void(unsigned long)> handler) {
-        subscribeToSystemEvent(Events::pause_EX1(), std::move(handler));
+        subscribeToSystemEvent(handler_.connection().event("Pause_EX1"), std::move(handler));
     }
     void onSound(std::function<void(unsigned long)> handler) {
-        subscribeToSystemEvent(Events::sound(), std::move(handler));
+        subscribeToSystemEvent(handler_.connection().event("Sound"), std::move(handler));
     }
     void onView(std::function<void(unsigned long)> handler) {
-        subscribeToSystemEvent(Events::view(), std::move(handler));
+        subscribeToSystemEvent(handler_.connection().event("View"), std::move(handler));
     }
     void onWeatherModeChanged(std::function<void(unsigned long)> handler) {
-        subscribeToSystemEvent(Events::weatherModeChanged(), std::move(handler));
+        subscribeToSystemEvent(handler_.connection().event("WeatherModeChanged"), std::move(handler));
     }
 
     // --- Simple (no-data) events ---
 
     void onCrashed(std::function<void()> handler) {
-        subscribeToSystemEvent(Events::crashed(), std::move(handler));
+        subscribeToSystemEvent(handler_.connection().event("Crashed"), std::move(handler));
     }
     void onCrashReset(std::function<void()> handler) {
-        subscribeToSystemEvent(Events::crashReset(), std::move(handler));
+        subscribeToSystemEvent(handler_.connection().event("CrashReset"), std::move(handler));
     }
     void onFlightPlanDeactivated(std::function<void()> handler) {
-        subscribeToSystemEvent(Events::flightPlanDeactivated(), std::move(handler));
+        subscribeToSystemEvent(handler_.connection().event("FlightPlanDeactivated"), std::move(handler));
     }
     void onOneSec(std::function<void()> handler) {
-        subscribeToSystemEvent(Events::oneSec(), std::move(handler));
+        subscribeToSystemEvent(handler_.connection().event("1sec"), std::move(handler));
     }
     void onFourSec(std::function<void()> handler) {
-        subscribeToSystemEvent(Events::fourSec(), std::move(handler));
+        subscribeToSystemEvent(handler_.connection().event("4sec"), std::move(handler));
     }
     void onSixHz(std::function<void()> handler) {
-        subscribeToSystemEvent(Events::sixHerz(), std::move(handler));
+        subscribeToSystemEvent(handler_.connection().event("6Hz"), std::move(handler));
     }
     void onPaused(std::function<void()> handler) {
-        subscribeToSystemEvent(Events::paused(), std::move(handler));
+        subscribeToSystemEvent(handler_.connection().event("Paused"), std::move(handler));
     }
     void onUnpaused(std::function<void()> handler) {
-        subscribeToSystemEvent(Events::unpaused(), std::move(handler));
+        subscribeToSystemEvent(handler_.connection().event("Unpaused"), std::move(handler));
     }
     void onPositionChanged(std::function<void()> handler) {
-        subscribeToSystemEvent(Events::positionChanged(), std::move(handler));
+        subscribeToSystemEvent(handler_.connection().event("PositionChanged"), std::move(handler));
     }
     void onSimStart(std::function<void()> handler) {
-        subscribeToSystemEvent(Events::simStart(), std::move(handler));
+        subscribeToSystemEvent(handler_.connection().event("SimStart"), std::move(handler));
     }
     void onSimStop(std::function<void()> handler) {
-        subscribeToSystemEvent(Events::simStop(), std::move(handler));
+        subscribeToSystemEvent(handler_.connection().event("SimStop"), std::move(handler));
     }
 
 #pragma endregion

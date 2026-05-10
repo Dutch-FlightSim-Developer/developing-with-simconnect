@@ -52,7 +52,7 @@ TEST(TestNotificationGroups, BasicGroupCreation) {
     ASSERT_TRUE(gotOpen);
 
     // Create an event - no need to map it manually anymore!
-    auto brakeEvt = event::get("Brakes");
+    auto brakeEvt = connection.event("Brakes");
 
     // Create a notification group and add event - mapping happens automatically
     [[maybe_unused]]
@@ -92,9 +92,9 @@ TEST(TestNotificationGroups, FluentAPIUsage) {
     auto group = eventHandler
         .createNotificationGroup()
         .withStandardPriority()
-        .addEvent(event::get("Brakes"))
-        .addEvent(event::get("ParkingBrakes"))
-        .addMaskableEvent(event::get("FlapsUp"));
+        .addEvent(connection.event("Brakes"))
+        .addEvent(connection.event("ParkingBrakes"))
+        .addMaskableEvent(connection.event("FlapsUp"));
 
     EXPECT_TRUE(connection.succeeded());
 
@@ -127,13 +127,13 @@ TEST(TestNotificationGroups, PriorityHandling) {
     auto highPriorityGroup = eventHandler
         .createNotificationGroup()
         .withHighestPriority()
-        .addEvent(event::get("Brakes"));
+        .addEvent(connection.event("Brakes"));
 
     [[maybe_unused]]
     auto lowPriorityGroup = eventHandler
         .createNotificationGroup()
         .withLowestPriority()
-        .addEvent(event::get("ParkingBrakes"));
+        .addEvent(connection.event("ParkingBrakes"));
 
     EXPECT_TRUE(connection.succeeded());
 
@@ -166,8 +166,8 @@ TEST(TestNotificationGroups, MaskableEvents) {
     auto group = eventHandler
         .createNotificationGroup()
         .withMaskablePriority()
-        .addMaskableEvent(event::get("Brakes"))
-        .addEvent(event::get("ParkingBrakes"));
+        .addMaskableEvent(connection.event("Brakes"))
+        .addEvent(connection.event("ParkingBrakes"));
 
     EXPECT_TRUE(connection.succeeded());
 
@@ -196,30 +196,29 @@ TEST(TestNotificationGroups, MultipleGroupsPerClient) {
     ASSERT_TRUE(gotOpen);
 
     // No need to map events since we're not transmitting them
-    // The event::get() system maintains its own internal registry
 
     // Group 1: Brake-related events with highest priority
     [[maybe_unused]]
     auto group1 = eventHandler
         .createNotificationGroup()
         .withHighestPriority()
-        .addEvent(event::get("Brakes"));
+        .addEvent(connection.event("Brakes"));
 
     // Group 2: Flap-related events with standard priority
     [[maybe_unused]]
     auto group2 = eventHandler
         .createNotificationGroup()
         .withStandardPriority()
-        .addEvent(event::get("FlapsUp"))
-        .addEvent(event::get("FlapsDown"));
+        .addEvent(connection.event("FlapsUp"))
+        .addEvent(connection.event("FlapsDown"));
 
     // Group 3: Landing gear events with lowest priority
     [[maybe_unused]]
     auto group3 = eventHandler
         .createNotificationGroup()
         .withLowestPriority()
-        .addEvent(event::get("GearUp"))
-        .addEvent(event::get("GearDown"));
+        .addEvent(connection.event("GearUp"))
+        .addEvent(connection.event("GearDown"));
 
     EXPECT_TRUE(connection.succeeded());
 
@@ -251,14 +250,14 @@ TEST(TestNotificationGroups, RemoveAndClearEvents) {
     auto group = eventHandler
         .createNotificationGroup()
         .withStandardPriority()
-        .addEvent(event::get("Brakes"))
-        .addEvent(event::get("FlapsUp"))
-        .addEvent(event::get("GearUp"));
+        .addEvent(connection.event("Brakes"))
+        .addEvent(connection.event("FlapsUp"))
+        .addEvent(connection.event("GearUp"));
     
     EXPECT_TRUE(connection.succeeded());
 
     // Remove one event
-    group.removeEvent(event::get("FlapsUp"));
+    group.removeEvent(connection.event("FlapsUp"));
     EXPECT_TRUE(connection.succeeded());
 
     // Clear all events from group
@@ -293,31 +292,31 @@ TEST(TestNotificationGroups, AllPriorityLevels) {
     auto highestGroup = eventHandler
         .createNotificationGroup()
         .withHighestPriority()
-        .addEvent(event::get("Event1"));
+        .addEvent(connection.event("Event1"));
     EXPECT_EQ(highestGroup.priority(), SIMCONNECT_GROUP_PRIORITY_HIGHEST); // NOLINT(misc-include-cleaner)
 
     auto maskableGroup = eventHandler
         .createNotificationGroup()
         .withMaskablePriority()
-        .addEvent(event::get("Event2"));
+        .addEvent(connection.event("Event2"));
     EXPECT_EQ(maskableGroup.priority(), SIMCONNECT_GROUP_PRIORITY_HIGHEST_MASKABLE); // NOLINT(misc-include-cleaner)
 
     auto standardGroup = eventHandler
         .createNotificationGroup()
         .withStandardPriority()
-        .addEvent(event::get("Event3"));
+        .addEvent(connection.event("Event3"));
     EXPECT_EQ(standardGroup.priority(), SIMCONNECT_GROUP_PRIORITY_STANDARD); // NOLINT(misc-include-cleaner)
 
     auto defaultGroup = eventHandler
         .createNotificationGroup()
         .withDefaultPriority()
-        .addEvent(event::get("Event4"));
+        .addEvent(connection.event("Event4"));
     EXPECT_EQ(defaultGroup.priority(), SIMCONNECT_GROUP_PRIORITY_DEFAULT); // NOLINT(misc-include-cleaner)
 
     auto lowestGroup = eventHandler
         .createNotificationGroup()
         .withLowestPriority()
-        .addEvent(event::get("Event5"));
+        .addEvent(connection.event("Event5"));
     EXPECT_EQ(lowestGroup.priority(), SIMCONNECT_GROUP_PRIORITY_LOWEST); // NOLINT(misc-include-cleaner)
 
     EXPECT_TRUE(connection.succeeded());
@@ -370,14 +369,14 @@ TEST(TestNotificationGroups, IndependentGroupsAcrossClients) {
     auto group1 = eventHandler1
         .createNotificationGroup()
         .withHighestPriority()
-        .addEvent(event::get("Brakes"));
+        .addEvent(connection1.event("Brakes"));
     EXPECT_TRUE(connection1.succeeded());
 
     [[maybe_unused]]
     auto group2 = eventHandler2
         .createNotificationGroup()
         .withHighestPriority()  // Same priority, but independent
-        .addEvent(event::get("FlapsUp"));
+        .addEvent(connection2.event("FlapsUp"));
     EXPECT_TRUE(connection2.succeeded());
 
     // Verify groups are independent (both succeed)

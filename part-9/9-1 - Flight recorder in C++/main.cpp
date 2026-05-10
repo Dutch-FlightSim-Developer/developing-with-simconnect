@@ -36,7 +36,6 @@
 #include <simconnect/windows_event_connection.hpp>
 #include <simconnect/windows_event_handler.hpp>
 
-#include <simconnect/events/events.hpp>
 #include <simconnect/events/event_handler.hpp>
 #include <simconnect/events/input_group.hpp>
 
@@ -606,13 +605,13 @@ static bool setupKeys(EvtHandler &eventHandler, InputGroup &inputGroup, std::fun
         << "[Press the Play/Pause media key to toggle recording]\n"
         << "[Press the Stop key to exit the program]\n";
 
-    const event startStop = event::get("Toggle.Recording");
+    const auto startStop = eventHandler.connection().event("Toggle.Recording");
     inputGroup.addEvent(startStop, "VK_MEDIA_PLAY_PAUSE");
     eventHandler.template registerEventHandler<Messages::EventMsg>(startStop, [onToggleRecording]([[maybe_unused]] const Messages::EventMsg& evt) {
         onToggleRecording();
     });
 
-    const event exit = event::get("Exit.Program");
+    const auto exit = eventHandler.connection().event("Exit.Program");
     inputGroup.addEvent(exit, "VK_MEDIA_STOP");
     eventHandler.template registerEventHandler<Messages::EventMsg>(exit, [onExit]([[maybe_unused]] const Messages::EventMsg& evt) {
         onExit();

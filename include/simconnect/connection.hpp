@@ -32,6 +32,8 @@
 #include <simconnect/util/null_logger.hpp>
 #include <simconnect/util/statefull_object.hpp>
 
+#include <map>
+#include <set>
 #include <span>
 #include <string>
 #include <string_view>
@@ -113,6 +115,7 @@ private:
     cv_type dispatchCv_;                                ///< The condition variable for dispatch waiting.
 
     mappedevents_set mappedEvents_;                     ///< The set of mapped event IDs.
+    std::map<EventId, std::string> eventRegistry_;      ///< Per-connection registry of event IDs to names.
 
 
 protected:
@@ -286,6 +289,7 @@ public:
 
             // Clear all mapped event flags to allow re-mapping on reconnect
             mappedEvents_.clear();
+            eventRegistry_.clear();
 		}
         return *static_cast<Derived*>(this);
 	}
@@ -427,7 +431,7 @@ public:
      * @param maskable True if the event is maskable.
      * @returns A reference to the derived connection for chaining.
      */
-    Derived& addClientEventToNotificationGroup(NotificationGroupId groupId, event evt, bool maskable = false) {
+    Derived& addClientEventToNotificationGroup(NotificationGroupId groupId, SimConnect::event evt, bool maskable = false) {
         guard_type guard(mutex_);
 
         state(SimConnect_AddClientEventToNotificationGroup(hSimConnect_, groupId, evt.id(), maskable ? 1 : 0));
@@ -447,7 +451,7 @@ public:
      * @param evt The event to remove.
      * @returns A reference to the derived connection for chaining.
      */
-    Derived& removeClientEventFromNotificationGroup(NotificationGroupId groupId, event evt) {
+    Derived& removeClientEventFromNotificationGroup(NotificationGroupId groupId, SimConnect::event evt) {
         guard_type guard(mutex_);
 
         state(SimConnect_RemoveClientEvent(hSimConnect_, groupId, evt.id()));
@@ -503,14 +507,29 @@ public:
 
 
 public:
+    [[nodiscard]]
+    SimConnect::event event(std::string_view name) {
+        auto id = SimConnect::event::Key::allocate();
+        guard_type guard(mutex_);
+        eventRegistry_.emplace(id, std::string(name));
+        return SimConnect::event(id, name, SimConnect::event::Key{});
+    }
+
+    [[nodiscard]]
+    std::string eventName(EventId id) const {
+        auto it = eventRegistry_.find(id);
+        return it != eventRegistry_.end() ? it->second : std::string{};
+    }
+
+
     /**
      * Maps a client event to a simulator event.
      * The event will be mapped using its own name.
-     * 
+     *
      * @param evt The event to map.
      * @returns A reference to the derived connection for chaining.
      */
-    Derived& mapClientEvent(event evt) {
+    Derived& mapClientEvent(SimConnect::event evt) {
         guard_type guard(mutex_);
 
         if constexpr (TrackMappedEvents) {
@@ -544,7 +563,7 @@ public:
      * @param data The optional data to send with the event.
      * @returns A reference to the derived connection for chaining.
      */
-    Derived& transmitClientEvent(SimObjectId objectId, event evt, NotificationGroupId groupId, unsigned long data = 0){
+    Derived& transmitClientEvent(SimObjectId objectId, SimConnect::event evt, NotificationGroupId groupId, unsigned long data = 0){
         guard_type guard(mutex_);
 
         state(SimConnect_TransmitClientEvent(hSimConnect_, objectId, evt.id(), data, groupId, 0));
@@ -567,7 +586,7 @@ public:
      * @param data The optional data to send with the event.
      * @returns A reference to the derived connection for chaining.
      */
-    Derived& transmitClientEventWithPriority(SimObjectId objectId, event evt, Events::Priority priority, unsigned long data = 0){
+    Derived& transmitClientEventWithPriority(SimObjectId objectId, SimConnect::event evt, Events::Priority priority, unsigned long data = 0){
         guard_type guard(mutex_);
 
         state(SimConnect_TransmitClientEvent(hSimConnect_, objectId, evt.id(), data, priority, Events::groupIdIsPriority));
@@ -594,7 +613,7 @@ public:
      * @param data4 The fifth data value to send with the event.
      * @returns A reference to the derived connection for chaining.
      */
-    Derived& transmitClientEvent(SimObjectId objectId, event evt, NotificationGroupId groupId, unsigned long data0, unsigned long data1, unsigned long data2 = 0, unsigned long data3 = 0, unsigned long data4 = 0) {
+    Derived& transmitClientEvent(SimObjectId objectId, SimConnect::event evt, NotificationGroupId groupId, unsigned long data0, unsigned long data1, unsigned long data2 = 0, unsigned long data3 = 0, unsigned long data4 = 0) {
         guard_type guard(mutex_);
 
         state(SimConnect_TransmitClientEvent_EX1(hSimConnect_, objectId, evt.id(), groupId, 0, data0, data1, data2, data3, data4));
@@ -621,7 +640,7 @@ public:
      * @param data4 The fifth data value to send with the event.
      * @returns A reference to the derived connection for chaining.
      */
-    Derived& transmitClientEventWithPriority(SimObjectId objectId, event evt, Events::Priority priority, unsigned long data0, unsigned long data1, unsigned long data2 = 0, unsigned long data3 = 0, unsigned long data4 = 0) {
+    Derived& transmitClientEventWithPriority(SimObjectId objectId, SimConnect::event evt, Events::Priority priority, unsigned long data0, unsigned long data1, unsigned long data2 = 0, unsigned long data3 = 0, unsigned long data4 = 0) {
         guard_type guard(mutex_);
 
         state(SimConnect_TransmitClientEvent_EX1(hSimConnect_, objectId, evt.id(), priority, Events::groupIdIsPriority, data0, data1, data2, data3, data4));
@@ -643,14 +662,14 @@ public:
      * @param event The event to subscribe to.
      * @returns A reference to the derived connection for chaining.
      */
-	Derived& subscribeToSystemEvent(event event) {
+	Derived& subscribeToSystemEvent(SimConnect::event evt) {
         guard_type guard(mutex_);
 
-        state(SimConnect_SubscribeToSystemEvent(hSimConnect_, event.id(), event.name().c_str()));
+        state(SimConnect_SubscribeToSystemEvent(hSimConnect_, evt.id(), evt.name().c_str()));
         if (failed()) {
             logger_.error("SimConnect_SubscribeToSystemEvent failed with error code 0x{:08X}.", state());
         } else {
-            logger_.debug("Subscribed to system event '{}' (sendId={})", event.name(), fetchSendIdInternal());
+            logger_.debug("Subscribed to system event '{}' (sendId={})", evt.name(), fetchSendIdInternal());
         }
         return static_cast<Derived&>(*this);
 	}
@@ -661,14 +680,14 @@ public:
     * @param event The event to unsubscribe from.
     * @returns A reference to the derived connection for chaining.
     */
-    Derived& unsubscribeFromSystemEvent(event event) {
+    Derived& unsubscribeFromSystemEvent(SimConnect::event evt) {
         guard_type guard(mutex_);
 
-        state(SimConnect_UnsubscribeFromSystemEvent(hSimConnect_, event.id()));
+        state(SimConnect_UnsubscribeFromSystemEvent(hSimConnect_, evt.id()));
         if (failed()) {
             logger_.error("SimConnect_UnsubscribeFromSystemEvent failed with error code 0x{:08X}.", state());
         } else {
-            logger_.debug("Unsubscribed from system event '{}' (sendId={})", event.name(), fetchSendIdInternal());
+            logger_.debug("Unsubscribed from system event '{}' (sendId={})", evt.name(), fetchSendIdInternal());
         }
         return static_cast<Derived&>(*this);
     }
@@ -738,7 +757,7 @@ public:
      * @param maskable Whether this event is maskable by higher priority groups.
      * @return The connection reference for chaining.
      */
-    Derived& mapInputEventToClientEvent(event evt, std::string_view inputEvent, InputGroupId groupId, bool maskable = false) {
+    Derived& mapInputEventToClientEvent(SimConnect::event evt, std::string_view inputEvent, InputGroupId groupId, bool maskable = false) {
         guard_type guard(mutex_);
 
         state(SimConnect_MapInputEventToClientEvent_EX1(hSimConnect_, groupId, inputEvent.data(), evt.id(), 0, SIMCONNECT_UNUSED, 0, maskable ? 1 : 0));
@@ -763,7 +782,7 @@ public:
      * @param maskable Whether this event is maskable by higher priority groups.
      * @return The connection reference for chaining.
      */
-    Derived& mapInputEventToClientEvent(event downEvent, event upEvent, std::string_view inputEvent, InputGroupId groupId, bool maskable = false) {
+    Derived& mapInputEventToClientEvent(SimConnect::event downEvent, SimConnect::event upEvent, std::string_view inputEvent, InputGroupId groupId, bool maskable = false) {
         guard_type guard(mutex_);
 
         state(SimConnect_MapInputEventToClientEvent_EX1(hSimConnect_, groupId, inputEvent.data(), downEvent.id(), 0, upEvent.id(), 0, maskable ? 1 : 0));
@@ -787,7 +806,7 @@ public:
      * @param maskable Whether this event is maskable by higher priority groups.
      * @return The connection reference for chaining.
      */
-    Derived& mapInputEventToClientEventWithValue(event evt, unsigned long value, std::string_view inputEvent, InputGroupId groupId, bool maskable = false) {
+    Derived& mapInputEventToClientEventWithValue(SimConnect::event evt, unsigned long value, std::string_view inputEvent, InputGroupId groupId, bool maskable = false) {
         guard_type guard(mutex_);
 
         state(SimConnect_MapInputEventToClientEvent_EX1(hSimConnect_, groupId, inputEvent.data(), evt.id(), value, SIMCONNECT_UNUSED, 0, maskable ? 1 : 0));
@@ -814,7 +833,7 @@ public:
      * @param maskable Whether this event is maskable by higher priority groups.
      * @return The connection reference for chaining.
      */
-    Derived& mapInputEventToClientEventWithValue(event downEvent, unsigned long downValue, event upEvent, unsigned long upValue, std::string_view inputEvent, InputGroupId groupId, bool maskable = false) {
+    Derived& mapInputEventToClientEventWithValue(SimConnect::event downEvent, unsigned long downValue, SimConnect::event upEvent, unsigned long upValue, std::string_view inputEvent, InputGroupId groupId, bool maskable = false) {
         guard_type guard(mutex_);
 
         state(SimConnect_MapInputEventToClientEvent_EX1(hSimConnect_, groupId, inputEvent.data(), downEvent.id(), downValue, upEvent.id(), upValue, maskable ? 1 : 0));

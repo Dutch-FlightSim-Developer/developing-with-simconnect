@@ -25,6 +25,7 @@ file(GLOB TEST_SOURCES
   TestConnection.cpp
   TestEventGroupHandler.cpp
   TestEventHandler.cpp
+  TestEventRegistry.cpp
   TestEvents.cpp
   TestMultiClient.cpp
   TestNotificationGroups.cpp

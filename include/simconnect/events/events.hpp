@@ -19,9 +19,6 @@
 
 
 #include <atomic>
-#include <map>
-#include <mutex>
-#include <set>
 #include <string>
 
 
@@ -37,89 +34,37 @@ using EventId = unsigned long;
 class event {
 private:
     EventId id_;
+    std::string name_;
 
-    inline static std::atomic<EventId> nextId_{ 0 };                 ///< The next ID to assign to an event.
+    inline static std::atomic<EventId> nextId_{ 0 };
 
-    inline static std::map<std::string, EventId> eventsByName_{};    ///< A static map of the events by name.
-    inline static std::map<EventId, std::string> eventsById_{};      ///< A static map of the events by ID.
-    
-    inline static std::mutex registryMutex_;                         ///< Mutex for thread-safe access to static collections.
-
-
-    /**
-     * Construct an event with the given ID. This is the only constructor that is allowed, and it is private to ensure that
-     * the only way to get an event is through the static get() methods.
-     */
-    event(EventId id) : id_(id) {}
-
-    /**
-     * The default constructor is deleted because an event MUST always have an Id.
-     */
+    // event MUST always have an Id
     event() = delete;
-
-    // No move semantics, because an event MUST always have an Id.
     event(event&&) = delete;
     event& operator=(event&&) = delete;
 
 public:
 
+    struct Key {
+    private:
+        Key() = default;
 
-    /**
-     * Destructor can be default.
-     */
+        template<class D, bool TS, class L, bool TM> friend class Connection;
+
+        static EventId allocate() noexcept { return ++event::nextId_; }
+    };
+
+    event(EventId id, std::string_view name, Key) : id_(id), name_(name) {}
+
     constexpr ~event() = default;
 
-
-    // Copying is allowed, moving is not because an event MUST always have an Id.
-
     constexpr event(const event&) = default;
-    constexpr event& operator=(const event&) = default;
-
-
-    /**
-     * Get an event by name. If the event does not exist yet, it will be created.
-     * 
-     * @param name The name of the event.
-     * @returns The event.
-     */
-    static event get(std::string name) {
-        std::lock_guard<std::mutex> lock(registryMutex_);
-        
-        auto it = eventsByName_.find(name);
-        if (it != eventsByName_.end()) {
-            return event(it->second);
-        }
-        auto id = ++nextId_;
-        eventsByName_[name] = id;
-        eventsById_[id] = name;
-        // No need to add to mappedEvents_ - absence means not mapped
-
-        return event(id);
-    }
-
-
-    /**
-     * Get an event by ID. If the event does not exist, an exception will be thrown.
-     * 
-     * @param id The ID of the event.
-     * @returns The event.
-     * @throws UnknownEvent if the event does not exist.
-     */
-    static event get(EventId id) {
-        std::lock_guard<std::mutex> lock(registryMutex_);
-        
-        auto it = eventsById_.find(id);
-
-        if (it != eventsById_.end()) {
-            return event(id);       // We don't mind copies.
-        }
-        throw UnknownEvent(id);
-    }
+    event& operator=(const event&) = default;
 
 
     /**
      * Get the ID of the event.
-     * 
+     *
      * @returns The ID of the event.
      */
     [[nodiscard]]
@@ -128,7 +73,7 @@ public:
 
     /**
      * Convert an event to an EventId. This is useful for passing the event to SimConnect functions.
-     * 
+     *
      * @returns The ID of the event as an EventId.
      */
     [[nodiscard]]
@@ -137,35 +82,25 @@ public:
 
     /**
      * Get the name of the event.
-     * 
+     *
      * @returns The name of the event.
-     * @throws UnknownEvent if the event does not exist.
      */
     [[nodiscard]]
-    const std::string& name() const {
-        std::lock_guard<std::mutex> lock(registryMutex_);
-        
-        auto it = eventsById_.find(id_);
-
-        if (it != eventsById_.end()) {
-            return it->second;
-        }
-        throw UnknownEvent(id_);
-    }
+    const std::string& name() const noexcept { return name_; }
 
 
     /**
      * Compare two events for equality.
-     * 
+     *
      * @param other The other event.
      * @returns True if the events are equal.
      */
     [[nodiscard]]
     constexpr bool operator==(const event& other) const noexcept { return id_ == other.id_; }
-    
+
     /**
      * Compare two events for ordering.
-     * 
+     *
      * @param other The other event.
      * @returns The comparison result.
      */

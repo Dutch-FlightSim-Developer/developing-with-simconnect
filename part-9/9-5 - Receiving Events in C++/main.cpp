@@ -34,7 +34,6 @@ using ThisConnection = SimConnect::WindowsEventConnection<true, SimConnect::Cons
 #include <simconnect/windows_event_handler.hpp>
 using ThisConnectionHandler = SimConnect::WindowsEventHandler<true, SimConnect::ConsoleLogger>;
 
-#include <simconnect/events/events.hpp>
 #include <simconnect/events/event_handler.hpp>
 #include <simconnect/events/input_group.hpp>
 #include <simconnect/events/notification_group.hpp>
@@ -248,7 +247,7 @@ static bool setupKeys(EvtHandler &eventHandler, InputGroup &inputGroup, ExitHand
 {
   std::cerr << "[Press the Stop key to exit the program]\n";
 
-  const event exit = event::get("Exit.Program");
+  const auto exit = eventHandler.connection().event("Exit.Program");
   inputGroup.addEvent(exit, "VK_MEDIA_STOP");
   eventHandler.template registerEventHandler<Messages::EventMsg>(
     exit,
@@ -302,23 +301,23 @@ auto main([[maybe_unused]] int argc, [[maybe_unused]] const char* argv[]) -> int
     auto notificationGroup = eventHandler.createNotificationGroup().withStandardPriority();
 
     notificationGroup
-        .addEvent(event::get("FLAPS_SET"))
-        .addEvent(event::get("FLAPS_INCR"))
-        .addEvent(event::get("FLAPS_DECR"))
-        .addEvent(event::get("FLAPS_UP"))
-        .addEvent(event::get("FLAPS_DOWN"))
-        .addEvent(event::get("AXIS_FLAPS_SET"))
-        .addEvent(event::get("FLAPS_1"))
-        .addEvent(event::get("FLAPS_2"))
-        .addEvent(event::get("FLAPS_3"))
-        //.addEvent(event::get("FLAPS_4"))  // Not available in MSFS
-        .addEvent(event::get("FLAPS_CONTINUOUS_SET"))
-        .addEvent(event::get("FLAPS_CONTINUOUS_INCR"))
-        .addEvent(event::get("FLAPS_CONTINUOUS_DECR"));
+        .addEvent(connection.event("FLAPS_SET"))
+        .addEvent(connection.event("FLAPS_INCR"))
+        .addEvent(connection.event("FLAPS_DECR"))
+        .addEvent(connection.event("FLAPS_UP"))
+        .addEvent(connection.event("FLAPS_DOWN"))
+        .addEvent(connection.event("AXIS_FLAPS_SET"))
+        .addEvent(connection.event("FLAPS_1"))
+        .addEvent(connection.event("FLAPS_2"))
+        .addEvent(connection.event("FLAPS_3"))
+        //.addEvent(connection.event("FLAPS_4"))  // Not available in MSFS
+        .addEvent(connection.event("FLAPS_CONTINUOUS_SET"))
+        .addEvent(connection.event("FLAPS_CONTINUOUS_INCR"))
+        .addEvent(connection.event("FLAPS_CONTINUOUS_DECR"));
 
     eventHandler.registerEventGroupHandler<Messages::EventMsg>(notificationGroup,
-        [](const Messages::EventMsg &evt) {
-            std::cout << std::format("Received flap event '{}' (ID {})\n", event::get(evt.uEventID).name(), evt.uEventID);
+        [&connection](const Messages::EventMsg &evt) {
+            std::cout << std::format("Received flap event '{}' (ID {})\n", connection.eventName(evt.uEventID), evt.uEventID);
         });
 
     const auto timeout = 30s;

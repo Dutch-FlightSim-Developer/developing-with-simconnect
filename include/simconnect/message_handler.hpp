@@ -16,6 +16,7 @@
  */
 
 #include <map>
+#include <mutex>
 #include <tuple>
 #include <array>
 #include <vector>

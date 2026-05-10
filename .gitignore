@@ -416,5 +416,8 @@ tester-lib2/
 # CMake build folder
 /build/
 /out
+
+# CMake test discovery artifacts
+cmake_test_discovery_*.json
 /.claude
 .codex

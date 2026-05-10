@@ -39,7 +39,7 @@ TEST(TestSystemEvents, ReceiveTimedEvent) {
 
     ASSERT_TRUE(connection.open());
 
-    auto oneSecondEvent = Events::oneSec();
+    auto oneSecondEvent = connection.event("1sec");
 
     systemEvents.subscribeToSystemEvent(oneSecondEvent, [&]([[maybe_unused]] const SIMCONNECT_RECV_EVENT& msg) { // NOLINT(misc-include-cleaner)
         receivedEvent = true;

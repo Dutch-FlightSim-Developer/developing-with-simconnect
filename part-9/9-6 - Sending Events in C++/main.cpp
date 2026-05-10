@@ -248,7 +248,7 @@ static bool setupKeys(EvtHandler &eventHandler, InputGroup &inputGroup, ExitHand
 {
   std::cerr << "[Press the Stop key to exit the program]\n";
 
-  const event exit = event::get("Exit.Program");
+  const auto exit = eventHandler.connection().event("Exit.Program");
   inputGroup.addEvent(exit, "VK_MEDIA_STOP");
   eventHandler.template registerEventHandler<Messages::EventMsg>(
     exit,
@@ -316,7 +316,7 @@ auto main([[maybe_unused]] int argc, [[maybe_unused]] const char* argv[]) -> int
       return 1;
     }
 
-    const event evt = event::get(eventName);
+    const auto evt = connection.event(eventName);
     auto notificationGroup = eventHandler.createNotificationGroup().withStandardPriority()
         .addEvent(evt);
     eventHandler.sendEvent(evt, notificationGroup, eventValue);

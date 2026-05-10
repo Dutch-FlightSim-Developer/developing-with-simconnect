@@ -21,6 +21,7 @@
 #include <simconnect/events/event_group.hpp>
 #include <simconnect/util/statefull_object.hpp>
 
+#include <mutex>
 #include <optional>
 
 

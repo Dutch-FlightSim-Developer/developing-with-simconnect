@@ -46,7 +46,7 @@ TEST(TestEvents, MapEventTwice) {
     ASSERT_TRUE(connection.openAndWait());
 
     // Get an event
-    auto brakeEvt = event::get("Brakes");
+    auto brakeEvt = connection.connection.event("Brakes");
     
     // Map it the first time
     eventHandler.mapEvent(brakeEvt);
@@ -88,10 +88,10 @@ TEST(TestEvents, MapMultipleEventsTwice) {
     ASSERT_TRUE(connection.open());
 
     // Create several events
-    auto brakeEvt = event::get("Brakes");
-    auto parkingBrakeEvt = event::get("Parking_Brakes");
-    auto flapsUpEvt = event::get("Flaps_Up");
-    auto flapsDownEvt = event::get("Flaps_Down");
+    auto brakeEvt = connection.connection.event("Brakes");
+    auto parkingBrakeEvt = connection.connection.event("Parking_Brakes");
+    auto flapsUpEvt = connection.connection.event("Flaps_Up");
+    auto flapsDownEvt = connection.connection.event("Flaps_Down");
 
     // Map them all once
     eventHandler.mapEvent(brakeEvt);

@@ -538,6 +538,9 @@ using SimConnectEventId = unsigned long;        ///< The type used for SimConnec
 
 using EventId = unsigned long;                  ///< The type used for client event IDs.
 using EventGroupId = unsigned long;             ///< The type used for event group IDs.
+
+inline constexpr EventGroupId unknownGroup{ static_cast<EventGroupId>(Messages::EventMsg::UNKNOWN_GROUP) };   ///< Constant representing an unknown event group ID.
+
 using NotificationGroupId = EventGroupId;       ///< The type used for notification group IDs.
 using InputGroupId = EventGroupId;              ///< The type used for input group IDs.
 

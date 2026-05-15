@@ -140,6 +140,11 @@ target_link_libraries(cmake_cpp_simconnect_options INTERFACE
   "${SIMCONNECT_LIB_PATH}" "shlwapi.lib" "user32.lib" "Ws2_32.lib"
 )
 
+# Enable CTest — must be in the top-level CMakeLists for ctest to discover tests
+if(BUILD_TESTING)
+  enable_testing()
+endif()
+
 # Adding the src:
 add_subdirectory(CppSimConnect)
 add_subdirectory(part-1)

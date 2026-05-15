@@ -12,7 +12,10 @@
             "hidden": true,
             "generator": "Ninja",
             "binaryDir": "${sourceDir}/out/build/${presetName}",
-            "installDir": "${sourceDir}/out/install/${presetName}"
+            "installDir": "${sourceDir}/out/install/${presetName}",
+            "cacheVariables": {
+                "CMAKE_EXPORT_COMPILE_COMMANDS": "ON"
+            }
         },
         {
             "name": "conf-windows-common",
@@ -59,7 +62,7 @@
 
         {
             "name": "unixlike-gcc-debug",
-            "displayName": "gcc Debug",
+            "displayName": "Linux · GCC · Debug",
             "description": "Target Unix-like OS with the gcc compiler, debug build type",
             "inherits": "conf-unixlike-common",
             "cacheVariables": {
@@ -70,7 +73,7 @@
         },
         {
             "name": "unixlike-gcc-release",
-            "displayName": "gcc Release",
+            "displayName": "Linux · GCC · Release",
             "description": "Target Unix-like OS with the gcc compiler, release build type",
             "inherits": "conf-unixlike-common",
             "cacheVariables": {
@@ -81,7 +84,7 @@
         },
         {
             "name": "unixlike-clang-debug",
-            "displayName": "clang Debug",
+            "displayName": "Linux · Clang · Debug",
             "description": "Target Unix-like OS with the clang compiler, debug build type",
             "inherits": "conf-unixlike-common",
             "cacheVariables": {
@@ -92,7 +95,7 @@
         },
         {
             "name": "unixlike-clang-release",
-            "displayName": "clang Release",
+            "displayName": "Linux · Clang · Release",
             "description": "Target Unix-like OS with the clang compiler, release build type",
             "inherits": "conf-unixlike-common",
             "cacheVariables": {
@@ -103,7 +106,7 @@
         },
         {
             "name": "windows-clang-debug-tidy-2020",
-            "displayName": "clang Debug MSFS 2020 (with clang-tidy)",
+            "displayName": "MSFS 2020 · Clang · Debug · Tidy",
             "description": "Target MSFS 2020 with the clang compiler, debug build, clang-tidy enabled",
             "cacheVariables": {
                 "cmake_cpp_simconnect_ENABLE_CLANG_TIDY": "ON",
@@ -113,7 +116,7 @@
         },
         {
             "name": "windows-clang-debug-tidy-2024",
-            "displayName": "clang Debug MSFS 2024 (with clang-tidy)",
+            "displayName": "MSFS 2024 · Clang · Debug · Tidy",
             "description": "Target MSFS 2024 with the clang compiler, debug build, clang-tidy enabled",
             "cacheVariables": {
                 "cmake_cpp_simconnect_ENABLE_CLANG_TIDY": "ON",
@@ -124,7 +127,7 @@
         {
             "name": "windows-clang-debug-tests-2020",
             "description": "Target MSFS 2020 with the clang compiler, debug build, tests included",
-            "displayName": "clang Debug MSFS 2020 (with tests)",
+            "displayName": "MSFS 2020 · Clang · Debug · Tests",
             "cacheVariables": {
                 "BUILD_TESTING": "ON",
                 "MSFS_SDK_VERSION": "2020",
@@ -137,7 +140,7 @@
         {
             "name": "windows-clang-debug-tests-2024",
             "description": "Target MSFS 2024 with the clang compiler, debug build, tests included",
-            "displayName": "clang Debug MSFS 2024 (with tests)",
+            "displayName": "MSFS 2024 · Clang · Debug · Tests",
             "cacheVariables": {
                 "BUILD_TESTING": "ON",
                 "MSFS_SDK_VERSION": "2024",
@@ -149,7 +152,7 @@
         },
         {
             "name": "windows-msvc-debug-developer-mode-2020",
-            "displayName": "msvc Debug (Developer Mode) MSFS 2020",
+            "displayName": "MSFS 2020 · MSVC · Debug · Developer",
             "description": "Target MSFS 2020 with the msvc compiler, debug build type (no sanitizers/clang-tidy due to MSVC limitations)",
             "inherits": "conf-windows-common",
             "cacheVariables": {
@@ -164,7 +167,7 @@
         },
         {
             "name": "windows-msvc-debug-developer-mode-2024",
-            "displayName": "msvc Debug (Developer Mode) MSFS 2024",
+            "displayName": "MSFS 2024 · MSVC · Debug · Developer",
             "description": "Target MSFS 2024 with the msvc compiler, debug build type (no sanitizers/clang-tidy due to MSVC limitations)",
             "inherits": "conf-windows-common",
             "cacheVariables": {
@@ -179,7 +182,7 @@
         },
         {
             "name": "windows-msvc-debug-user-mode-2020",
-            "displayName": "msvc Debug (User Mode) MSFS 2020",
+            "displayName": "MSFS 2020 · MSVC · Debug · User",
             "description": "Target MSFS 2020 with the msvc compiler, debug build type",
             "inherits": "conf-windows-common",
             "cacheVariables": {
@@ -192,7 +195,7 @@
         },
         {
             "name": "windows-msvc-debug-user-mode-2024",
-            "displayName": "msvc Debug (User Mode) MSFS 2024",
+            "displayName": "MSFS 2024 · MSVC · Debug · User",
             "description": "Target MSFS 2024 with the msvc compiler, debug build type",
             "inherits": "conf-windows-common",
             "cacheVariables": {
@@ -205,7 +208,7 @@
         },
         {
             "name": "windows-msvc-release-user-mode-2020",
-            "displayName": "msvc Release (User Mode) MSFS 2020",
+            "displayName": "MSFS 2020 · MSVC · Release · User",
             "description": "Target MSFS 2020 with the msvc compiler, release build type",
             "inherits": "conf-windows-common",
             "cacheVariables": {
@@ -218,7 +221,7 @@
         },
         {
             "name": "windows-msvc-release-user-mode-2024",
-            "displayName": "msvc Release (User Mode) MSFS 2024",
+            "displayName": "MSFS 2024 · MSVC · Release · User",
             "description": "Target MSFS 2024 with the msvc compiler, release build type",
             "inherits": "conf-windows-common",
             "cacheVariables": {
@@ -231,7 +234,7 @@
         },
         {
             "name": "windows-clang-debug-2020",
-            "displayName": "clang Debug MSFS 2020",
+            "displayName": "MSFS 2020 · Clang · Debug",
             "description": "Target MSFS 2020 with the clang compiler, debug build type",
             "inherits": "conf-windows-common",
             "cacheVariables": {
@@ -248,7 +251,7 @@
         },
         {
             "name": "windows-clang-debug-2024",
-            "displayName": "clang Debug MSFS 2024",
+            "displayName": "MSFS 2024 · Clang · Debug",
             "description": "Target MSFS 2024 with the clang compiler, debug build type",
             "inherits": "conf-windows-common",
             "cacheVariables": {
@@ -265,7 +268,7 @@
         },
         {
             "name": "windows-clang-release-2020",
-            "displayName": "clang Release MSFS 2020",
+            "displayName": "MSFS 2020 · Clang · Release",
             "description": "Target MSFS 2020 with the clang compiler, release build type",
             "inherits": "conf-windows-common",
             "cacheVariables": {
@@ -282,7 +285,7 @@
         },
         {
             "name": "windows-clang-release-2024",
-            "displayName": "clang Release MSFS 2024",
+            "displayName": "MSFS 2024 · Clang · Release",
             "description": "Target MSFS 2024 with the clang compiler, release build type",
             "inherits": "conf-windows-common",
             "cacheVariables": {
@@ -299,7 +302,7 @@
         },
         {
             "name": "windows-clang-release-tests-2020",
-            "displayName": "clang Release MSFS 2020 (with tests)",
+            "displayName": "MSFS 2020 · Clang · Release · Tests",
             "description": "Target MSFS 2020 with the clang compiler, release build, tests included",
             "cacheVariables": {
                 "BUILD_TESTING": "ON",
@@ -311,7 +314,7 @@
         },
         {
             "name": "windows-clang-release-tests-2024",
-            "displayName": "clang Release MSFS 2024 (with tests)",
+            "displayName": "MSFS 2024 · Clang · Release · Tests",
             "description": "Target MSFS 2024 with the clang compiler, release build, tests included",
             "cacheVariables": {
                 "BUILD_TESTING": "ON",
@@ -362,6 +365,34 @@
             "description": "Enable output and stop on failure",
             "inherits": "test-common",
             "configurePreset": "unixlike-clang-release"
+        },
+        {
+            "name": "test-windows-clang-debug-tests-2020",
+            "displayName": "MSFS 2020 · Clang · Debug · Tests",
+            "description": "Enable output and stop on failure",
+            "inherits": "test-common",
+            "configurePreset": "windows-clang-debug-tests-2020"
+        },
+        {
+            "name": "test-windows-clang-debug-tests-2024",
+            "displayName": "MSFS 2024 · Clang · Debug · Tests",
+            "description": "Enable output and stop on failure",
+            "inherits": "test-common",
+            "configurePreset": "windows-clang-debug-tests-2024"
+        },
+        {
+            "name": "test-windows-clang-release-tests-2020",
+            "displayName": "MSFS 2020 · Clang · Release · Tests",
+            "description": "Enable output and stop on failure",
+            "inherits": "test-common",
+            "configurePreset": "windows-clang-release-tests-2020"
+        },
+        {
+            "name": "test-windows-clang-release-tests-2024",
+            "displayName": "MSFS 2024 · Clang · Release · Tests",
+            "description": "Enable output and stop on failure",
+            "inherits": "test-common",
+            "configurePreset": "windows-clang-release-tests-2024"
         }
     ]
 }

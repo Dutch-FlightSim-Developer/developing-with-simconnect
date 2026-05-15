@@ -234,11 +234,21 @@ public:
 
     /**
      * Send a struct to a client data area using a MappedClientDataDefinition (untagged).
-     * Requires useMapping() == true; the struct wire layout must match sizeof(StructType).
+     *
+     * Valid only when `def.useMapping() == true` — i.e. every field was registered and the
+     * total wire size equals `sizeof(StructType)`. Logs an error and returns without sending
+     * if the condition is not met; use sendClientDataTagged() in that case.
      */
     template <typename StructType, bool TrackChanges>
     void sendClientData(ClientDataId clientDataId, MappedClientDataDefinition<StructType, TrackChanges>& def, const StructType& data)
     {
+        if (!def.useMapping()) {
+            simConnectMessageHandler_.connection().logger().error(
+                "sendClientData: MappedClientDataDefinition wire size ({}) != sizeof(StructType) ({}); "
+                "use sendClientDataTagged() instead.",
+                def.size(), sizeof(StructType));
+            return;
+        }
         simConnectMessageHandler_.connection().sendClientData(clientDataId, def.id(), data);
     }
 
@@ -252,17 +262,11 @@ public:
     }
 
     /**
-     * Send a struct to a client data area using a CustomClientDataDefinition (untagged).
-     * Requires useMapping() == true; the struct wire layout must match sizeof(StructType).
-     */
-    template <typename StructType, bool TrackChanges>
-    void sendClientData(ClientDataId clientDataId, CustomClientDataDefinition<StructType, TrackChanges>& def, const StructType& data)
-    {
-        simConnectMessageHandler_.connection().sendClientData(clientDataId, def.id(), data);
-    }
-
-    /**
      * Send a struct to a client data area using a CustomClientDataDefinition (tagged datum/value format).
+     *
+     * @note Untagged send is not available for CustomClientDataDefinition — useMapping() is always
+     *       false because user-supplied getters/setters make the wire layout unpredictable.
+     *       Always use this tagged overload.
      */
     template <typename StructType, bool TrackChanges>
     void sendClientDataTagged(ClientDataId clientDataId, CustomClientDataDefinition<StructType, TrackChanges>& def, const StructType& data)

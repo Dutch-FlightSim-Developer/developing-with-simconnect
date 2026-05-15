@@ -17,7 +17,7 @@ target_link_libraries(9-2-MSFS2024-List-Liveries-in-CXX
         cmake_cpp_simconnect::cmake_cpp_simconnect_warnings
 )
 
-# Set output directory and disable clang-tidy for SDK sample code
+# Set output directory for SDK sample code
 set_target_properties(9-2-MSFS2024-List-Liveries-in-CXX PROPERTIES
     RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}"
 )

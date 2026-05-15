@@ -17,7 +17,7 @@ target_link_libraries(4-1-RequestData-CXX
         cmake_cpp_simconnect::cmake_cpp_simconnect_warnings
 )
 
-# Set output directory and disable clang-tidy for SDK sample code
+# Set output directory for SDK sample code
 set_target_properties(4-1-RequestData-CXX PROPERTIES
     RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}"
 )

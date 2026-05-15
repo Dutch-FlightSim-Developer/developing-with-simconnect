@@ -30,8 +30,3 @@ CheckOptions:
     value: 2
   - key: readability-identifier-length.MinimumParameterNameLength
     value: 2
-
-
-
-
-

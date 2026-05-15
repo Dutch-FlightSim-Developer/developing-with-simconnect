@@ -67,7 +67,9 @@ static void handleOpen(const Messages::OpenMsg &msg)
  * Handle the SIMCONNECT_RECV_QUIT message.
  */
 [[maybe_unused]]
-static void handleClose([[maybe_unused]] const Messages::QuitMsg &msg) { std::cout << "Simulator shutting down.\n"; }
+static void handleClose([[maybe_unused]] const Messages::QuitMsg &msg) {
+  std::cout << "Simulator shutting down.\n";
+}
 
 
 /**

@@ -68,7 +68,7 @@ macro(cmake_cpp_simconnect_setup_options)
 
   if(NOT PROJECT_IS_TOP_LEVEL OR cmake_cpp_simconnect_PACKAGING_MAINTAINER_MODE)
     option(cmake_cpp_simconnect_ENABLE_IPO "Enable IPO/LTO" OFF)
-    option(cmake_cpp_simconnect_WARNINGS_AS_ERRORS "Treat Warnings As Errors" OFF)
+    option(cmake_cpp_simconnect_WARNINGS_AS_ERRORS "Treat Warnings As Errors" ON)
     option(cmake_cpp_simconnect_ENABLE_USER_LINKER "Enable user-selected linker" OFF)
     option(cmake_cpp_simconnect_ENABLE_SANITIZER_ADDRESS "Enable address sanitizer" OFF)
     option(cmake_cpp_simconnect_ENABLE_SANITIZER_LEAK "Enable leak sanitizer" OFF)

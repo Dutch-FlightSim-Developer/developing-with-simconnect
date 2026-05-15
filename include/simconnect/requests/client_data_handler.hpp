@@ -32,6 +32,7 @@
 #include <simconnect/data/custom_client_data_definition.hpp>
 #include <simconnect/data/stateless_client_data_definition.hpp>
 #include <simconnect/data/data_block_reader.hpp>
+#include <simconnect/data/data_block_builder.hpp>
 
 
 namespace SimConnect {
@@ -230,6 +231,30 @@ public:
 
 #pragma endregion // Stopping Requests
 
+#pragma region Client Data Definition
+
+    /**
+     * Register a client data definition with SimConnect.
+     *
+     * Equivalent to calling `def.define(connection)` directly, but routes through
+     * the handler so all setup stays on `dataHandler.*`. Idempotent: subsequent
+     * calls for the same definition are no-ops.
+     *
+     * Useful for the owner side of a client data area, where `requestClientData()`
+     * (which calls `define()` internally) is not used.
+     *
+     * @param def The definition to register.
+     * @return Reference to this handler for chaining.
+     */
+    template <typename DefType>
+        requires ClientDataDefinitionConcept<DefType, connection_type>
+    ClientDataHandler& defineClientData(DefType& def) {
+        def.define(simConnectMessageHandler_.connection());
+        return *this;
+    }
+
+#pragma endregion // Client Data Definition
+
 #pragma region Client Data Sending
 
     /**
@@ -253,25 +278,46 @@ public:
     }
 
     /**
-     * Send a struct to a client data area using a MappedClientDataDefinition (tagged datum/value format).
+     * Send a struct using a MappedClientDataDefinition in tagged (datum/value) format.
+     *
+     * Works for any field subset — `marshal()` emits only the registered fields with
+     * their datum IDs, so the receiver can correlate each value by ID regardless of
+     * whether the full struct is covered.
      */
     template <typename StructType, bool TrackChanges>
     void sendClientDataTagged(ClientDataId clientDataId, MappedClientDataDefinition<StructType, TrackChanges>& def, const StructType& data)
     {
-        simConnectMessageHandler_.connection().sendClientDataTagged(clientDataId, def.id(), data);
+        Data::DataBlockBuilder builder;
+        def.marshal(builder, data, true);
+        simConnectMessageHandler_.connection().sendClientDataTagged(clientDataId, def.id(), builder.dataBlock());
     }
 
     /**
-     * Send a struct to a client data area using a CustomClientDataDefinition (tagged datum/value format).
+     * Send a struct using a CustomClientDataDefinition (untagged wire format).
      *
-     * @note Untagged send is not available for CustomClientDataDefinition — useMapping() is always
-     *       false because user-supplied getters/setters make the wire layout unpredictable.
-     *       Always use this tagged overload.
+     * Calls the registered getters to marshal field values in wire order, then sends
+     * the resulting byte buffer. The receiver must use the same definition to unmarshal.
+     */
+    template <typename StructType, bool TrackChanges>
+    void sendClientData(ClientDataId clientDataId, CustomClientDataDefinition<StructType, TrackChanges>& def, const StructType& data)
+    {
+        Data::DataBlockBuilder builder;
+        def.marshal(builder, data, false);
+        simConnectMessageHandler_.connection().sendClientData(clientDataId, def.id(), builder.dataBlock());
+    }
+
+    /**
+     * Send a struct using a CustomClientDataDefinition in tagged (datum/value) format.
+     *
+     * Calls the registered getters and emits (datumID, value) pairs. Use when the
+     * receiver subscribes in tagged mode or when only a subset of fields is being updated.
      */
     template <typename StructType, bool TrackChanges>
     void sendClientDataTagged(ClientDataId clientDataId, CustomClientDataDefinition<StructType, TrackChanges>& def, const StructType& data)
     {
-        simConnectMessageHandler_.connection().sendClientDataTagged(clientDataId, def.id(), data);
+        Data::DataBlockBuilder builder;
+        def.marshal(builder, data, true);
+        simConnectMessageHandler_.connection().sendClientDataTagged(clientDataId, def.id(), builder.dataBlock());
     }
 
 #pragma endregion // Client Data Sending

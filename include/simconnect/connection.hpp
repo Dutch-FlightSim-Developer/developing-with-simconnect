@@ -1469,6 +1469,30 @@ public:
         return static_cast<Derived&>(*this);
     }
 
+    /**
+     * Sends a marshalled tagged buffer to a client data area.
+     *
+     * Use this with the output of `MappedClientDataDefinition::marshal(builder, data, true)`
+     * or `CustomClientDataDefinition::marshal(builder, data, true)` to send datum/value pairs.
+     *
+     * @param clientDataId The client data ID to send to.
+     * @param defId The client data definition ID.
+     * @param data The marshalled tagged byte buffer.
+     * @return The connection reference for chaining.
+     */
+    Derived& sendClientDataTagged(ClientDataId clientDataId, ClientDataDefinitionId defId, std::span<const uint8_t> data)
+    {
+        guard_type guard(mutex_);
+
+        state(SimConnect_SetClientData(hSimConnect_, clientDataId, defId, ClientDataSetFlags::tagged, 1, static_cast<DWORD>(data.size()), const_cast<uint8_t*>(data.data())));
+        if (failed()) {
+            logger_.error("SimConnect_SetClientData (tagged) failed with error code 0x{:08X}.", state());
+        } else {
+            logger_.debug("Sent tagged data to client data {} (defId={}, size={}, sendId={})", clientDataId, defId, data.size(), fetchSendIdInternal());
+        }
+        return static_cast<Derived&>(*this);
+    }
+
 #pragma endregion // Client Data Sending
 
 #pragma region Stopping Client Data Requests

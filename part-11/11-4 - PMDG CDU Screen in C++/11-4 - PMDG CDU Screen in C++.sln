@@ -1,0 +1,31 @@
+
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.14.36915.13 d17.14
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "11-4 - PMDG CDU Screen in C++", "11-4 - PMDG CDU Screen in C++.vcxproj", "{11010004-0001-0001-0001-000000000001}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug (MSFS 2020)|x64 = Debug (MSFS 2020)|x64
+		Debug (MSFS 2024)|x64 = Debug (MSFS 2024)|x64
+		Release (MSFS 2020)|x64 = Release (MSFS 2020)|x64
+		Release (MSFS 2024)|x64 = Release (MSFS 2024)|x64
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{11010004-0001-0001-0001-000000000001}.Debug (MSFS 2020)|x64.ActiveCfg = Debug (MSFS 2020)|x64
+		{11010004-0001-0001-0001-000000000001}.Debug (MSFS 2020)|x64.Build.0 = Debug (MSFS 2020)|x64
+		{11010004-0001-0001-0001-000000000001}.Debug (MSFS 2024)|x64.ActiveCfg = Debug (MSFS 2024)|x64
+		{11010004-0001-0001-0001-000000000001}.Debug (MSFS 2024)|x64.Build.0 = Debug (MSFS 2024)|x64
+		{11010004-0001-0001-0001-000000000001}.Release (MSFS 2020)|x64.ActiveCfg = Release (MSFS 2020)|x64
+		{11010004-0001-0001-0001-000000000001}.Release (MSFS 2020)|x64.Build.0 = Release (MSFS 2020)|x64
+		{11010004-0001-0001-0001-000000000001}.Release (MSFS 2024)|x64.ActiveCfg = Release (MSFS 2024)|x64
+		{11010004-0001-0001-0001-000000000001}.Release (MSFS 2024)|x64.Build.0 = Release (MSFS 2024)|x64
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {11090004-0001-0001-0001-000000000001}
+	EndGlobalSection
+EndGlobal

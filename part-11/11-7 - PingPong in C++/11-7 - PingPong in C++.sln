@@ -1,0 +1,41 @@
+
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.14.36915.13 d17.14
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "11-7 - PingPong in C++ - Ping", "11-7 - PingPong in C++ - Ping.vcxproj", "{11010007-0001-0001-0001-000000000001}"
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "11-7 - PingPong in C++ - Pong", "11-7 - PingPong in C++ - Pong.vcxproj", "{11010007-0001-0001-0001-000000000002}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug (MSFS 2020)|x64 = Debug (MSFS 2020)|x64
+		Debug (MSFS 2024)|x64 = Debug (MSFS 2024)|x64
+		Release (MSFS 2020)|x64 = Release (MSFS 2020)|x64
+		Release (MSFS 2024)|x64 = Release (MSFS 2024)|x64
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{11010007-0001-0001-0001-000000000001}.Debug (MSFS 2020)|x64.ActiveCfg = Debug (MSFS 2020)|x64
+		{11010007-0001-0001-0001-000000000001}.Debug (MSFS 2020)|x64.Build.0 = Debug (MSFS 2020)|x64
+		{11010007-0001-0001-0001-000000000001}.Debug (MSFS 2024)|x64.ActiveCfg = Debug (MSFS 2024)|x64
+		{11010007-0001-0001-0001-000000000001}.Debug (MSFS 2024)|x64.Build.0 = Debug (MSFS 2024)|x64
+		{11010007-0001-0001-0001-000000000001}.Release (MSFS 2020)|x64.ActiveCfg = Release (MSFS 2020)|x64
+		{11010007-0001-0001-0001-000000000001}.Release (MSFS 2020)|x64.Build.0 = Release (MSFS 2020)|x64
+		{11010007-0001-0001-0001-000000000001}.Release (MSFS 2024)|x64.ActiveCfg = Release (MSFS 2024)|x64
+		{11010007-0001-0001-0001-000000000001}.Release (MSFS 2024)|x64.Build.0 = Release (MSFS 2024)|x64
+		{11010007-0001-0001-0001-000000000002}.Debug (MSFS 2020)|x64.ActiveCfg = Debug (MSFS 2020)|x64
+		{11010007-0001-0001-0001-000000000002}.Debug (MSFS 2020)|x64.Build.0 = Debug (MSFS 2020)|x64
+		{11010007-0001-0001-0001-000000000002}.Debug (MSFS 2024)|x64.ActiveCfg = Debug (MSFS 2024)|x64
+		{11010007-0001-0001-0001-000000000002}.Debug (MSFS 2024)|x64.Build.0 = Debug (MSFS 2024)|x64
+		{11010007-0001-0001-0001-000000000002}.Release (MSFS 2020)|x64.ActiveCfg = Release (MSFS 2020)|x64
+		{11010007-0001-0001-0001-000000000002}.Release (MSFS 2020)|x64.Build.0 = Release (MSFS 2020)|x64
+		{11010007-0001-0001-0001-000000000002}.Release (MSFS 2024)|x64.ActiveCfg = Release (MSFS 2024)|x64
+		{11010007-0001-0001-0001-000000000002}.Release (MSFS 2024)|x64.Build.0 = Release (MSFS 2024)|x64
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {11090007-0001-0001-0001-000000000001}
+	EndGlobalSection
+EndGlobal

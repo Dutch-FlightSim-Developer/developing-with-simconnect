@@ -40,16 +40,34 @@ namespace SimConnect {
  * Fields are registered with a receive setter and an optional send getter.
  * Fields without a getter are receive-only; `marshal()` silently skips them.
  *
+ * By default each field is placed at the next available auto-offset. Pass an
+ * explicit `offset` (e.g. `offsetof(SomeStruct, field)`) to pin a datum to a
+ * specific byte position in a third-party data area without defining the whole
+ * struct. This is the mechanism that allows selective subscription.
+ *
  * `dispatch()` accepts an optional "batch done" callable (default no-op) that fires
  * after all per-datum setters have run. This satisfies `ClientDataDefinitionConcept`
  * and lets callers signal completion if needed.
  *
- * Usage (receive-only):
+ * Usage (receive-only, auto offset):
  * @code
  *   StatelessClientDataDefinition def;
  *   def.addInt32([](int32_t altitude) { log("alt={}", altitude); })
  *      .addFloat32([](float speed) { log("spd={}", speed); });
  *   auto req = dataHandler.requestClientData(dataId, def);
+ * @endcode
+ *
+ * Usage (selective subscription with explicit offsets):
+ * @code
+ *   StatelessClientDataDefinition def;
+ *   def.addInt16(
+ *       [](int16_t v) { log("hdg={}", v); },
+ *       0.0f, offsetof(PMDG_NG3_Data, MCP_Heading))
+ *   .addInt16(
+ *       [](int16_t v) { log("alt={}", v); },
+ *       0.0f, offsetof(PMDG_NG3_Data, MCP_Altitude));
+ *   auto req = dataHandler.requestClientDataTagged(dataId, def,
+ *       ClientDataFrequency::onSet(), PeriodLimits::none(), true);
  * @endcode
  *
  * Usage (bidirectional):
@@ -79,6 +97,7 @@ class StatelessClientDataDefinition
         Setter setter;
         Getter getter;            // empty → receive-only field
         size_t rawByteSize{ 0 }; // >0 → raw bytes field; 0 → typed field
+        std::size_t offset{ clientDataAutoOffset }; // explicit byte offset, or AUTO
     };
 
     std::vector<FieldInfo> fields_;
@@ -98,9 +117,9 @@ public:
         for (auto& field : fields_) {
             field.datumId = datumId++;
             if (field.rawByteSize > 0) {
-                connection.addClientDataDefinition(this->id(), field.rawByteSize, clientDataAutoOffset, field.datumId);
+                connection.addClientDataDefinition(this->id(), field.rawByteSize, field.offset, field.datumId);
             } else {
-                connection.addClientDataDefinition(this->id(), field.type, clientDataAutoOffset, field.epsilon, field.datumId);
+                connection.addClientDataDefinition(this->id(), field.type, field.offset, field.epsilon, field.datumId);
             }
         }
     }
@@ -144,7 +163,7 @@ public:
 
     /**
      * Invoke setters for the given data.
-     * 
+     *
      * @param reader    The DataBlockReader to read from.
      * @param numElems  The number of tagged entries to read, or taggingNotUsed to read all fields in order.
      */
@@ -169,114 +188,114 @@ public:
 
     // ----- int8 -----
 
-    StatelessClientDataDefinition& addInt8(std::function<void(int8_t)> set, float epsilon = 0.0f) {
+    StatelessClientDataDefinition& addInt8(std::function<void(int8_t)> set, float epsilon = 0.0f, std::size_t offset = clientDataAutoOffset) {
         fields_.emplace_back(ClientDataType::int8, epsilon, unused,
             [set = std::move(set)](Data::DataBlockReader& r) { set(r.readInt8()); },
-            Getter{}, 0u);
+            Getter{}, 0u, offset);
         this->size_ += sizeof(int8_t);
         return *this;
     }
 
-    StatelessClientDataDefinition& addInt8(std::function<void(int8_t)> set, std::function<int8_t()> get, float epsilon = 0.0f) {
+    StatelessClientDataDefinition& addInt8(std::function<void(int8_t)> set, std::function<int8_t()> get, float epsilon = 0.0f, std::size_t offset = clientDataAutoOffset) {
         fields_.emplace_back(ClientDataType::int8, epsilon, unused,
             [set = std::move(set)](Data::DataBlockReader& r) { set(r.readInt8()); },
             [get = std::move(get)](Data::DataBlockBuilder& b) { b.addInt8(get()); },
-            0u);
+            0u, offset);
         this->size_ += sizeof(int8_t);
         return *this;
     }
 
     // ----- int16 -----
 
-    StatelessClientDataDefinition& addInt16(std::function<void(int16_t)> set, float epsilon = 0.0f) {
+    StatelessClientDataDefinition& addInt16(std::function<void(int16_t)> set, float epsilon = 0.0f, std::size_t offset = clientDataAutoOffset) {
         fields_.emplace_back(ClientDataType::int16, epsilon, unused,
             [set = std::move(set)](Data::DataBlockReader& r) { set(r.readInt16()); },
-            Getter{}, 0u);
+            Getter{}, 0u, offset);
         this->size_ += sizeof(int16_t);
         return *this;
     }
 
-    StatelessClientDataDefinition& addInt16(std::function<void(int16_t)> set, std::function<int16_t()> get, float epsilon = 0.0f) {
+    StatelessClientDataDefinition& addInt16(std::function<void(int16_t)> set, std::function<int16_t()> get, float epsilon = 0.0f, std::size_t offset = clientDataAutoOffset) {
         fields_.emplace_back(ClientDataType::int16, epsilon, unused,
             [set = std::move(set)](Data::DataBlockReader& r) { set(r.readInt16()); },
             [get = std::move(get)](Data::DataBlockBuilder& b) { b.addInt16(get()); },
-            0u);
+            0u, offset);
         this->size_ += sizeof(int16_t);
         return *this;
     }
 
     // ----- int32 -----
 
-    StatelessClientDataDefinition& addInt32(std::function<void(int32_t)> set, float epsilon = 0.0f) {
+    StatelessClientDataDefinition& addInt32(std::function<void(int32_t)> set, float epsilon = 0.0f, std::size_t offset = clientDataAutoOffset) {
         fields_.emplace_back(ClientDataType::int32, epsilon, unused,
             [set = std::move(set)](Data::DataBlockReader& r) { set(r.readInt32()); },
-            Getter{}, 0u);
+            Getter{}, 0u, offset);
         this->size_ += sizeof(int32_t);
         return *this;
     }
 
-    StatelessClientDataDefinition& addInt32(std::function<void(int32_t)> set, std::function<int32_t()> get, float epsilon = 0.0f) {
+    StatelessClientDataDefinition& addInt32(std::function<void(int32_t)> set, std::function<int32_t()> get, float epsilon = 0.0f, std::size_t offset = clientDataAutoOffset) {
         fields_.emplace_back(ClientDataType::int32, epsilon, unused,
             [set = std::move(set)](Data::DataBlockReader& r) { set(r.readInt32()); },
             [get = std::move(get)](Data::DataBlockBuilder& b) { b.addInt32(get()); },
-            0u);
+            0u, offset);
         this->size_ += sizeof(int32_t);
         return *this;
     }
 
     // ----- int64 -----
 
-    StatelessClientDataDefinition& addInt64(std::function<void(int64_t)> set, float epsilon = 0.0f) {
+    StatelessClientDataDefinition& addInt64(std::function<void(int64_t)> set, float epsilon = 0.0f, std::size_t offset = clientDataAutoOffset) {
         fields_.emplace_back(ClientDataType::int64, epsilon, unused,
             [set = std::move(set)](Data::DataBlockReader& r) { set(r.readInt64()); },
-            Getter{}, 0u);
+            Getter{}, 0u, offset);
         this->size_ += sizeof(int64_t);
         return *this;
     }
 
-    StatelessClientDataDefinition& addInt64(std::function<void(int64_t)> set, std::function<int64_t()> get, float epsilon = 0.0f) {
+    StatelessClientDataDefinition& addInt64(std::function<void(int64_t)> set, std::function<int64_t()> get, float epsilon = 0.0f, std::size_t offset = clientDataAutoOffset) {
         fields_.emplace_back(ClientDataType::int64, epsilon, unused,
             [set = std::move(set)](Data::DataBlockReader& r) { set(r.readInt64()); },
             [get = std::move(get)](Data::DataBlockBuilder& b) { b.addInt64(get()); },
-            0u);
+            0u, offset);
         this->size_ += sizeof(int64_t);
         return *this;
     }
 
     // ----- float32 -----
 
-    StatelessClientDataDefinition& addFloat32(std::function<void(float)> set, float epsilon = 0.0f) {
+    StatelessClientDataDefinition& addFloat32(std::function<void(float)> set, float epsilon = 0.0f, std::size_t offset = clientDataAutoOffset) {
         fields_.emplace_back(ClientDataType::float32, epsilon, unused,
             [set = std::move(set)](Data::DataBlockReader& r) { set(r.readFloat32()); },
-            Getter{}, 0u);
+            Getter{}, 0u, offset);
         this->size_ += sizeof(float);
         return *this;
     }
 
-    StatelessClientDataDefinition& addFloat32(std::function<void(float)> set, std::function<float()> get, float epsilon = 0.0f) {
+    StatelessClientDataDefinition& addFloat32(std::function<void(float)> set, std::function<float()> get, float epsilon = 0.0f, std::size_t offset = clientDataAutoOffset) {
         fields_.emplace_back(ClientDataType::float32, epsilon, unused,
             [set = std::move(set)](Data::DataBlockReader& r) { set(r.readFloat32()); },
             [get = std::move(get)](Data::DataBlockBuilder& b) { b.addFloat32(get()); },
-            0u);
+            0u, offset);
         this->size_ += sizeof(float);
         return *this;
     }
 
     // ----- float64 -----
 
-    StatelessClientDataDefinition& addFloat64(std::function<void(double)> set, float epsilon = 0.0f) {
+    StatelessClientDataDefinition& addFloat64(std::function<void(double)> set, float epsilon = 0.0f, std::size_t offset = clientDataAutoOffset) {
         fields_.emplace_back(ClientDataType::float64, epsilon, unused,
             [set = std::move(set)](Data::DataBlockReader& r) { set(r.readFloat64()); },
-            Getter{}, 0u);
+            Getter{}, 0u, offset);
         this->size_ += sizeof(double);
         return *this;
     }
 
-    StatelessClientDataDefinition& addFloat64(std::function<void(double)> set, std::function<double()> get, float epsilon = 0.0f) {
+    StatelessClientDataDefinition& addFloat64(std::function<void(double)> set, std::function<double()> get, float epsilon = 0.0f, std::size_t offset = clientDataAutoOffset) {
         fields_.emplace_back(ClientDataType::float64, epsilon, unused,
             [set = std::move(set)](Data::DataBlockReader& r) { set(r.readFloat64()); },
             [get = std::move(get)](Data::DataBlockBuilder& b) { b.addFloat64(get()); },
-            0u);
+            0u, offset);
         this->size_ += sizeof(double);
         return *this;
     }
@@ -288,7 +307,7 @@ public:
      * T must be trivially copyable.
      */
     template <typename T>
-    StatelessClientDataDefinition& addRaw(std::function<void(const T&)> set) {
+    StatelessClientDataDefinition& addRaw(std::function<void(const T&)> set, std::size_t offset = clientDataAutoOffset) {
         static_assert(std::is_trivially_copyable_v<T>, "addRaw requires a trivially copyable type");
         fields_.emplace_back(ClientDataType{}, 0.0f, unused,
             [set = std::move(set)](Data::DataBlockReader& r) {
@@ -297,7 +316,7 @@ public:
                 std::memcpy(&value, bytes.data(), sizeof(T));
                 set(value);
             },
-            Getter{}, sizeof(T));
+            Getter{}, sizeof(T), offset);
         this->size_ += sizeof(T);
         return *this;
     }
@@ -308,7 +327,7 @@ public:
      * T must be trivially copyable.
      */
     template <typename T>
-    StatelessClientDataDefinition& addRaw(std::function<void(const T&)> set, std::function<void(Data::DataBlockBuilder&)> get) {
+    StatelessClientDataDefinition& addRaw(std::function<void(const T&)> set, std::function<void(Data::DataBlockBuilder&)> get, std::size_t offset = clientDataAutoOffset) {
         static_assert(std::is_trivially_copyable_v<T>, "addRaw requires a trivially copyable type");
         fields_.emplace_back(ClientDataType{}, 0.0f, unused,
             [set = std::move(set)](Data::DataBlockReader& r) {
@@ -317,7 +336,7 @@ public:
                 std::memcpy(&value, bytes.data(), sizeof(T));
                 set(value);
             },
-            std::move(get), sizeof(T));
+            std::move(get), sizeof(T), offset);
         this->size_ += sizeof(T);
         return *this;
     }

@@ -260,13 +260,14 @@ public:
     /**
      * Send a struct to a client data area using a MappedClientDataDefinition (untagged).
      *
-     * Valid only when `def.useMapping() == true` — i.e. every field was registered and the
-     * total wire size equals `sizeof(StructType)`. Logs an error and returns without sending
-     * if the condition is not met; use sendClientDataTagged() in that case.
+     * Defines the area if not yet defined (idempotent). Valid only when `def.useMapping() == true` —
+     * i.e. every field was registered and the total wire size equals `sizeof(StructType)`.
+     * Logs an error and returns without sending if the condition is not met; use sendClientDataTagged() in that case.
      */
     template <typename StructType, bool TrackChanges>
     void sendClientData(ClientDataId clientDataId, MappedClientDataDefinition<StructType, TrackChanges>& def, const StructType& data)
     {
+        def.define(simConnectMessageHandler_.connection());
         if (!def.useMapping()) {
             simConnectMessageHandler_.connection().logger().error(
                 "sendClientData: MappedClientDataDefinition wire size ({}) != sizeof(StructType) ({}); "
@@ -280,13 +281,14 @@ public:
     /**
      * Send a struct using a MappedClientDataDefinition in tagged (datum/value) format.
      *
-     * Works for any field subset — `marshal()` emits only the registered fields with
-     * their datum IDs, so the receiver can correlate each value by ID regardless of
-     * whether the full struct is covered.
+     * Defines the area if not yet defined (idempotent). Works for any field subset — `marshal()` emits
+     * only the registered fields with their datum IDs, so the receiver can correlate each value by ID
+     * regardless of whether the full struct is covered.
      */
     template <typename StructType, bool TrackChanges>
     void sendClientDataTagged(ClientDataId clientDataId, MappedClientDataDefinition<StructType, TrackChanges>& def, const StructType& data)
     {
+        def.define(simConnectMessageHandler_.connection());
         Data::DataBlockBuilder builder;
         def.marshal(builder, data, true);
         simConnectMessageHandler_.connection().sendClientDataTagged(clientDataId, def.id(), builder.dataBlock());
@@ -295,12 +297,14 @@ public:
     /**
      * Send a struct using a CustomClientDataDefinition (untagged wire format).
      *
-     * Calls the registered getters to marshal field values in wire order, then sends
-     * the resulting byte buffer. The receiver must use the same definition to unmarshal.
+     * Defines the area if not yet defined (idempotent). Calls the registered getters to marshal
+     * field values in wire order, then sends the resulting byte buffer. The receiver must use the
+     * same definition to unmarshal.
      */
     template <typename StructType, bool TrackChanges>
     void sendClientData(ClientDataId clientDataId, CustomClientDataDefinition<StructType, TrackChanges>& def, const StructType& data)
     {
+        def.define(simConnectMessageHandler_.connection());
         Data::DataBlockBuilder builder;
         def.marshal(builder, data, false);
         simConnectMessageHandler_.connection().sendClientData(clientDataId, def.id(), builder.dataBlock());
@@ -309,12 +313,14 @@ public:
     /**
      * Send a struct using a CustomClientDataDefinition in tagged (datum/value) format.
      *
-     * Calls the registered getters and emits (datumID, value) pairs. Use when the
-     * receiver subscribes in tagged mode or when only a subset of fields is being updated.
+     * Defines the area if not yet defined (idempotent). Calls the registered getters and emits
+     * (datumID, value) pairs. Use when the receiver subscribes in tagged mode or when only a
+     * subset of fields is being updated.
      */
     template <typename StructType, bool TrackChanges>
     void sendClientDataTagged(ClientDataId clientDataId, CustomClientDataDefinition<StructType, TrackChanges>& def, const StructType& data)
     {
+        def.define(simConnectMessageHandler_.connection());
         Data::DataBlockBuilder builder;
         def.marshal(builder, data, true);
         simConnectMessageHandler_.connection().sendClientDataTagged(clientDataId, def.id(), builder.dataBlock());
@@ -546,10 +552,13 @@ public:
 
     /**
      * Send a struct to a client data area using a RawClientDataDefinition.
+     *
+     * Defines the area if not yet defined (idempotent).
      */
     template <typename StructType>
     void sendClientData(ClientDataId clientDataId, RawClientDataDefinition<StructType>& def, const StructType& data)
     {
+        def.define(simConnectMessageHandler_.connection());
         simConnectMessageHandler_.connection().sendClientData(clientDataId, def.id(), data);
     }
 
@@ -650,9 +659,12 @@ public:
 
     /**
      * Send all bidirectional fields (those with getters) to a client data area.
-     * Fields registered without a getter are skipped. Sends in untagged format.
+     *
+     * Defines the area if not yet defined (idempotent). Fields registered without a getter
+     * are skipped. Sends in untagged format.
      */
     void sendClientData(ClientDataId clientDataId, StatelessClientDataDefinition& def) {
+        def.define(simConnectMessageHandler_.connection());
         Data::DataBlockBuilder builder;
         def.marshal(builder);
         simConnectMessageHandler_.connection().sendClientData(clientDataId, def.id(), builder.dataBlock());
@@ -698,6 +710,53 @@ public:
             def.dispatch(reinterpret_cast<const Messages::ClientDataMsg&>(msg), done);  //NOLINT(cppcoreguidelines-pro-type-reinterpret-cast)
         }, frequency.isOnce());
         simConnectMessageHandler_.connection().requestClientData(clientDataId, defId, requestId, frequency, limits, onlyWhenChanged);
+
+        return frequency.isOnce()
+            ? Request{ requestId }
+            : Request{ requestId, [this, clientDataId, defId, requestId]() {
+                this->stopClientDataRequest(clientDataId, defId, requestId);
+            }};
+    }
+
+    /**
+     * Request client data in tagged format, firing each datum's own callback on every update.
+     * No outer handler — per-datum callbacks registered on `def` handle all delivery.
+     */
+    [[nodiscard]]
+    Request requestClientDataTagged(
+        ClientDataId clientDataId,
+        StatelessClientDataDefinition& def,
+        ClientDataFrequency frequency = ClientDataFrequency::once(),
+        PeriodLimits limits = PeriodLimits::none(),
+        bool onlyWhenChanged = false)
+    {
+        return requestClientDataTagged(clientDataId, def, [](){}, frequency, limits, onlyWhenChanged);
+    }
+
+
+    /**
+     * Request client data in tagged format, firing each datum's own callback on every update.
+     * `done` is called after all per-datum callbacks complete each time data arrives.
+     */
+    template <typename HandlerFn>
+        requires std::invocable<HandlerFn>
+    [[nodiscard]]
+    Request requestClientDataTagged(
+        ClientDataId clientDataId,
+        StatelessClientDataDefinition& def,
+        HandlerFn done,
+        ClientDataFrequency frequency = ClientDataFrequency::once(),
+        PeriodLimits limits = PeriodLimits::none(),
+        bool onlyWhenChanged = false)
+    {
+        def.define(simConnectMessageHandler_.connection());
+        const auto defId = def.id();
+        const auto requestId = simConnectMessageHandler_.connection().requests().nextRequestID();
+
+        this->registerHandler(requestId, [&def, done](const Messages::MsgBase& msg) {
+            def.dispatch(reinterpret_cast<const Messages::ClientDataMsg&>(msg), done);  //NOLINT(cppcoreguidelines-pro-type-reinterpret-cast)
+        }, frequency.isOnce());
+        simConnectMessageHandler_.connection().requestClientDataTagged(clientDataId, defId, requestId, frequency, limits, onlyWhenChanged);
 
         return frequency.isOnce()
             ? Request{ requestId }

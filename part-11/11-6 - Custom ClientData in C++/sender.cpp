@@ -324,9 +324,8 @@ void runTest(int argc, const char* argv[]) // NOLINT(cppcoreguidelines-avoid-c-a
       // Setter: received int32 → decimal string in struct
       [](FlightData& data, Data::DataBlockReader& reader) {
         const auto str = std::format("{}", reader.readInt32());
-        const auto count = (std::min)(str.size(), data.altitudeStr.size() - 1);
-        std::copy_n(str.begin(), count, data.altitudeStr.begin());
-        data.altitudeStr.at(count) = '\0';
+        data.altitudeStr.fill('\0');
+        std::ranges::copy(str.substr(0, data.altitudeStr.size() - 1), data.altitudeStr.begin());
       },
       // Getter: decimal string in struct → int32 for wire
       [](Data::DataBlockBuilder& builder, const FlightData& data) {
@@ -336,22 +335,18 @@ void runTest(int argc, const char* argv[]) // NOLINT(cppcoreguidelines-avoid-c-a
       ClientDataType::int32,
       [](FlightData& data, Data::DataBlockReader& reader) {
         const auto str = std::format("{}", reader.readInt32());
-        const auto count = (std::min)(str.size(), data.speedStr.size() - 1);
-        std::copy_n(str.begin(), count, data.speedStr.begin());
-        data.speedStr.at(count) = '\0';
+        data.speedStr.fill('\0');
+        std::ranges::copy(str.substr(0, data.speedStr.size() - 1), data.speedStr.begin());
       },
       [](Data::DataBlockBuilder& builder, const FlightData& data) {
         builder.addInt32(std::stoi(std::string{data.speedStr.data()}));
       });
-    dataHandler.defineClientData(def);
 
     FlightData data{};
-    const auto altCount   = (std::min)(altStr.size(),   data.altitudeStr.size() - 1);
-    const auto speedCount = (std::min)(speedStr.size(), data.speedStr.size()    - 1);
-    std::copy_n(altStr.begin(),   altCount,   data.altitudeStr.begin());
-    std::copy_n(speedStr.begin(), speedCount, data.speedStr.begin());
-    data.altitudeStr.at(altCount)   = '\0';
-    data.speedStr.at(speedCount)    = '\0';
+    data.altitudeStr.fill('\0');
+    std::ranges::copy(altStr.substr(0, data.altitudeStr.size() - 1), data.altitudeStr.begin());
+    data.speedStr.fill('\0');
+    std::ranges::copy(speedStr.substr(0, data.speedStr.size() - 1), data.speedStr.begin());
 
     dataHandler.sendClientData(dataId, def, data);
     std::cerr << std::format("[Sent: altitude={} ft, speed={} kts]\n",

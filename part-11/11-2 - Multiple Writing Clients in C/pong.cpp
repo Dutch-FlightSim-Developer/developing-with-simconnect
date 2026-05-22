@@ -313,13 +313,15 @@ static bool subscribeClientData()
     HRESULT hr;
 
     hr = SimConnect_MapClientDataNameToID(hSimConnect, CLIENT_DATA_NAME, CLIENT_DATA_ID);
+
     if (FAILED(hr)) {
         std::cerr << std::format("[Failed to map client data name: 0x{:08X}]\n", hr);
         return false;
     }
 
     hr = SimConnect_AddToClientDataDefinition(hSimConnect, DEF_ID,
-        SIMCONNECT_CLIENTDATAOFFSET_AUTO, DATA_SIZE);
+        SIMCONNECT_CLIENTDATAOFFSET_AUTO, PingPongData::dataSize);
+
     if (FAILED(hr)) {
         std::cerr << std::format("[Failed to add client data definition: 0x{:08X}]\n", hr);
         return false;
@@ -327,8 +329,8 @@ static bool subscribeClientData()
 
     hr = SimConnect_RequestClientData(hSimConnect, CLIENT_DATA_ID, REQ_ID, DEF_ID,
         SIMCONNECT_CLIENT_DATA_PERIOD_ON_SET,
-        SIMCONNECT_CLIENT_DATA_REQUEST_FLAG_DEFAULT,
-        0, 0, 0);
+        SIMCONNECT_CLIENT_DATA_REQUEST_FLAG_DEFAULT);
+
     if (FAILED(hr)) {
         std::cerr << std::format("[Failed to subscribe to client data: 0x{:08X}]\n", hr);
         return false;
@@ -349,10 +351,12 @@ static bool subscribeClientData()
 static bool sendPong()
 {
     PingPongData data{};
-    std::snprintf(data.message, DATA_SIZE, "Pong");
+    std::snprintf(data.message, PingPongData::dataSize, "Pong");
 
     const HRESULT hr = SimConnect_SetClientData(hSimConnect, CLIENT_DATA_ID, DEF_ID,
-        SIMCONNECT_CLIENT_DATA_SET_FLAG_DEFAULT, 0, DATA_SIZE, &data);
+        SIMCONNECT_CLIENT_DATA_SET_FLAG_DEFAULT, 0,
+        sizeof(data), &data);
+
     if (FAILED(hr)) {
         std::cerr << std::format("[Failed to send Pong: 0x{:08X}]\n", hr);
         return false;
@@ -372,7 +376,7 @@ static void handleMessages()
     std::optional<std::chrono::steady_clock::time_point> replyAt{};
 
     while (true) {
-        const DWORD waitMs = replyAt
+        const auto waitMs = replyAt
             ? static_cast<DWORD>(std::chrono::duration_cast<std::chrono::milliseconds>(*replyAt - std::chrono::steady_clock::now()).count())
             : 100;
         ::WaitForSingleObject(hEvent, waitMs > 0 ? waitMs : 0);
@@ -383,8 +387,10 @@ static void handleMessages()
         while (SUCCEEDED(SimConnect_GetNextDispatch(hSimConnect, &pData, &cbData))) {
             switch (pData->dwID) {
             case SIMCONNECT_RECV_ID_EXCEPTION:
+            {
                 handleException(*toRecvPtr<SIMCONNECT_RECV_EXCEPTION>(pData));
-                break;
+            }
+            break;
 
             case SIMCONNECT_RECV_ID_OPEN:
             {

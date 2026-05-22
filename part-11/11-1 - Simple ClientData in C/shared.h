@@ -22,16 +22,13 @@
  */
 constexpr static const char* CLIENT_DATA_NAME = "DutchFlightSim.HelloWorld";
 
-/**
- * The size of the message buffer in bytes.
- * Both programs must agree on this value.
- */
-constexpr static unsigned int MESSAGE_SIZE = 256;
 
 /**
  * The data layout of the shared client data area.
  * SimConnect transfers raw bytes, so both programs must use an identical struct.
  */
 struct HelloWorldData {
-    char message[MESSAGE_SIZE];
+    inline static constexpr std::size_t messageSize{ 256 };
+
+    char message[messageSize];
 };

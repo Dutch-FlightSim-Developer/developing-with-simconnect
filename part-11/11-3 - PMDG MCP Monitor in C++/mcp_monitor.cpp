@@ -95,7 +95,9 @@ static void processMcpData(const PMDG_NG3_Data& data, McpState& state)
     }
 
     if (data.MCP_IASBlank != state.iasBlank || data.MCP_IASMach != state.iasMach) {
-        constexpr float machThreshold{ 10.0F }; // PMDG uses the Mach number field for IAS above 10 knots, so treat anything below that as an IAS value
+        // PMDG uses the Mach number field for IAS above 10 knots,
+        // so treat anything below that as an IAS value
+        constexpr float machThreshold{ 10.0F };
         state.iasBlank = data.MCP_IASBlank;
         state.iasMach  = data.MCP_IASMach;
         if (state.iasBlank) {
@@ -323,7 +325,6 @@ void runTest()
     WindowsEventHandler<false, ConsoleLogger> handler(connection);
     ClientDataHandler<WindowsEventHandler<false, ConsoleLogger>> dataHandler(handler);
     handler.autoClosing(true);
-    //connection.logger().level(LogLevel::Trace);
 
     handler.registerDefaultHandler([](const Messages::MsgBase& msg) {
         std::cerr << std::format("Ignoring message of type {} (length {} bytes)\n", msg.dwID, msg.dwSize);

@@ -155,7 +155,7 @@ static void renderCell(const PMDG_NG3_CDU_Cell& cell)
         sym = std::tolower(sym);
     }
 
-    std::cout << sym;
+    std::cout << static_cast<char>(sym);
 }
 
 static void renderScreen(const PMDG_NG3_CDU_Screen& screen)

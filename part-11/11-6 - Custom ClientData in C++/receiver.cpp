@@ -311,18 +311,16 @@ void runTest()
       ClientDataType::int32,
       [](FlightData& data, Data::DataBlockReader& reader) {
         const auto str = std::format("{}", reader.readInt32());
-        const auto count = (std::min)(str.size(), data.altitudeStr.size() - 1);
-        std::copy_n(str.begin(), count, data.altitudeStr.begin());
-        data.altitudeStr.at(count) = '\0';
+        data.altitudeStr.fill('\0');
+        std::ranges::copy(str.substr(0, data.altitudeStr.size() - 1), data.altitudeStr.begin());
       },
       [](Data::DataBlockBuilder&, const FlightData&) {});
     def.addField(
       ClientDataType::int32,
       [](FlightData& data, Data::DataBlockReader& reader) {
         const auto str = std::format("{}", reader.readInt32());
-        const auto count = (std::min)(str.size(), data.speedStr.size() - 1);
-        std::copy_n(str.begin(), count, data.speedStr.begin());
-        data.speedStr.at(count) = '\0';
+        data.speedStr.fill('\0');
+        std::ranges::copy(str.substr(0, data.speedStr.size() - 1), data.speedStr.begin());
       },
       [](Data::DataBlockBuilder&, const FlightData&) {});
 

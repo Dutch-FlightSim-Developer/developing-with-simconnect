@@ -310,14 +310,17 @@ static bool setupClientData()
     HRESULT hr;
 
     hr = SimConnect_MapClientDataNameToID(hSimConnect, CLIENT_DATA_NAME, CLIENT_DATA_ID);
+
     if (FAILED(hr)) {
         std::cerr << std::format("[Failed to map client data name '{}': 0x{:08X}]\n", CLIENT_DATA_NAME, hr);
         return false;
     }
 
     // Create with READ_ONLY flag so only this program can write to this area.
-    hr = SimConnect_CreateClientData(hSimConnect, CLIENT_DATA_ID, MESSAGE_SIZE,
+    hr = SimConnect_CreateClientData(hSimConnect, CLIENT_DATA_ID,
+        sizeof(HelloWorldData),
         SIMCONNECT_CREATE_CLIENT_DATA_FLAG_READ_ONLY);
+
     if (FAILED(hr)) {
         std::cerr << std::format("[Failed to create client data area: 0x{:08X}]\n", hr);
         return false;
@@ -325,7 +328,9 @@ static bool setupClientData()
 
     // Define the data layout as a single blob.
     hr = SimConnect_AddToClientDataDefinition(hSimConnect, DEF_ID,
-        SIMCONNECT_CLIENTDATAOFFSET_AUTO, MESSAGE_SIZE);
+        SIMCONNECT_CLIENTDATAOFFSET_AUTO,
+        sizeof(HelloWorldData));
+
     if (FAILED(hr)) {
         std::cerr << std::format("[Failed to add client data definition: 0x{:08X}]\n", hr);
         return false;
@@ -346,10 +351,12 @@ static bool setupClientData()
 static bool sendMessage(const char* text)
 {
     HelloWorldData data{};
-    std::snprintf(data.message, MESSAGE_SIZE, "%s", text);
+    std::snprintf(data.message, HelloWorldData::messageSize, "%s", text);
 
     const HRESULT hr = SimConnect_SetClientData(hSimConnect, CLIENT_DATA_ID, DEF_ID,
-        SIMCONNECT_CLIENT_DATA_SET_FLAG_DEFAULT, 0, MESSAGE_SIZE, &data);
+        SIMCONNECT_CLIENT_DATA_SET_FLAG_DEFAULT, 0,
+        sizeof(data), &data);
+
     if (FAILED(hr)) {
         std::cerr << std::format("[Failed to set client data: 0x{:08X}]\n", hr);
         return false;
@@ -388,8 +395,10 @@ static void handleMessages(int numUpdates, std::chrono::seconds interval)
         while (SUCCEEDED(SimConnect_GetNextDispatch(hSimConnect, &pData, &cbData))) {
             switch (pData->dwID) {
             case SIMCONNECT_RECV_ID_EXCEPTION:
+            {
                 handleException(*toRecvPtr<SIMCONNECT_RECV_EXCEPTION>(pData));
-                break;
+            }
+            break;
 
             case SIMCONNECT_RECV_ID_OPEN:
             {

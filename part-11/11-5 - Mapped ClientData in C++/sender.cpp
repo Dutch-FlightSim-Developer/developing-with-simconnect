@@ -310,7 +310,6 @@ void runTest()
     MappedClientDataDefinition<HelloWorldData> def;
     def.addRaw(&HelloWorldData::message)
        .addInt32(&HelloWorldData::updateCount);
-    dataHandler.defineClientData(def);
 
     constexpr int kNumUpdates = 10;
     constexpr auto kUpdateInterval = 2000ms;
@@ -318,13 +317,15 @@ void runTest()
     std::cerr << std::format("[Sending {} updates...]\n", kNumUpdates);
     for (int i = 1; i <= kNumUpdates && connection.isOpen(); ++i) {
       HelloWorldData data{};
-      const auto msg = std::format("Hello, World! (update {})", i);
-      const auto count = (std::min)(msg.size(), data.message.size() - 1);
-      std::copy_n(msg.begin(), count, data.message.begin());
-      data.message.at(count) = '\0';
+
+      data.message.fill('\0');
+      std::ranges::copy(std::format("Hello, World! (update {})", i), data.message.begin());
       data.updateCount = i;
+
       dataHandler.sendClientData(dataId, def, data);
+
       std::cerr << std::format("[Sent update {}: '{}']\n", i, data.message.data());
+
       handler.handleFor(kUpdateInterval);
     }
   } else {

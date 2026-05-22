@@ -313,14 +313,17 @@ static bool setupClientData()
     HRESULT hr;
 
     hr = SimConnect_MapClientDataNameToID(hSimConnect, CLIENT_DATA_NAME, CLIENT_DATA_ID);
+
     if (FAILED(hr)) {
         std::cerr << std::format("[Failed to map client data name: 0x{:08X}]\n", hr);
         return false;
     }
 
     // Create with DEFAULT flags so pong can write to this area too
-    hr = SimConnect_CreateClientData(hSimConnect, CLIENT_DATA_ID, DATA_SIZE,
+    hr = SimConnect_CreateClientData(hSimConnect, CLIENT_DATA_ID,
+        sizeof(PingPongData),
         SIMCONNECT_CREATE_CLIENT_DATA_FLAG_DEFAULT);
+
     if (FAILED(hr)) {
         std::cerr << std::format("[Failed to create client data area: 0x{:08X}]\n", hr);
         return false;
@@ -328,7 +331,9 @@ static bool setupClientData()
 
     // Define the data layout as a single blob.
     hr = SimConnect_AddToClientDataDefinition(hSimConnect, DEF_ID,
-        SIMCONNECT_CLIENTDATAOFFSET_AUTO, DATA_SIZE);
+        SIMCONNECT_CLIENTDATAOFFSET_AUTO,
+        PingPongData::dataSize);
+
     if (FAILED(hr)) {
         std::cerr << std::format("[Failed to add client data definition: 0x{:08X}]\n", hr);
         return false;
@@ -336,8 +341,8 @@ static bool setupClientData()
 
     hr = SimConnect_RequestClientData(hSimConnect, CLIENT_DATA_ID, REQ_ID, DEF_ID,
         SIMCONNECT_CLIENT_DATA_PERIOD_ON_SET,
-        SIMCONNECT_CLIENT_DATA_REQUEST_FLAG_DEFAULT,
-        0, 0, 0);
+        SIMCONNECT_CLIENT_DATA_REQUEST_FLAG_DEFAULT);
+
     if (FAILED(hr)) {
         std::cerr << std::format("[Failed to subscribe to client data: 0x{:08X}]\n", hr);
         return false;
@@ -357,10 +362,12 @@ static bool setupClientData()
 static bool sendPing()
 {
     PingPongData data{};
-    std::snprintf(data.message, DATA_SIZE, "Ping");
+    std::snprintf(data.message, PingPongData::dataSize, "Ping");
 
     const HRESULT hr = SimConnect_SetClientData(hSimConnect, CLIENT_DATA_ID, DEF_ID,
-        SIMCONNECT_CLIENT_DATA_SET_FLAG_DEFAULT, 0, DATA_SIZE, &data);
+        SIMCONNECT_CLIENT_DATA_SET_FLAG_DEFAULT, 0,
+        sizeof(data), &data);
+
     if (FAILED(hr)) {
         std::cerr << std::format("[Failed to send Ping: 0x{:08X}]\n", hr);
         return false;
@@ -391,8 +398,10 @@ static void handleMessages()
         while (SUCCEEDED(SimConnect_GetNextDispatch(hSimConnect, &pData, &cbData))) {
             switch (pData->dwID) {
             case SIMCONNECT_RECV_ID_EXCEPTION:
+            {
                 handleException(*toRecvPtr<SIMCONNECT_RECV_EXCEPTION>(pData));
-                break;
+            }
+            break;
 
             case SIMCONNECT_RECV_ID_OPEN:
             {
@@ -412,6 +421,7 @@ static void handleMessages()
                 const auto* pClientData = toRecvPtr<SIMCONNECT_RECV_CLIENT_DATA>(pData);
                 if (pClientData->dwRequestID == REQ_ID) {
                     const auto* data = reinterpret_cast<const PingPongData*>(&pClientData->dwData);
+
                     if (std::strcmp(data->message, "Pong") == 0) {
                         std::cout << "  Pong!\n";
                         replyAt = std::chrono::steady_clock::now() + 1s;

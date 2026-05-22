@@ -315,6 +315,7 @@ static bool subscribeClientData()
     HRESULT hr;
 
     hr = SimConnect_MapClientDataNameToID(hSimConnect, CLIENT_DATA_NAME, CLIENT_DATA_ID);
+
     if (FAILED(hr)) {
         std::cerr << std::format("[Failed to map client data name '{}': 0x{:08X}]\n", CLIENT_DATA_NAME, hr);
         return false;
@@ -322,7 +323,9 @@ static bool subscribeClientData()
 
     // Define the data layout as a single blob.
     hr = SimConnect_AddToClientDataDefinition(hSimConnect, DEF_ID,
-        SIMCONNECT_CLIENTDATAOFFSET_AUTO, MESSAGE_SIZE);
+        SIMCONNECT_CLIENTDATAOFFSET_AUTO,
+        sizeof(HelloWorldData));
+
     if (FAILED(hr)) {
         std::cerr << std::format("[Failed to add client data definition: 0x{:08X}]\n", hr);
         return false;
@@ -331,8 +334,8 @@ static bool subscribeClientData()
     // Subscribe to the data with period ON_SET, so we only get it sent when the sender updates it.
     hr = SimConnect_RequestClientData(hSimConnect, CLIENT_DATA_ID, REQ_ID, DEF_ID,
         SIMCONNECT_CLIENT_DATA_PERIOD_ON_SET,
-        SIMCONNECT_CLIENT_DATA_REQUEST_FLAG_DEFAULT,
-        0, 0, 0);
+        SIMCONNECT_CLIENT_DATA_REQUEST_FLAG_DEFAULT);
+
     if (FAILED(hr)) {
         std::cerr << std::format("[Failed to subscribe to client data: 0x{:08X}]\n", hr);
         return false;
@@ -377,8 +380,10 @@ static void handleMessages(std::chrono::seconds duration)
         while (SUCCEEDED(SimConnect_GetNextDispatch(hSimConnect, &pData, &cbData))) {
             switch (pData->dwID) {
             case SIMCONNECT_RECV_ID_EXCEPTION:
+            {
                 handleException(*toRecvPtr<SIMCONNECT_RECV_EXCEPTION>(pData));
-                break;
+            }
+            break;
 
             case SIMCONNECT_RECV_ID_OPEN:
             {

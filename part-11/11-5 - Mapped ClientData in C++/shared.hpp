@@ -25,11 +25,6 @@
  */
 constexpr static const char* CLIENT_DATA_NAME = "DutchFlightSim.HelloWorldMapped";
 
-/**
- * The size of the message buffer in bytes.
- * Both programs must agree on this value.
- */
-constexpr static unsigned int MESSAGE_SIZE = 256;
 
 /**
  * The data layout of the shared client data area.
@@ -41,9 +36,11 @@ constexpr static unsigned int MESSAGE_SIZE = 256;
  * no field-by-field copy on the receive path.
  */
 struct HelloWorldData {
-    std::array<char, MESSAGE_SIZE> message; ///< Text message from the sender.
+    inline static constexpr std::size_t messageSize{ 256 };
+
+    std::array<char, messageSize> message; ///< Text message from the sender.
     int32_t                        updateCount; ///< How many updates the sender has sent so far.
 };
 
-static_assert(sizeof(HelloWorldData) == MESSAGE_SIZE + sizeof(int32_t),
+static_assert(sizeof(HelloWorldData) == HelloWorldData::messageSize + sizeof(int32_t),
     "HelloWorldData layout changed — update MappedClientDataDefinition registrations");

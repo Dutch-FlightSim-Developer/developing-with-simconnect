@@ -25,15 +25,11 @@
 constexpr static const char* CLIENT_DATA_NAME = "DutchFlightSim.PingPong";
 
 /**
- * The size of the shared data area in bytes.
- * 8 bytes is enough for "Ping\0" or "Pong\0".
- */
-constexpr static unsigned int DATA_SIZE = 8;
-
-/**
  * The data layout of the shared client data area.
  * Both programs write to the same area starting at byte 0.
  */
 struct PingPongData {
-    char message[DATA_SIZE];
+    inline static constexpr std::size_t dataSize{ 8 };
+
+    char message[dataSize];
 };

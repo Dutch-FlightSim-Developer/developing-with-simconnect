@@ -1317,7 +1317,7 @@ public:
             logger_.error("SimConnect_RequestClientData failed with error code 0x{:08X}.", state());
         } else {
             logger_.debug("Requested client data {} (defId={}, requestId={}, period={}, interval={}, sendOnlyWhenChanged={}, sendId={})",
-                clientDataId, defId, requestId, static_cast<int>(frequency.getPeriod()), frequency.getInterval(), sendOnlyWhenChanged, fetchSendIdInternal());
+                clientDataId, defId, requestId, static_cast<int>(frequency.getPeriod()), static_cast<int>(frequency.getInterval()), sendOnlyWhenChanged, fetchSendIdInternal());
         }
         return static_cast<Derived&>(*this);
     }
@@ -1367,7 +1367,7 @@ public:
             logger_.error("SimConnect_RequestClientData (tagged) failed with error code 0x{:08X}.", state());
         } else {
             logger_.debug("Requested tagged client data {} (requestId={}, frequency={}, sendOnlyWhenChanged={}, sendId={})",
-                clientDataId, requestId, frequency, sendOnlyWhenChanged, fetchSendIdInternal());
+                clientDataId, requestId, static_cast<int>(frequency.getPeriod()), static_cast<int>(frequency.getInterval()), sendOnlyWhenChanged, fetchSendIdInternal());
         }
         return static_cast<Derived&>(*this);
     }

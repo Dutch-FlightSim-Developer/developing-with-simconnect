@@ -421,3 +421,4 @@ tester-lib2/
 cmake_test_discovery_*.json
 /.claude
 .codex
+.clangd

@@ -196,8 +196,4 @@ struct ClientDataFrequency {
     }
 };
 
-
-inline constexpr bool onlyWhenChanged{ true };
-inline constexpr bool always{ false };
-
 } // namespace SimConnect

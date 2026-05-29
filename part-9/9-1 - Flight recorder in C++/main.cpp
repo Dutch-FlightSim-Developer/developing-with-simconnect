@@ -519,7 +519,7 @@ public:
         }
 
         dataRequest_ = dataHandler.template requestData<AircraftPosition>(aircraftPosition_, [&](const AircraftPosition& pos){ write(pos); },
-            DataFrequency::every().second(), PeriodLimits::none(), SimObject::userCurrent, onlyWhenChanged);
+            DataFrequency::every().second(), PeriodLimits::none(), SimObject::userCurrent, /*onlyWhenChanged:*/ true);
         std::cerr << "[Position data recording started]\n";
         recordingActive_ = true;
 

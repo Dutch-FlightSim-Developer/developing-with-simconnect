@@ -16,8 +16,16 @@
 
 
 #pragma warning(push, 3)
-#include <Windows.h>
+
+#include <Windows.h> // NOLINT(misc-include-cleaner)
+
+#include <minwindef.h>
+#include <winnt.h>
+#include <synchapi.h>
+#include <winerror.h>
+
 #include <SimConnect.h>
+
 #pragma warning(pop)
 
 #include <iostream>

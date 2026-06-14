@@ -25,6 +25,7 @@
 #include <atomic>
 #include <string_view>
 #include <optional>
+#include <vector>
 
 namespace SimConnect {
 
@@ -50,6 +51,7 @@ private:
     EventHandler<M, EnableEventGroupHandler>& handler_;
     InputGroupId id_;
     std::optional<Events::Priority> priority_;
+    std::vector<typename handler_type::registration_type> registrations_;
 
     mutex_type mutex_;
     bool created_{ false };
@@ -106,6 +108,7 @@ public:
         : handler_(other.handler_),
           id_(other.id_),
           priority_(std::move(other.priority_)),
+          registrations_(std::move(other.registrations_)),
           created_(other.created_),
           enabled_(other.enabled_)
     {
@@ -124,6 +127,7 @@ public:
             handler_ = other.handler_;
             id_ = other.id_;
             priority_ = std::move(other.priority_);
+            registrations_ = std::move(other.registrations_);
             created_ = other.created_;
             enabled_ = other.enabled_;
         }
@@ -402,8 +406,8 @@ public:
             createInternal();
         }
         if (succeeded()) {
-            handler_.template registerEventHandler<Messages::EventMsg>(evt.id(),
-                [handler = std::move(handler)](const Messages::EventMsg&) { handler(); });
+            registrations_.push_back(handler_.template registerEventHandler<Messages::EventMsg>(evt.id(),
+                [handler = std::move(handler)](const Messages::EventMsg&) { handler(); }));
         }
         return *this;
     }
@@ -419,8 +423,8 @@ public:
             createInternal();
         }
         if (succeeded()) {
-            handler_.template registerEventHandler<Messages::EventMsg>(evt.id(),
-                [handler = std::move(handler)](const Messages::EventMsg&) { handler(); });
+            registrations_.push_back(handler_.template registerEventHandler<Messages::EventMsg>(evt.id(),
+                [handler = std::move(handler)](const Messages::EventMsg&) { handler(); }));
         }
         return std::move(*this);
     }
@@ -450,10 +454,10 @@ public:
             createInternal();
         }
         if (succeeded()) {
-            handler_.template registerEventHandler<Messages::EventMsg>(evt.id(),
+            registrations_.push_back(handler_.template registerEventHandler<Messages::EventMsg>(evt.id(),
                 [handler = std::move(handler)](const Messages::EventMsg& msg) {
                     handler(msg.uGroupID, msg.uEventID);
-                });
+                }));
         }
         return *this;
     }
@@ -470,10 +474,10 @@ public:
             createInternal();
         }
         if (succeeded()) {
-            handler_.template registerEventHandler<Messages::EventMsg>(evt.id(),
+            registrations_.push_back(handler_.template registerEventHandler<Messages::EventMsg>(evt.id(),
                 [handler = std::move(handler)](const Messages::EventMsg& msg) {
                     handler(msg.uGroupID, msg.uEventID);
-                });
+                }));
         }
         return std::move(*this);
     }

@@ -30,6 +30,7 @@
 #include <string>
 #include <string_view>
 #include <functional>
+#include <vector>
 
 
 using namespace SimConnect;
@@ -106,13 +107,15 @@ public:
 
     template<typename EventType = Messages::EventMsg, typename F>
     void registerEventHandler(event evt, F&& callback, bool autoRemove = false) {
-        eventHandler.registerEventHandler<EventType>(evt, std::function<void(const EventType&)>(std::forward<F>(callback)), autoRemove);
+        registrations_.push_back(eventHandler.registerEventHandler<EventType>(evt, std::function<void(const EventType&)>(std::forward<F>(callback)), autoRemove));
     }
 
     void removeEventHandler(event evt) {
         eventHandler.removeEventHandler(evt);
     }
 
+private:
+    std::vector<typename EventHandler<LiveTests::TestMessageHandler>::registration_type> registrations_;
 };
 
 
@@ -195,7 +198,7 @@ TEST(TestEventHandler, MultipleHandlersReceiveEvent) {
         }
     );
 
-    receiverEventHandler2.registerEventHandler<Messages::EventMsg>(
+    auto receiverEventHandler2Registration = receiverEventHandler2.registerEventHandler<Messages::EventMsg>(
         testEvt,
         [&]([[maybe_unused]] const Messages::EventMsg& msg) {
             receivedEvent2 = true;

@@ -18,15 +18,25 @@
 
 #include <map>
 #include <tuple>
+#include <cstdint>
+#include <utility>
 #include <functional>
 
 #include <simconnect/simconnect.hpp>
 
 #include <simconnect/message_handler.hpp>
+#include <simconnect/messaging/registration.hpp>
 #include <simconnect/events/event_group.hpp>
 
 
 namespace SimConnect {
+
+
+/**
+ * Registration handle for a single event-group handler, as returned by registerGroupHandler()
+ * (on EventGroupHandler, and its no-op stand-in NoGroupHandler).
+ */
+using EventGroupRegistration = Registration<std::pair<EventGroupId, std::uint32_t>>;
 
 
 /**
@@ -117,17 +127,19 @@ public:
      * @param groupId The group ID to register.
      * @param handler The typed handler to call when the event is received.
      * @param autoRemove True to automatically remove the handler after it has been called.
-     * @returns A reference to this EventHandler.
+     * @returns A registration that removes this handler when stopped or destroyed.
      */
     template <typename EventType = Messages::EventMsg>
-    EventGroupHandler& registerGroupHandler(EventGroupId groupId, 
+    [[nodiscard]]
+    EventGroupRegistration registerGroupHandler(EventGroupId groupId,
                              std::function<void(const EventType&)> handler,
                              bool autoRemove = false) {
-        this->registerHandler(groupId, [handler](const Messages::MsgBase& msg) {
+        const auto handlerId = this->registerHandler(groupId, [handler](const Messages::MsgBase& msg) {
             handler(reinterpret_cast<const EventType&>(msg));
         }, autoRemove);
 
-        return *this;
+        return EventGroupRegistration({ groupId, handlerId },
+            [this, groupId, handlerId]() { this->clearHandler(groupId, handlerId); });
     }
 
 

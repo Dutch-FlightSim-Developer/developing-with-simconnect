@@ -24,6 +24,7 @@
 #include <string_view>
 #include <array>
 #include <map>
+#include <vector>
 #include <functional>
 
 #include <cstdint>
@@ -599,7 +600,7 @@ public:
  * Set up keyboard input to toggle recording and exit the program.
  */
 template <typename EvtHandler, typename InputGroup>
-static bool setupKeys(EvtHandler &eventHandler, InputGroup &inputGroup, std::function<void()> onToggleRecording, std::function<void()> onExit) // NOLINT(bugprone-easily-swappable-parameters,performance-unnecessary-value-param)
+static bool setupKeys(EvtHandler &eventHandler, InputGroup &inputGroup, std::vector<typename EvtHandler::registration_type> &registrations, std::function<void()> onToggleRecording, std::function<void()> onExit) // NOLINT(bugprone-easily-swappable-parameters,performance-unnecessary-value-param)
 {
     std::cerr
         << "[Press the Play/Pause media key to toggle recording]\n"
@@ -607,15 +608,15 @@ static bool setupKeys(EvtHandler &eventHandler, InputGroup &inputGroup, std::fun
 
     const auto startStop = eventHandler.connection().event("Toggle.Recording");
     inputGroup.addEvent(startStop, "VK_MEDIA_PLAY_PAUSE");
-    eventHandler.template registerEventHandler<Messages::EventMsg>(startStop, [onToggleRecording]([[maybe_unused]] const Messages::EventMsg& evt) {
+    registrations.push_back(eventHandler.template registerEventHandler<Messages::EventMsg>(startStop, [onToggleRecording]([[maybe_unused]] const Messages::EventMsg& evt) {
         onToggleRecording();
-    });
+    }));
 
     const auto exit = eventHandler.connection().event("Exit.Program");
     inputGroup.addEvent(exit, "VK_MEDIA_STOP");
-    eventHandler.template registerEventHandler<Messages::EventMsg>(exit, [onExit]([[maybe_unused]] const Messages::EventMsg& evt) {
+    registrations.push_back(eventHandler.template registerEventHandler<Messages::EventMsg>(exit, [onExit]([[maybe_unused]] const Messages::EventMsg& evt) {
         onExit();
-    });
+    }));
 
     return inputGroup.enable();
 }
@@ -713,7 +714,8 @@ auto main(int argc, const char* argv[]) -> int // NOLINT(bugprone-exception-esca
     InputGroup inputGroup = eventHandler.createInputGroup().withHighestPriority();
 
     // Set up keyboard input if requested
-    if (useKeyboard && !setupKeys(eventHandler, inputGroup, 
+    std::vector<typename EventHandler<WindowsEventHandler<true, ConsoleLogger>>::registration_type> eventRegistrations;
+    if (useKeyboard && !setupKeys(eventHandler, inputGroup, eventRegistrations,
         [&positionDataWriter, &dataHandler]() {
             positionDataWriter.toggleRecording(dataHandler);
         },

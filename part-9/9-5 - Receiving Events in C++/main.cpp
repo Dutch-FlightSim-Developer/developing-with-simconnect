@@ -19,6 +19,7 @@
 #include <format>
 #include <string>
 #include <string_view>
+#include <vector>
 #include <chrono>
 #include <span>
 
@@ -243,18 +244,18 @@ static void handleException(const Messages::ExceptionMsg &msg)
  * Set up keyboard input to toggle recording and exit the program.
  */
 template<typename EvtHandler, typename InputGroup, typename ExitHandler>
-static bool setupKeys(EvtHandler &eventHandler, InputGroup &inputGroup, ExitHandler&& onExit)
+static bool setupKeys(EvtHandler &eventHandler, InputGroup &inputGroup, std::vector<typename EvtHandler::registration_type> &registrations, ExitHandler&& onExit)
 {
   std::cerr << "[Press the Stop key to exit the program]\n";
 
   const auto exit = eventHandler.connection().event("Exit.Program");
   inputGroup.addEvent(exit, "VK_MEDIA_STOP");
-  eventHandler.template registerEventHandler<Messages::EventMsg>(
+  registrations.push_back(eventHandler.template registerEventHandler<Messages::EventMsg>(
     exit,
     [onExit = std::forward<ExitHandler>(onExit)]([[maybe_unused]] const Messages::EventMsg &evt) {
         std::cerr << "[Exit key pressed]\n";
         onExit();
-    });
+    }));
 
   return inputGroup;
 }
@@ -293,7 +294,8 @@ auto main([[maybe_unused]] int argc, [[maybe_unused]] const char* argv[]) -> int
 
     auto inputGroup = eventHandler.createInputGroup().withHighestPriority().enable();
     // Set up keyboard input if requested
-    if (!setupKeys(eventHandler, inputGroup, [&connection] { connection.close(); })) {
+    std::vector<typename EventHandler<WindowsEventHandler<true, ConsoleLogger>>::registration_type> eventRegistrations;
+    if (!setupKeys(eventHandler, inputGroup, eventRegistrations, [&connection] { connection.close(); })) {
       std::cerr << "[ABORTING: Failed to set up keyboard input]\n";
       return 1;
     }
@@ -315,7 +317,7 @@ auto main([[maybe_unused]] int argc, [[maybe_unused]] const char* argv[]) -> int
         .addEvent(connection.event("FLAPS_CONTINUOUS_INCR"))
         .addEvent(connection.event("FLAPS_CONTINUOUS_DECR"));
 
-    eventHandler.registerEventGroupHandler<Messages::EventMsg>(notificationGroup,
+    auto flapsGroupReg = eventHandler.registerEventGroupHandler<Messages::EventMsg>(notificationGroup,
         [&connection](const Messages::EventMsg &evt) {
             std::cout << std::format("Received flap event '{}' (ID {})\n", connection.eventName(evt.uEventID), evt.uEventID);
         });

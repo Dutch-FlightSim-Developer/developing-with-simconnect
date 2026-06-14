@@ -20,12 +20,14 @@
 #include <tuple>
 #include <array>
 #include <vector>
+#include <utility>
 #include <functional>
 
 
 #include <simconnect/simconnect.hpp>
 
 #include <simconnect/messaging/message_dispatcher.hpp>
+#include <simconnect/messaging/registration.hpp>
 #include <simconnect/simconnect_message_handler.hpp>
 #include <simconnect/requests/request.hpp>
 
@@ -52,6 +54,8 @@ public:
 	using handler_type = MultiHandlerPolicy<Messages::MsgBase>;
 	using handler_id_type = typename handler_type::handler_id_type;
 	using handler_proc_type = typename handler_type::handler_proc_type;
+	using registration_id_type = std::pair<correlation_id_type, handler_id_type>;
+	using registration_type = Registration<registration_id_type>;
 
     using mutex_type = typename simconnect_message_handler_type::mutex_type;
     using guard_type = typename simconnect_message_handler_type::guard_type;
@@ -190,12 +194,13 @@ public:
 
     /**
      * Registers a handler for the given correlation ID.
-     * 
+     *
      * @param correlationId The correlation ID.
      * @param correlationHandler The handler to register.
      * @param autoRemove True to automatically remove the handler after it has been called.
+     * @returns The handler ID, to be used with clearHandler() to remove this specific handler.
      */
-    void registerHandler(correlation_id_type correlationId, handler_proc_type correlationHandler, bool autoRemove) {
+    handler_id_type registerHandler(correlation_id_type correlationId, handler_proc_type correlationHandler, bool autoRemove) {
         this->logger().debug("Registering handler for correlation ID {} (autoremove={})", correlationId, autoRemove);
 
         std::lock_guard lock(mutex_);
@@ -203,26 +208,29 @@ public:
         if (!messageHandlers_.contains(correlationId)) {
             messageHandlers_.emplace(correlationId, std::make_tuple(handler_type{}, autoRemove));
 		}
-        std::get<0>(messageHandlers_[correlationId]).setProc(std::move(correlationHandler));
+        return std::get<0>(messageHandlers_[correlationId]).setProc(std::move(correlationHandler));
     }
 
 
     /**
-     * Registers a message handler for a specific message id.
+     * Removes a single handler previously returned by registerHandler(). If this was the last
+     * handler for the correlation ID, the correlation ID's entry is removed entirely.
      *
-     * @param id The message id.
-     * @param handler The message handler's id.
+     * @param correlationId The correlation ID.
+     * @param handlerId The handler ID returned by registerHandler().
      */
-    void unRegisterHandler(correlation_id_type correlationId, handler_id_type handler) noexcept {
-        this->logger().debug("Unregistering handler ID {} for correlation ID {}", handler, correlationId);
+    void clearHandler(correlation_id_type correlationId, handler_id_type handlerId) noexcept {
+        this->logger().debug("Clearing handler ID {} for correlation ID {}", handlerId, correlationId);
 
         std::lock_guard lock(mutex_);
 
-        auto idHandler = this->getHandler(correlationId);
-
-        if (idHandler.hasHandlers()) {
-            idHandler.clear(handler);
-		}
+        auto it = messageHandlers_.find(correlationId);
+        if (it != messageHandlers_.end()) {
+            std::get<0>(it->second).clear(handlerId);
+            if (!std::get<0>(it->second).hasHandlers()) {
+                messageHandlers_.erase(it);
+            }
+        }
     }
 
 

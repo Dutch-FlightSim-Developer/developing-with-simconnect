@@ -1,6 +1,6 @@
 #pragma once
 /*
- * Copyright (c) 2024. Bert Laverman
+ * Copyright (c) 2024-2026. Bert Laverman
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,6 +17,7 @@
 
 
 #include <string_view>
+#include <vector>
 
 #include <simconnect/simconnect.hpp>
 #include <simconnect/events/event_handler.hpp>
@@ -42,15 +43,16 @@ template<class M>
 class SystemEvents
 {
     EventHandler<M>& handler_;
+    std::vector<typename EventHandler<M>::registration_type> registrations_;
 
 
 public:
     SystemEvents(EventHandler<M>& handler) : handler_(handler)
     {
     }
-    SystemEvents(const SystemEvents&) = default;
+    SystemEvents(const SystemEvents&) = delete;
     SystemEvents(SystemEvents&&) = default;
-    SystemEvents& operator=(const SystemEvents&) = default;
+    SystemEvents& operator=(const SystemEvents&) = delete;
     SystemEvents& operator=(SystemEvents&&) = default;
     ~SystemEvents() = default;
 
@@ -65,13 +67,16 @@ public:
     }
 
 
-#pragma region Core subscribeToSystemEvent overloads
+#pragma region System Events
 
     /**
      * Subscribe to a system event, receiving the raw EventMsg.
+     * 
+     * @param systemStateEvent The event to subscribe to.
+     * @param handler The handler to call when the event is received. This receives the raw EventMsg.
      */
     void subscribeToSystemEvent(event systemStateEvent, std::function<void(const Messages::EventMsg&)> handler) {
-        handler_.template registerEventHandler<Messages::EventMsg>(systemStateEvent, std::move(handler), false);
+        registrations_.push_back(handler_.template registerEventHandler<Messages::EventMsg>(systemStateEvent, std::move(handler), false));
         handler_.connection().subscribeToSystemEvent(systemStateEvent);
     }
 
@@ -79,17 +84,22 @@ public:
      * Subscribe to a system event with a handler that receives the specific event message type.
      *
      * @tparam EventType The specific event message type (Messages::EventMsg, Messages::EventFilenameMsg, etc.)
+     * @param systemStateEvent The event to subscribe to.
+     * @param handler The handler to call when the event is received. This receives the specific event message type.
      */
     template <typename EventType>
     void subscribeToSystemEvent(event systemStateEvent,
                                std::function<void(const EventType&)> handler) {
-        handler_.template registerEventHandler<EventType>(systemStateEvent, std::move(handler), false);
+        registrations_.push_back(handler_.template registerEventHandler<EventType>(systemStateEvent, std::move(handler), false));
         handler_.connection().subscribeToSystemEvent(systemStateEvent);
     }
 
     /**
      * Subscribe to a filename-bearing system event (FlightLoaded, AircraftLoaded, etc.).
      * The handler receives the filename/path as a std::string_view.
+     * 
+     * @param systemStateEvent The event to subscribe to.
+     * @param handler The handler to call when the event is received. This receives the filename/path as a std::string_view.
      */
     void subscribeToSystemEvent(event systemStateEvent, std::function<void(std::string_view)> handler) {
         subscribeToSystemEvent<Messages::EventFilenameMsg>(systemStateEvent,
@@ -101,6 +111,9 @@ public:
     /**
      * Subscribe to an object add/remove system event (ObjectAdded, ObjectRemoved).
      * The handler receives the SimObjectId and SimObjectType of the affected object.
+     *
+     * @param systemStateEvent The event to subscribe to.
+     * @param handler The handler to call when the event is received. This receives the SimObjectId and SimObjectType of the affected object.
      */
     void subscribeToSystemEvent(event systemStateEvent, std::function<void(SimObjectId, SimObjectType)> handler) {
         subscribeToSystemEvent<Messages::EventObjectAddRemoveMsg>(systemStateEvent,
@@ -112,6 +125,9 @@ public:
     /**
      * Subscribe to a frame-rate system event (Frame, PauseFrame).
      * The handler receives the frame rate (fps) and simulation speed as floats.
+     *
+     * @param systemStateEvent The event to subscribe to.
+     * @param handler The handler to call when the event is received. This receives the frame rate (fps) and simulation speed as floats.
      */
     void subscribeToSystemEvent(event systemStateEvent, std::function<void(float, float)> handler) {
         subscribeToSystemEvent<Messages::EventFrameMsg>(systemStateEvent,
@@ -123,6 +139,9 @@ public:
     /**
      * Subscribe to a value-bearing system event (Sim, Pause, Sound, View, etc.).
      * The handler receives the event data value.
+     *
+     * @param systemStateEvent The event to subscribe to.
+     * @param handler The handler to call when the event is received. This receives the event data value.
      */
     void subscribeToSystemEvent(event systemStateEvent, std::function<void(unsigned long)> handler) {
         subscribeToSystemEvent<Messages::EventMsg>(systemStateEvent,
@@ -133,6 +152,9 @@ public:
 
     /**
      * Subscribe to a simple system event with no meaningful data (SimStart, SimStop, Crashed, etc.).
+     * 
+     * @param systemStateEvent The event to subscribe to.
+     * @param handler The handler to call when the event is received.
      */
     void subscribeToSystemEvent(event systemStateEvent, std::function<void()> handler) {
         subscribeToSystemEvent<Messages::EventMsg>(systemStateEvent,
@@ -151,7 +173,27 @@ public:
         handler_.removeHandler(systemStateEvent);
     }
 
-#pragma endregion
+
+    /**
+     * Enable a specific (already subscribed) system event.
+     * 
+     * @param systemStateEvent The event to enable.
+     */
+    void enableSystemEvent(event systemStateEvent) {
+        handler_.connection().setSystemEventState(systemStateEvent, true);
+    }
+
+
+    /**
+     * Disable a specific (already subscribed) system event.
+     * 
+     * @param systemStateEvent The event to disable.
+     */
+    void disableSystemEvent(event systemStateEvent) {
+        handler_.connection().setSystemEventState(systemStateEvent, false);
+    }
+
+#pragma endregion // System Events
 
 #pragma region Event-specific subscription methods
 

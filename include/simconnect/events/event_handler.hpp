@@ -51,9 +51,11 @@ public:
     ~NoGroupHandler() = default;
 
     template <typename EventType = Messages::EventMsg>
-    inline void registerGroupHandler([[maybe_unused]] EventGroupId groupId, 
+    [[nodiscard]]
+    inline EventGroupRegistration registerGroupHandler([[maybe_unused]] EventGroupId groupId,
                              [[maybe_unused]] std::function<void(const EventType&)> handler,
                              [[maybe_unused]] bool autoRemove = false) {
+        return EventGroupRegistration{};
     }
 
 
@@ -188,23 +190,25 @@ public:
 
     /**
      * Register a handler for a specific event ID with typed event message.
-     * 
+     *
      * @tparam EventType The specific event message type (Messages::EventMsg, etc.)
      * @param eventId The event ID to register.
      * @param handler The typed handler to call when the event is received.
      * @param autoRemove True to automatically remove the handler after it has been called.
-     * @returns A reference to this EventHandler.
+     * @returns A registration that removes this handler when stopped or destroyed.
      */
     template <typename EventType = Messages::EventMsg>
-    EventHandler& registerEventHandler(EventId eventId, 
+    [[nodiscard]]
+    typename Base::registration_type registerEventHandler(EventId eventId,
                              std::function<void(const EventType&)> handler,
                              bool autoRemove = false) {
         this->logger().debug(std::format("Registering handler for event ID {} (autoremove={})", eventId, autoRemove));
-        this->registerHandler(eventId, [handler](const Messages::MsgBase& msg) {
+        const auto handlerId = this->registerHandler(eventId, [handler](const Messages::MsgBase& msg) {
             handler(reinterpret_cast<const EventType&>(msg));
         }, autoRemove);
 
-        return *this;
+        return typename Base::registration_type({ eventId, handlerId },
+            [this, eventId, handlerId]() { this->clearHandler(eventId, handlerId); });
     }
 
 
@@ -222,21 +226,21 @@ public:
 
 
     /**
-     * Register a handler for all Evebts in a specific Notification- or Input Group.
-     * 
+     * Register a handler for all Events in a specific Notification- or Input Group.
+     *
      * @tparam EventType The specific event message type (Messages::EventMsg, etc.)
      * @param groupId The group ID to register.
      * @param handler The typed handler to call when an event in the group is received.
      * @param autoRemove True to automatically remove the handler after it has been called.
-     * @returns A reference to this EventHandler.
+     * @returns A registration that removes this handler when stopped or destroyed.
      */
     template <typename EventType = Messages::EventMsg>
-    EventHandler& registerEventGroupHandler(EventGroupId groupId, 
+    [[nodiscard]]
+    EventGroupRegistration registerEventGroupHandler(EventGroupId groupId,
                              std::function<void(const EventType&)> handler,
                              bool autoRemove = false) {
         this->logger().debug(std::format("Registering group handler for event group ID {} (autoremove={})", groupId, autoRemove));
-        eventGroupHandler_.template registerGroupHandler<EventType>(groupId, handler, autoRemove);
-        return *this;
+        return eventGroupHandler_.template registerGroupHandler<EventType>(groupId, handler, autoRemove);
     }
 
 

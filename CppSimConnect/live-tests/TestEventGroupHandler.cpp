@@ -32,6 +32,7 @@
 #include <string_view>
 #include <functional>
 #include <initializer_list>
+#include <vector>
 
 
 using namespace SimConnect;
@@ -116,12 +117,12 @@ public:
 
     template<typename EventType = Messages::EventMsg, typename F>
     void registerEventHandler(event evt, F&& callback, bool autoRemove = false) {
-        eventHandler.registerEventHandler<EventType>(evt, std::function<void(const EventType&)>(std::forward<F>(callback)), autoRemove);
+        registrations_.push_back(eventHandler.registerEventHandler<EventType>(evt, std::function<void(const EventType&)>(std::forward<F>(callback)), autoRemove));
     }
 
     template<typename EventType = Messages::EventMsg, typename F>
     void registerEventGroupHandler(EventGroupId groupId, F&& callback, bool autoRemove = false) {
-        eventHandler.registerEventGroupHandler<EventType>(groupId, std::function<void(const EventType&)>(std::forward<F>(callback)), autoRemove);
+        registrations_.push_back(eventHandler.registerEventGroupHandler<EventType>(groupId, std::function<void(const EventType&)>(std::forward<F>(callback)), autoRemove));
     }
 
     void removeEventHandler(event evt) {
@@ -131,6 +132,9 @@ public:
     void removeEventGroupHandler(EventGroupId groupId) {
         eventHandler.removeEventGroupHandler(groupId);
     }
+
+private:
+    std::vector<typename EventHandler<LiveTests::TestMessageHandler>::registration_type> registrations_;
 };
 
 

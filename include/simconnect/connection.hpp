@@ -692,6 +692,66 @@ public:
         return static_cast<Derived&>(*this);
     }
 
+
+    /**
+     * Sets the state of a system event.
+     * 
+     * @param evt The event to set the state of.
+     * @param enabled True to enable the event, false to disable it.
+     * @return The connection reference for chaining.
+     */
+    Derived& setSystemEventState(SimConnect::event evt, bool enabled) {
+        guard_type guard(mutex_);
+
+        state(SimConnect_SetSystemEventState(hSimConnect_, evt.id(), enabled ? Events::on : Events::off));
+        if (failed()) {
+            logger_.error("SimConnect_SetSystemEventState failed with error code 0x{:08X}.", state());
+        } else {
+            logger_.debug("{} system event '{}' (sendId={})", enabled ? "Enabled" : "Disabled", evt.name(), fetchSendIdInternal());
+        }
+        return static_cast<Derived&>(*this);
+    }
+
+#pragma endregion
+
+#pragma region Flow Events
+
+#if MSFS_2024_SDK
+
+    /**
+     * Subscribe to all flow events.
+     * @returns A reference to the derived connection for chaining.
+     */
+    Derived& subscribeToFlowEvents() {
+        guard_type guard(mutex_);
+
+        state(SimConnect_SubscribeToFlowEvent(hSimConnect_));
+        if (failed()) {
+            logger_.error("SimConnect_SubscribeToFlowEvent failed with error code 0x{:08X}.", state());
+        } else {
+            logger_.debug("Subscribed to flow events (sendId={})", fetchSendIdInternal());
+        }
+        return static_cast<Derived&>(*this);
+    }
+
+    /**
+     * Unsubscribe from flow events.
+     * @returns A reference to the derived connection for chaining.
+     */
+    Derived& unsubscribeFromFlowEvents() {
+        guard_type guard(mutex_);
+
+        state(SimConnect_UnsubscribeToFlowEvent(hSimConnect_));
+        if (failed()) {
+            logger_.error("SimConnect_UnsubscribeToFlowEvent failed with error code 0x{:08X}.", state());
+        } else {
+            logger_.debug("Unsubscribed from flow events (sendId={})", fetchSendIdInternal());
+        }
+        return static_cast<Derived&>(*this);
+    }
+
+#endif // MSFS_2024_SDK
+
 #pragma endregion
 
 #pragma region Input Groups

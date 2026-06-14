@@ -45,6 +45,8 @@ inline constexpr unsigned long unused{ SIMCONNECT_UNUSED };                     
  */
 inline constexpr unsigned long noId{ 0 };
 
+#pragma region Messages and Exceptions
+
 using MessageId = unsigned long;                                                                ///< The type used for message IDs, SIMCONNECT_RECV_ID.
 
 using SendId = unsigned long;                                                                   ///< The type used for Send IDs.
@@ -68,13 +70,13 @@ namespace Messages {
     inline constexpr MessageId systemState{ SIMCONNECT_RECV_ID_SYSTEM_STATE };
     using SystemStateMsg = SIMCONNECT_RECV_SYSTEM_STATE;
 
-#if MSFS_2024_SDK
+  #if MSFS_2024_SDK
     inline constexpr MessageId flowEvent{ SIMCONNECT_RECV_ID_FLOW_EVENT };
     using FlowEventMsg = SIMCONNECT_RECV_FLOW_EVENT;
-#else
+  #else
     inline constexpr MessageId flowEvent{ nullMsg }; // Not available
     using FlowEventMsg = NullMsg;
-#endif
+  #endif
 
     inline constexpr MessageId event{ SIMCONNECT_RECV_ID_EVENT };
     using EventMsg = SIMCONNECT_RECV_EVENT;
@@ -127,13 +129,13 @@ namespace Messages {
     inline constexpr MessageId assignedObjectId{ SIMCONNECT_RECV_ID_ASSIGNED_OBJECT_ID };
     using AssignedObjectIdMsg = SIMCONNECT_RECV_ASSIGNED_OBJECT_ID;
 
-#if MSFS_2024_SDK
+  #if MSFS_2024_SDK
     inline constexpr MessageId enumerateSimObjectAndLiveryList{ SIMCONNECT_RECV_ID_ENUMERATE_SIMOBJECT_AND_LIVERY_LIST };
     using EnumerateSimObjectAndLiveryListMsg = SIMCONNECT_RECV_ENUMERATE_SIMOBJECT_AND_LIVERY_LIST;
-#else
+  #else
     inline constexpr MessageId enumerateSimObjectAndLiveryList{ nullMsg }; // Not available
     using EnumerateSimObjectAndLiveryListMsg = NullMsg;
-#endif
+  #endif
 
     inline constexpr MessageId reservedKey{ SIMCONNECT_RECV_ID_RESERVED_KEY };
     using ReservedKeyMsg = SIMCONNECT_RECV_RESERVED_KEY;
@@ -183,7 +185,7 @@ namespace Messages {
     inline constexpr MessageId enumerateInputEventParams{ SIMCONNECT_RECV_ID_ENUMERATE_INPUT_EVENT_PARAMS };
     using EnumerateInputEventParamsMsg = SIMCONNECT_RECV_ENUMERATE_INPUT_EVENT_PARAMS;
 
-#if MSFS_2024_SDK
+  #if MSFS_2024_SDK
     inline constexpr MessageId cameraData{ SIMCONNECT_RECV_ID_CAMERA_DATA };
     using CameraDataMsg = SIMCONNECT_RECV_CAMERA_DATA;
 
@@ -198,7 +200,7 @@ namespace Messages {
 
     inline constexpr MessageId commBus{ SIMCONNECT_RECV_ID_COMM_BUS };
     using CommBusMsg = SIMCONNECT_RECV_COMM_BUS;
-#endif
+  #endif
 }
 
 using ExceptionCode = unsigned long;                                                            ///< The type used for exception codes.
@@ -251,31 +253,39 @@ namespace Exceptions {
     inline constexpr ExceptionCode incorrectActionParams{ SIMCONNECT_EXCEPTION_INCORRECT_ACTION_PARAMS };
     inline constexpr ExceptionCode getInputEventFailed{ SIMCONNECT_EXCEPTION_GET_INPUT_EVENT_FAILED };
     inline constexpr ExceptionCode setInputEventFailed{ SIMCONNECT_EXCEPTION_SET_INPUT_EVENT_FAILED };
-#if MSFS_2024_SDK
+  #if MSFS_2024_SDK
     inline constexpr ExceptionCode eventNameReserved{ SIMCONNECT_EXCEPTION_EVENT_NAME_RESERVED };
     inline constexpr ExceptionCode cameraApi{ SIMCONNECT_EXCEPTION_CAMERA_API };
     inline constexpr ExceptionCode internal{ SIMCONNECT_EXCEPTION_INTERNAL };
-#endif
+  #endif
 }
+
+using RequestId = unsigned long;                ///< The type used for request IDs.
+
+inline constexpr RequestId noRequest{ 0 };    ///< Constant representing no request ID.
+
+#pragma endregion // Messages and Exceptions
+
+#pragma region SimObjects
 
 using SimObjectId = unsigned long;                                                                  ///< The type used for SimObject IDs.
 
 namespace SimObject {
-#if MSFS_2024_SDK
+  #if MSFS_2024_SDK
     inline constexpr SimObjectId max{ SIMCONNECT_OBJECT_ID_MAX };                               ///< The maximum SimObject ID as defined in the MSFS 2024 API.
-#else
+  #else
     inline constexpr SimObjectId max{ unused - 128 };                                           ///< The maximum SimObject ID as defined in the MSFS 2020 API.
-#endif
+  #endif
     inline constexpr SimObjectId user{ SIMCONNECT_OBJECT_ID_USER };                             ///< The user SimObject ID.
-#if MSFS_2024_SDK
+  #if MSFS_2024_SDK
     inline constexpr SimObjectId userAircraft{ SIMCONNECT_OBJECT_ID_USER_AIRCRAFT };            ///< The user aircraft SimObject ID.
     inline constexpr SimObjectId userAvatar{ SIMCONNECT_OBJECT_ID_USER_AVATAR };                ///< The user avatar SimObject ID.
     inline constexpr SimObjectId userCurrent{ SIMCONNECT_OBJECT_ID_USER_CURRENT };              ///< The current user SimObject ID.
-#else
+  #else
     inline constexpr SimObjectId userAircraft{ 0 };                                             ///< The user aircraft SimObject ID.
     inline constexpr SimObjectId userAvatar{ (max+1) };                                         ///< The user avatar SimObject ID.
     inline constexpr SimObjectId userCurrent{ (max+2) };                                        ///< The current user SimObject ID.
-#endif
+  #endif
 }
 
 using SimObjectType = SIMCONNECT_SIMOBJECT_TYPE;                                                ///< The type used for SimObject types.
@@ -288,21 +298,19 @@ namespace SimObjectTypes {
     inline constexpr SimObjectType helicopter{ SIMCONNECT_SIMOBJECT_TYPE_HELICOPTER };          ///< Helicopter SimObject type.
     inline constexpr SimObjectType boat{ SIMCONNECT_SIMOBJECT_TYPE_BOAT };                      ///< Boat SimObject type.
     inline constexpr SimObjectType ground{ SIMCONNECT_SIMOBJECT_TYPE_GROUND };                  ///< Ground vehicle SimObject type.
-#if MSFS_2024_SDK
+  #if MSFS_2024_SDK
     inline constexpr SimObjectType hotAirBalloon{ SIMCONNECT_SIMOBJECT_TYPE_HOT_AIR_BALLOON };  ///< Hot air balloon SimObject type.
     inline constexpr SimObjectType animal{ SIMCONNECT_SIMOBJECT_TYPE_ANIMAL };                  ///< Animal SimObject type.
     inline constexpr SimObjectType userAvatar{ SIMCONNECT_SIMOBJECT_TYPE_USER_AVATAR };         ///< User avatar SimObject type.
     inline constexpr SimObjectType userCurrent{ SIMCONNECT_SIMOBJECT_TYPE_USER_CURRENT };       ///< Current user SimObject type.
 
     inline constexpr SimObjectType max{ SIMCONNECT_SIMOBJECT_TYPE_USER_CURRENT };               ///< Maximum SimObject type.
-#else
+  #else
     inline constexpr SimObjectType max{ SIMCONNECT_SIMOBJECT_TYPE_GROUND };                     ///< Maximum SimObject type.
-#endif
+  #endif
 };
 
-using RequestId = unsigned long;                ///< The type used for request IDs.
-
-inline constexpr RequestId noRequest{ 0 };    ///< Constant representing no request ID.
+#pragma endregion // SimObjects
 
 #pragma region Data Request and Definition Types
 
@@ -323,11 +331,11 @@ using DataType = SIMCONNECT_DATATYPE;                 ///< The type used for dat
 namespace DataTypes {
     inline constexpr DataType invalid{ SIMCONNECT_DATATYPE_INVALID };               ///< Invalid data type.
 
-#if MSFS_2024_SDK
+  #if MSFS_2024_SDK
     inline constexpr DataType int8{ SIMCONNECT_DATATYPE_INT8 };                     ///< 8-bit integer data type.
-#else
+  #else
     inline constexpr DataType int8{ SIMCONNECT_DATATYPE_INVALID };                  ///< 8-bit integer data type.
-#endif
+  #endif
     inline constexpr DataType int32{ SIMCONNECT_DATATYPE_INT32 };                   ///< 32-bit integer data type.
     inline constexpr DataType int64{ SIMCONNECT_DATATYPE_INT64 };                   ///< 64-bit integer data type.
 
@@ -445,7 +453,7 @@ constexpr std::size_t clientDataAutoOffset{ static_cast<std::size_t>(SIMCONNECT_
 
 using ClientDataItemId = unsigned long;         ///< The type used for client data item IDs.
 
-#pragma endregion
+#pragma endregion // Client Data
 
 #pragma region Facility Types
 
@@ -486,12 +494,12 @@ namespace FacilityDataTypes {
     inline constexpr FacilityDataType route{ SIMCONNECT_FACILITY_DATA_ROUTE };                              ///< Route facility data type.
     inline constexpr FacilityDataType pavement{ SIMCONNECT_FACILITY_DATA_PAVEMENT };                        ///< Pavement facility data type.
     inline constexpr FacilityDataType approachLights{ SIMCONNECT_FACILITY_DATA_APPROACH_LIGHTS };           ///< Approach lights facility data type.
-#if MSFS_2024_SDK
+  #if MSFS_2024_SDK
     inline constexpr FacilityDataType vasi{ SIMCONNECT_FACILITY_DATA_VASI };                                ///< VASI facility data type.
     inline constexpr FacilityDataType vdgs{ SIMCONNECT_FACILITY_DATA_VDGS };                                ///< VDGS facility data type.
     inline constexpr FacilityDataType holdingPattern{ SIMCONNECT_FACILITY_DATA_HOLDING_PATTERN };           ///< Holding pattern facility data type.
     inline constexpr FacilityDataType taxiParkingAirline{ SIMCONNECT_FACILITY_DATA_TAXI_PARKING_AIRLINE };  ///< Taxi parking airline facility data type.
-#endif
+  #endif
 }
 
 enum FacilitiesListScope {
@@ -504,35 +512,37 @@ using FacilityDefinitionId = unsigned long;   ///< The type used for facility de
 
 namespace Facilities {
 
+  enum class JetwayStatus : int {
+      Reset = 0,
+      ApproachOutside = 1,
+      ApproachDoor = 2,
+      HoodConnect = 3,
+      HoodDisconnect = 4,
+      RetractOutside = 5,
+      RetractHome = 6,
+      FullyAttached = 7,
+  };
 
-    enum class JetwayStatus : int {
-        Reset = 0,
-        ApproachOutside = 1,
-        ApproachDoor = 2,
-        HoodConnect = 3,
-        HoodDisconnect = 4,
-        RetractOutside = 5,
-        RetractHome = 6,
-        FullyAttached = 7,
-    };
+  struct Jetway {
+      std::array<char, 8> icaoCode;               ///< The ICAO code of the airport where the jetway is located.
+      int parkingIndex;                           ///< The parking index where the jetway is located.
+      DataTypes::LatLonAlt position;              ///< The position of the jetway.
+      DataTypes::PitchBankHeading orientation;    ///< The orientation of the jetway.
+      JetwayStatus state;                         ///< The state of the jetway.
+      int doorIndex;                              ///< The index of the door the jetway is connected to.
+      DataTypes::XYZ exitDoorPosition;            ///< The relative position of the exit door the jetway is connected to.
+      DataTypes::XYZ mainHandlePosition;          ///< The relative position of the main handle (IK_MainHandle), world pos, in meters.
+      DataTypes::XYZ secondaryHandlePosition;     ///< The relative position of the secondary handle (IK_SecondaryHandle), world pos, in meters.
+      DataTypes::XYZ wheelGroundLockPosition;     ///< The relative position of the wheel ground lock (IK_WheelsGroundLock), world pos, in meters.
+      SimObjectId jetwayObjectId;                 ///< The SimObject ID of the jetway.
+      SimObjectId attachedObjectId;               ///< The SimObject ID of the object currently attached to the jetway.
+  };
 
-    struct Jetway {
-        std::array<char, 8> icaoCode;               ///< The ICAO code of the airport where the jetway is located.
-        int parkingIndex;                           ///< The parking index where the jetway is located.
-        DataTypes::LatLonAlt position;              ///< The position of the jetway.
-        DataTypes::PitchBankHeading orientation;    ///< The orientation of the jetway.
-        JetwayStatus state;                         ///< The state of the jetway.
-        int doorIndex;                              ///< The index of the door the jetway is connected to.
-        DataTypes::XYZ exitDoorPosition;            ///< The relative position of the exit door the jetway is connected to.
-        DataTypes::XYZ mainHandlePosition;          ///< The relative position of the main handle (IK_MainHandle), world pos, in meters.
-        DataTypes::XYZ secondaryHandlePosition;     ///< The relative position of the secondary handle (IK_SecondaryHandle), world pos, in meters.
-        DataTypes::XYZ wheelGroundLockPosition;     ///< The relative position of the wheel ground lock (IK_WheelsGroundLock), world pos, in meters.
-        SimObjectId jetwayObjectId;                 ///< The SimObject ID of the jetway.
-        SimObjectId attachedObjectId;               ///< The SimObject ID of the object currently attached to the jetway.
-    };
 }
 
-#pragma endregion
+#pragma endregion // Facility Types
+
+#pragma region Events
 
 using SimConnectEventId = unsigned long;        ///< The type used for SimConnect (internal)event IDs.
 
@@ -546,26 +556,53 @@ using InputGroupId = EventGroupId;              ///< The type used for input gro
 
 namespace Events {
 
-    inline constexpr SimConnectEventId customEventMin{ 0x00011000 };    ///< Minimum custom event ID.
-    inline constexpr SimConnectEventId customEventMax{ 0x0001FFFF };    ///< Maximum custom event ID.
+  inline constexpr SimConnectEventId customEventMin{ 0x00011000 };    ///< Minimum custom event ID.
+  inline constexpr SimConnectEventId customEventMax{ 0x0001FFFF };    ///< Maximum custom event ID.
 
-    using Priority = unsigned long;              ///< The type used for event priority.
+  using Priority = unsigned long;              ///< The type used for event priority.
 
-    inline constexpr Priority highestPriority{ SIMCONNECT_GROUP_PRIORITY_HIGHEST };                     ///< The highest event priority.
-    inline constexpr Priority highestMaskablePriority{ SIMCONNECT_GROUP_PRIORITY_HIGHEST_MASKABLE };    ///< The highest maskable event priority.
-    inline constexpr Priority standardPriority{ SIMCONNECT_GROUP_PRIORITY_STANDARD };                   ///< The standard event priority.
-    inline constexpr Priority defaultPriority{ SIMCONNECT_GROUP_PRIORITY_DEFAULT };                     ///< The default event priority.
-    inline constexpr Priority lowestPriority{ SIMCONNECT_GROUP_PRIORITY_LOWEST };                       ///< The lowest event priority.
+  inline constexpr Priority highestPriority{ SIMCONNECT_GROUP_PRIORITY_HIGHEST };                     ///< The highest event priority.
+  inline constexpr Priority highestMaskablePriority{ SIMCONNECT_GROUP_PRIORITY_HIGHEST_MASKABLE };    ///< The highest maskable event priority.
+  inline constexpr Priority standardPriority{ SIMCONNECT_GROUP_PRIORITY_STANDARD };                   ///< The standard event priority.
+  inline constexpr Priority defaultPriority{ SIMCONNECT_GROUP_PRIORITY_DEFAULT };                     ///< The default event priority.
+  inline constexpr Priority lowestPriority{ SIMCONNECT_GROUP_PRIORITY_LOWEST };                       ///< The lowest event priority.
 
-    using State = unsigned long;                         ///< The type used for event state.
+  using State = unsigned long;                         ///< The type used for event state.
 
-    inline constexpr State off{ SIMCONNECT_STATE_OFF };    ///< Event state off.
-    inline constexpr State on{ SIMCONNECT_STATE_ON };      ///< Event state on.
+  inline constexpr State off{ SIMCONNECT_STATE_OFF };    ///< Event state off.
+  inline constexpr State on{ SIMCONNECT_STATE_ON };      ///< Event state on.
 
-    using Flags = unsigned long;                         ///< The type used for event flags.
+  using Flags = unsigned long;                         ///< The type used for event flags.
 
-    inline constexpr Flags defaultFlags{ SIMCONNECT_EVENT_FLAG_DEFAULT };                     ///< Default event flags.
-    inline constexpr Flags groupIdIsPriority{ SIMCONNECT_EVENT_FLAG_GROUPID_IS_PRIORITY };    ///< Event flag indicating that the group ID is actually a priority.
+  inline constexpr Flags defaultFlags{ SIMCONNECT_EVENT_FLAG_DEFAULT };                     ///< Default event flags.
+  inline constexpr Flags groupIdIsPriority{ SIMCONNECT_EVENT_FLAG_GROUPID_IS_PRIORITY };    ///< Event flag indicating that the group ID is actually a priority.
+
 }
+
+using FlowEventId = unsigned long;                   ///< The type used for flow event IDs.
+
+namespace FlowEventIds {
+
+  inline constexpr FlowEventId none{ SIMCONNECT_FLOW_EVENT_NONE };    ///< Constant representing no flow event.
+  inline constexpr FlowEventId fltLoad{ SIMCONNECT_FLOW_EVENT_FLT_LOAD };    ///< Flight load flow event.
+  inline constexpr FlowEventId fltLoaded{ SIMCONNECT_FLOW_EVENT_FLT_LOADED };  ///< Flight loaded flow event.
+  inline constexpr FlowEventId teleportStart{ SIMCONNECT_FLOW_EVENT_TELEPORT_START };  ///< Teleport start flow event.
+  inline constexpr FlowEventId teleportDone{ SIMCONNECT_FLOW_EVENT_TELEPORT_DONE };  ///< Teleport done flow event.
+  inline constexpr FlowEventId backOnTrackStart{ SIMCONNECT_FLOW_EVENT_BACK_ON_TRACK_START };  ///< Back on track start flow event.
+  inline constexpr FlowEventId backOnTrackDone{ SIMCONNECT_FLOW_EVENT_BACK_ON_TRACK_DONE };  ///< Back on track done flow event.
+  inline constexpr FlowEventId skipStart{ SIMCONNECT_FLOW_EVENT_SKIP_START };  ///< Skip start flow event.
+  inline constexpr FlowEventId skipDone{ SIMCONNECT_FLOW_EVENT_SKIP_DONE };  ///< Skip done flow event.
+  inline constexpr FlowEventId backToMainMenu{ SIMCONNECT_FLOW_EVENT_BACK_TO_MAIN_MENU };  ///< Back to main menu flow event.
+  inline constexpr FlowEventId rtcStart{ SIMCONNECT_FLOW_EVENT_RTC_START };  ///< RTC start flow event.
+  inline constexpr FlowEventId rtcEnd{ SIMCONNECT_FLOW_EVENT_RTC_END };  ///< RTC end flow event.
+  inline constexpr FlowEventId replayStart{ SIMCONNECT_FLOW_EVENT_REPLAY_START };  ///< Replay start flow event.
+  inline constexpr FlowEventId replayEnd{ SIMCONNECT_FLOW_EVENT_REPLAY_END };  ///< Replay end flow event.
+  inline constexpr FlowEventId flightStart{ SIMCONNECT_FLOW_EVENT_FLIGHT_START };  ///< Flight start flow event.
+  inline constexpr FlowEventId flightEnd{ SIMCONNECT_FLOW_EVENT_FLIGHT_END };  ///< Flight end flow event.
+  inline constexpr FlowEventId planeCrash{ SIMCONNECT_FLOW_EVENT_PLANE_CRASH };  ///< Plane crash flow event.
+
+}
+
+#pragma endregion // Events
 
 } // namespace SimConnect

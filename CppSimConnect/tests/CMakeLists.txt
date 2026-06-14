@@ -37,6 +37,7 @@ file(GLOB TEST_SOURCES
     TestPeriodLimits.cpp
     TestSimObjectType.cpp
     TestSimpleHandler.cpp
+    TestFlowEvents.cpp
     SimObjectRepositoryTests.cpp
 )
 

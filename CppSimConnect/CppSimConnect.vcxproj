@@ -38,6 +38,7 @@
     <ClInclude Include="..\include\simconnect\handler.hpp" />
     <ClInclude Include="..\include\simconnect\messaging\handler_policy.hpp" />
     <ClInclude Include="..\include\simconnect\messaging\message_dispatcher.hpp" />
+    <ClInclude Include="..\include\simconnect\messaging\registration.hpp" />
     <ClInclude Include="..\include\simconnect\polling_handler.hpp" />
     <ClInclude Include="..\include\simconnect\requests\request.hpp" />
     <ClInclude Include="..\include\simconnect\requests\requests.hpp" />

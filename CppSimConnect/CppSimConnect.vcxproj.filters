@@ -123,6 +123,9 @@
     <ClInclude Include="..\include\simconnect\messaging\handler_policy.hpp">
       <Filter>Header Files\SimConnect\messaging</Filter>
     </ClInclude>
+    <ClInclude Include="..\include\simconnect\messaging\registration.hpp">
+      <Filter>Header Files\SimConnect\messaging</Filter>
+    </ClInclude>
     <ClInclude Include="..\include\simconnect\background_simconnect_manager.hpp">
       <Filter>Header Files\SimConnect</Filter>
     </ClInclude>

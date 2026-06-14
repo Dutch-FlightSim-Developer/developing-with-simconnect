@@ -42,7 +42,7 @@ struct TwoFields {
 #pragma pack(pop)
 
 // Datum IDs are assigned in addXxx() call order starting at 1.
-// Used by the tagged send methods below (in the #if 0 block).
+// Used by the partial tagged send methods below.
 //   kField1DatumId = 1
 //   kField2DatumId = 2
 
@@ -95,13 +95,13 @@ public:
     }
 
     // Send only the fields whose datum IDs appear in the list, in tagged format.
-    // void sendTaggedField1Only(const TwoFields& data) {
-    //     clientDataHandler.sendClientDataTagged(dataId, def, data, { kField1DatumId });
-    // }
+    void sendTaggedField1Only(const TwoFields& data) {
+        clientDataHandler.sendClientDataTagged(dataId, def, data, { kField1DatumId });
+    }
 
-    // void sendTaggedField2Only(const TwoFields& data) {
-    //     clientDataHandler.sendClientDataTagged(dataId, def, data, { kField2DatumId });
-    // }
+    void sendTaggedField2Only(const TwoFields& data) {
+        clientDataHandler.sendClientDataTagged(dataId, def, data, { kField2DatumId });
+    }
 };
 
 
@@ -155,9 +155,6 @@ public:
  * arrive at the receiver, and both fields must round-trip correctly.
  */
 TEST(TestTaggedClientData, UntaggedReceive) {
-    GTEST_SKIP() << "MSFS bug: DatumID is always -1 in tagged SIMCONNECT_RECV_CLIENT_DATA blocks; "
-                    "tagged-send mode cannot be verified until the simulator is fixed.";
-
     TaggedSender   sender  ("TaggedCDA_Sender_UR");
     TaggedReceiver receiver("TaggedCDA_Receiver_UR");
 
@@ -206,23 +203,21 @@ TEST(TestTaggedClientData, UntaggedReceive) {
     EXPECT_DOUBLE_EQ(received.field2,  2.0);
 
     // Send mode 3a: tagged, only field1 changed.
-    // const TwoFields data3{ .field1 = 3, .field2 = 2.0 };
-    // sender.sendTaggedField1Only(data3);
-    // EXPECT_TRUE(receiver.waitUntil([&] { return receiveCount.load() >= 3; }));
-    // EXPECT_EQ(received.field1, 3);
+    const TwoFields data3{ .field1 = 3, .field2 = 2.0 };
+    sender.sendTaggedField1Only(data3);
+    EXPECT_TRUE(receiver.waitUntil([&] { return receiveCount.load() >= 3; }));
+    EXPECT_EQ(received.field1, 3);
 
     // Send mode 3b: tagged, only field2 changed.
-    // const TwoFields data4{ .field1 = 3, .field2 = 4.0 };
-    // sender.sendTaggedField2Only(data4);
-    // EXPECT_TRUE(receiver.waitUntil([&] { return receiveCount.load() >= 4; }));
-    // EXPECT_DOUBLE_EQ(received.field2, 4.0);
+    const TwoFields data4{ .field1 = 3, .field2 = 4.0 };
+    sender.sendTaggedField2Only(data4);
+    EXPECT_TRUE(receiver.waitUntil([&] { return receiveCount.load() >= 4; }));
+    EXPECT_DOUBLE_EQ(received.field2, 4.0);
 
     sender.close();
     receiver.close();
 }
 
-
-#if 0  // NOLINT(readability-avoid-unconditional-preprocessor-if)
 
 /**
  * Untagged receive with when-changed.
@@ -418,7 +413,5 @@ TEST(TestTaggedClientData, TaggedWhenChangedReceive) {
     sender.close();
     receiver.close();
 }
-
-#endif // 0
 
 //NOLINTEND(readability-function-cognitive-complexity)

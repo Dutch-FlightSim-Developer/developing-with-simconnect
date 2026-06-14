@@ -1426,8 +1426,8 @@ public:
         if (failed()) {
             logger_.error("SimConnect_RequestClientData (tagged) failed with error code 0x{:08X}.", state());
         } else {
-            logger_.debug("Requested tagged client data {} (requestId={}, frequency={}, sendOnlyWhenChanged={}, sendId={})",
-                clientDataId, requestId, static_cast<int>(frequency.getPeriod()), static_cast<int>(frequency.getInterval()), sendOnlyWhenChanged, fetchSendIdInternal());
+            logger_.debug("Requested tagged client data {} (defId={}, requestId={}, period={}, interval={}, sendOnlyWhenChanged={}, sendId={})",
+                clientDataId, defId, requestId, static_cast<int>(frequency.getPeriod()), static_cast<int>(frequency.getInterval()), sendOnlyWhenChanged, fetchSendIdInternal());
         }
         return static_cast<Derived&>(*this);
     }

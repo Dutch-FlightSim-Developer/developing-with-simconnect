@@ -18,6 +18,7 @@
 #include <unordered_map>
 #include <atomic>
 #include <cstdint>
+#include <initializer_list>
 #include <string>
 #include <string_view>
 #include <type_traits>
@@ -291,6 +292,22 @@ public:
         def.define(simConnectMessageHandler_.connection());
         Data::DataBlockBuilder builder;
         def.marshal(builder, data, true);
+        simConnectMessageHandler_.connection().sendClientDataTagged(clientDataId, def.id(), builder.dataBlock());
+    }
+
+    /**
+     * Send only the fields whose datum IDs appear in `datumIds`, in tagged (datum/value) format.
+     *
+     * Defines the area if not yet defined (idempotent). Use this to update a subset of fields
+     * without rewriting the whole struct.
+     */
+    template <typename StructType, bool TrackChanges>
+    void sendClientDataTagged(ClientDataId clientDataId, MappedClientDataDefinition<StructType, TrackChanges>& def, const StructType& data,
+        std::initializer_list<unsigned long> datumIds)
+    {
+        def.define(simConnectMessageHandler_.connection());
+        Data::DataBlockBuilder builder;
+        def.marshal(builder, data, datumIds);
         simConnectMessageHandler_.connection().sendClientDataTagged(clientDataId, def.id(), builder.dataBlock());
     }
 
@@ -587,6 +604,41 @@ public:
             def.dispatch(reinterpret_cast<const Messages::ClientDataMsg&>(msg), handler);  //NOLINT(cppcoreguidelines-pro-type-reinterpret-cast)
         }, frequency.isOnce());
         simConnectMessageHandler_.connection().requestClientData(clientDataId, defId, requestId, frequency, limits, onlyWhenChanged);
+
+        return frequency.isOnce()
+            ? Request{ requestId }
+            : Request{ requestId, [this, clientDataId, defId, requestId]() {
+                this->stopClientDataRequest(clientDataId, defId, requestId);
+            }};
+    }
+
+
+    /**
+     * Request client data in tagged format, delivering each update as a const StructType reference.
+     *
+     * Defines the area if not yet defined (idempotent). `def.dispatch()` decides at runtime
+     * how to unmarshal based on the message's tagged flag.
+     */
+    template <typename DefType, typename HandlerType>
+        requires ClientDataDefinitionConcept<DefType, decltype(simConnectMessageHandler_.connection())> &&
+                 ClientDataHandlerConcept<HandlerType, typename DefType::struct_type>
+    [[nodiscard]]
+    Request requestClientDataTagged(
+        ClientDataId clientDataId,
+        DefType& def,
+        HandlerType handler,
+        ClientDataFrequency frequency = ClientDataFrequency::once(),
+        PeriodLimits limits = PeriodLimits::none(),
+        bool onlyWhenChanged = false)
+    {
+        def.define(simConnectMessageHandler_.connection());
+        const auto defId = def.id();
+        const auto requestId = simConnectMessageHandler_.connection().requests().nextRequestID();
+
+        this->registerHandler(requestId, [&def, handler](const Messages::MsgBase& msg) {
+            def.dispatch(reinterpret_cast<const Messages::ClientDataMsg&>(msg), handler);  //NOLINT(cppcoreguidelines-pro-type-reinterpret-cast)
+        }, frequency.isOnce());
+        simConnectMessageHandler_.connection().requestClientDataTagged(clientDataId, defId, requestId, frequency, limits, onlyWhenChanged);
 
         return frequency.isOnce()
             ? Request{ requestId }

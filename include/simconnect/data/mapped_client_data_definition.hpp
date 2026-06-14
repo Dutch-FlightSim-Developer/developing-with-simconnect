@@ -15,7 +15,9 @@
  * limitations under the License.
  */
 
+#include <algorithm>
 #include <cstring>
+#include <initializer_list>
 #include <type_traits>
 #include <functional>
 #include <vector>
@@ -178,6 +180,27 @@ public:
                 if (isTagged) {
                     builder.addInt32(static_cast<int32_t>(field.datumId));
                 }
+                field.getter(builder, data);
+            }
+        }
+        if constexpr (TrackChanges) { // we may have multiple writers
+            lastKnown_ = data;
+        }
+    }
+
+
+    /**
+     * Serialize only the fields whose datum IDs appear in `datumIds`, in tagged
+     * (datum/value) format.
+     *
+     * @param builder   Target buffer.
+     * @param data      The struct to serialize.
+     * @param datumIds  The datum IDs of the fields to include.
+     */
+    void marshal(Data::DataBlockBuilder& builder, const StructType& data, std::initializer_list<unsigned long> datumIds) {
+        for (const auto& field : fields_) {
+            if (std::find(datumIds.begin(), datumIds.end(), field.datumId) != datumIds.end()) {
+                builder.addInt32(static_cast<int32_t>(field.datumId));
                 field.getter(builder, data);
             }
         }

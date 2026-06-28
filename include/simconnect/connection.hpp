@@ -703,7 +703,7 @@ public:
     Derived& setSystemEventState(SimConnect::event evt, bool enabled) {
         guard_type guard(mutex_);
 
-        state(SimConnect_SetSystemEventState(hSimConnect_, evt.id(), enabled ? Events::on : Events::off));
+        state(SimConnect_SetSystemEventState(hSimConnect_, evt.id(), static_cast<SIMCONNECT_STATE>(enabled ? Events::on : Events::off)));
         if (failed()) {
             logger_.error("SimConnect_SetSystemEventState failed with error code 0x{:08X}.", state());
         } else {

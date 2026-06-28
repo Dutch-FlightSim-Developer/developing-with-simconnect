@@ -281,29 +281,29 @@ void runTest()
   handler.registerHandler<Messages::QuitMsg>(Messages::quit, handleClose);
   handler.registerHandler<Messages::ExceptionMsg>(Messages::exception, handleException);
 
-  FlowEvents flowEvents(handler);
-  auto flowEventReg = flowEvents.subscribe({
-      .fltLoad    = [](std::string_view flt) { std::cout << std::format("Flight file loading: {}\n", flt); },
-      .fltLoaded  = [](std::string_view flt) { std::cout << std::format("Flight file loaded:  {}\n", flt); },
-      .teleportStart   = []() { std::cout << "Teleport starting.\n"; },
-      .teleportDone    = []() { std::cout << "Teleport complete.\n"; },
-      .backOnTrackStart = []() { std::cout << "Back on track starting.\n"; },
-      .backOnTrackDone  = []() { std::cout << "Back on track complete.\n"; },
-      .skipStart   = []() { std::cout << "Skip starting.\n"; },
-      .skipDone    = []() { std::cout << "Skip complete.\n"; },
-      .backToMainMenu  = []() { std::cout << "Returning to main menu.\n"; },
-      .rtcStart    = []() { std::cout << "Real-time communication starting.\n"; },
-      .rtcEnd      = []() { std::cout << "Real-time communication ended.\n"; },
-      .replayStart = []() { std::cout << "Replay starting.\n"; },
-      .replayEnd   = []() { std::cout << "Replay ended.\n"; },
-      .flightStart = []() { std::cout << "Flight starting.\n"; },
-      .flightEnd   = []() { std::cout << "Flight ended.\n"; },
-      .planeCrash  = []() { std::cout << "Plane crashed.\n"; },
-  });
-
   if (connection.open()) {
-    std::cout << "Listening for flow events. Trigger them by loading a flight, teleporting, crashing, etc.\n";
-    handler.handle();
+      FlowEvents flowEvents(handler);
+      auto flowEventReg = flowEvents.subscribe({
+          .fltLoad    = [](std::string_view flt) { std::cout << std::format("Flight file loading: {}\n", flt); },
+          .fltLoaded  = [](std::string_view flt) { std::cout << std::format("Flight file loaded:  {}\n", flt); },
+          .teleportStart   = []() { std::cout << "Teleport starting.\n"; },
+          .teleportDone    = []() { std::cout << "Teleport complete.\n"; },
+          .backOnTrackStart = []() { std::cout << "Back on track starting.\n"; },
+          .backOnTrackDone  = []() { std::cout << "Back on track complete.\n"; },
+          .skipStart   = []() { std::cout << "Skip starting.\n"; },
+          .skipDone    = []() { std::cout << "Skip complete.\n"; },
+          .backToMainMenu  = []() { std::cout << "Returning to main menu.\n"; },
+          .rtcStart    = []() { std::cout << "Real-time communication starting.\n"; },
+          .rtcEnd      = []() { std::cout << "Real-time communication ended.\n"; },
+          .replayStart = []() { std::cout << "Replay starting.\n"; },
+          .replayEnd   = []() { std::cout << "Replay ended.\n"; },
+          .flightStart = []() { std::cout << "Flight starting.\n"; },
+          .flightEnd   = []() { std::cout << "Flight ended.\n"; },
+          .planeCrash  = []() { std::cout << "Plane crashed.\n"; },
+          });
+
+      std::cout << "Listening for flow events. Trigger them by loading a flight, teleporting, crashing, etc.\n";
+    handler.handleUntilClosed();
     flowEventReg.stop();
   } else {
     std::cerr << "Failed to connect to simulator.\n";

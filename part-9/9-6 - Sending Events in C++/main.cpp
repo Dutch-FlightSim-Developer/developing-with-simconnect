@@ -273,10 +273,10 @@ auto main([[maybe_unused]] int argc, [[maybe_unused]] const char* argv[]) -> int
         std::cerr << "[ABORTING: No event name specified.]\n";
         return 1;
     }
-    const std::string eventName(args["Arg1"]);
+    const std::string eventName(args["Arg1"]);          // NOLINT(cppcoreguidelines-pro-bounds-avoid-unchecked-container-access)
     unsigned long eventValue{ 0 };
     if (args.has("Arg2")) {
-        const std::string eventValueStr(args["Arg2"]);
+        const std::string eventValueStr(args["Arg2"]);  // NOLINT(cppcoreguidelines-pro-bounds-avoid-unchecked-container-access)
         // allow hex values
         if (eventValueStr.starts_with("0x") || eventValueStr.starts_with("0X")) {
             eventValue = std::stoul(eventValueStr, nullptr, 0);
@@ -312,7 +312,7 @@ auto main([[maybe_unused]] int argc, [[maybe_unused]] const char* argv[]) -> int
 
     auto inputGroup = eventHandler.createInputGroup().withHighestPriority().enable();
     // Set up keyboard input if requested
-    std::vector<typename EventHandler<WindowsEventHandler<true, ConsoleLogger>>::registration_type> eventRegistrations;
+    std::vector<EventHandler<WindowsEventHandler<true, ConsoleLogger>>::registration_type> eventRegistrations;
     if (!setupKeys(eventHandler, inputGroup, eventRegistrations, [&connection] { connection.close(); })) {
       std::cerr << "[ABORTING: Failed to set up keyboard input]\n";
       return 1;
@@ -325,7 +325,7 @@ auto main([[maybe_unused]] int argc, [[maybe_unused]] const char* argv[]) -> int
     
     auto timeout = 1s;
     if (args.has("timeout")) {
-        const std::string timeoutStr(args["timeout"]);
+        const std::string timeoutStr(args["timeout"]);  // NOLINT(cppcoreguidelines-pro-bounds-avoid-unchecked-container-access)
         timeout = std::chrono::seconds(std::stoul(timeoutStr));
     }
     connectionHandler.handleFor(timeout);

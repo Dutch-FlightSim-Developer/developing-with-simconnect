@@ -47,7 +47,7 @@
 /**
  * A shorthand test if we need to avoid using MSFS 2024 specific features.
  */
-#if defined(SIMCONNECT_TYPEDEF)
+#ifdef SIMCONNECT_TYPEDEF
 #define MSFS_2024_SDK 1     // NOLINT(cppcoreguidelines-macro-usage)
 #else
 #define MSFS_2024_SDK 0     // NOLINT(cppcoreguidelines-macro-usage)
@@ -382,7 +382,7 @@ static void parseUntagged([[maybe_unused]] const uint8_t* ptr, [[maybe_unused]] 
     index += sizeof(int32_t);
 
 	if (index < dataSize) {
-        std::cerr << std::format("Skipping {} unused byte(s).\n", int(dataSize - index));
+        std::cerr << std::format("Skipping {} unused byte(s).\n", static_cast<int>(dataSize - index));
     }
 	else if (index > dataSize) {
         std::cerr << "Not enough data!\n";
@@ -484,7 +484,7 @@ static void parseTagged([[maybe_unused]] const uint8_t* ptr, [[maybe_unused]] un
         }
     }
 	if (index < dataSize) {
-        std::cout << std::format("Skipping {} unused byte(s).\n", int(dataSize - index));
+        std::cout << std::format("Skipping {} unused byte(s).\n", static_cast<int>(dataSize - index));
     }
 	else if (index > dataSize) {
         std::cerr << "Not enough data!\n";
@@ -620,12 +620,12 @@ static int testConnect()
 	if (SUCCEEDED(result)) {
         std::cout << "Successfully connected to MSFS.\n";
 
-		SimConnect_AddToDataDefinition(hSimConnect, aircraftInfoId, "title", nullptr, SIMCONNECT_DATATYPE_STRINGV, 0, int(DatumId::Title));
-		SimConnect_AddToDataDefinition(hSimConnect, aircraftInfoId, "is user sim", "bool", SIMCONNECT_DATATYPE_INT32, 0, int(DatumId::IsUser));
-		SimConnect_AddToDataDefinition(hSimConnect, aircraftInfoId, "atc id", nullptr, SIMCONNECT_DATATYPE_STRINGV, 0, int(DatumId::AtcId));
-		SimConnect_AddToDataDefinition(hSimConnect, aircraftInfoId, "atc model", nullptr, SIMCONNECT_DATATYPE_STRINGV, 0, int(DatumId::AtcModel));
-		SimConnect_AddToDataDefinition(hSimConnect, aircraftInfoId, "aircraft AGL", "feet", SIMCONNECT_DATATYPE_INT32, 0, int(DatumId::AltAGL));
-		SimConnect_AddToDataDefinition(hSimConnect, aircraftInfoId, "plane altitude", "feet", SIMCONNECT_DATATYPE_INT32, 0, int(DatumId::AltASL));
+		SimConnect_AddToDataDefinition(hSimConnect, aircraftInfoId, "title", nullptr, SIMCONNECT_DATATYPE_STRINGV, 0, static_cast<int>(DatumId::Title));
+		SimConnect_AddToDataDefinition(hSimConnect, aircraftInfoId, "is user sim", "bool", SIMCONNECT_DATATYPE_INT32, 0, static_cast<int>(DatumId::IsUser));
+		SimConnect_AddToDataDefinition(hSimConnect, aircraftInfoId, "atc id", nullptr, SIMCONNECT_DATATYPE_STRINGV, 0, static_cast<int>(DatumId::AtcId));
+		SimConnect_AddToDataDefinition(hSimConnect, aircraftInfoId, "atc model", nullptr, SIMCONNECT_DATATYPE_STRINGV, 0, static_cast<int>(DatumId::AtcModel));
+		SimConnect_AddToDataDefinition(hSimConnect, aircraftInfoId, "aircraft AGL", "feet", SIMCONNECT_DATATYPE_INT32, 0, static_cast<int>(DatumId::AltAGL));
+		SimConnect_AddToDataDefinition(hSimConnect, aircraftInfoId, "plane altitude", "feet", SIMCONNECT_DATATYPE_INT32, 0, static_cast<int>(DatumId::AltASL));
 
 		SimConnect_RequestDataOnSimObject(hSimConnect, reqId, aircraftInfoId, SIMCONNECT_SIMOBJECT_TYPE_USER, SIMCONNECT_PERIOD_ONCE, SIMCONNECT_DATA_REQUEST_FLAG_TAGGED);
 

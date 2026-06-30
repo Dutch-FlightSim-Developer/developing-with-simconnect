@@ -1325,18 +1325,18 @@ auto main(int argc, const char *argv[]) -> int// NOLINT(bugprone-exception-escap
 
     const Util::Args args(std::span<const char*>(argv, argc));
 
-    const std::string icao(args["Arg1"]);
-    const std::string region(args["region"]);
-    const std::string filter(args["filter"]);
+    const std::string icao(args["Arg1"]);     // NOLINT(cppcoreguidelines-pro-bounds-avoid-unchecked-container-access)
+    const std::string region(args["region"]); // NOLINT(cppcoreguidelines-pro-bounds-avoid-unchecked-container-access)
+    const std::string filter(args["filter"]); // NOLINT(cppcoreguidelines-pro-bounds-avoid-unchecked-container-access)
 
     std::string type("airport");
     if (args.has("type")) {
-        type = std::string(args["type"]);
+        type = std::string(args["type"]);     // NOLINT(cppcoreguidelines-pro-bounds-avoid-unchecked-container-access)
     }
 
     FacilitiesListScope scope = FacilitiesListScope::allFacilities;
     if (args.has("scope")) {
-        const std::string scopeStr(args["scope"]);
+        const std::string scopeStr(args["scope"]);  // NOLINT(cppcoreguidelines-pro-bounds-avoid-unchecked-container-access)
         if (scopeStr == "cache") {
             scope = FacilitiesListScope::cacheOnly;
         } else if (scopeStr == "bubble") {

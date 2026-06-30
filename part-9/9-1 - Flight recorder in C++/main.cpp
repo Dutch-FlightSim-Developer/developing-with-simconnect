@@ -714,7 +714,7 @@ auto main(int argc, const char* argv[]) -> int // NOLINT(bugprone-exception-esca
     InputGroup inputGroup = eventHandler.createInputGroup().withHighestPriority();
 
     // Set up keyboard input if requested
-    std::vector<typename EventHandler<WindowsEventHandler<true, ConsoleLogger>>::registration_type> eventRegistrations;
+    std::vector<EventHandler<WindowsEventHandler<true, ConsoleLogger>>::registration_type> eventRegistrations;
     if (useKeyboard && !setupKeys(eventHandler, inputGroup, eventRegistrations,
         [&positionDataWriter, &dataHandler]() {
             positionDataWriter.toggleRecording(dataHandler);

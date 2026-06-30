@@ -294,7 +294,7 @@ auto main([[maybe_unused]] int argc, [[maybe_unused]] const char* argv[]) -> int
 
     auto inputGroup = eventHandler.createInputGroup().withHighestPriority().enable();
     // Set up keyboard input if requested
-    std::vector<typename EventHandler<WindowsEventHandler<true, ConsoleLogger>>::registration_type> eventRegistrations;
+    std::vector<EventHandler<WindowsEventHandler<true, ConsoleLogger>>::registration_type> eventRegistrations;
     if (!setupKeys(eventHandler, inputGroup, eventRegistrations, [&connection] { connection.close(); })) {
       std::cerr << "[ABORTING: Failed to set up keyboard input]\n";
       return 1;

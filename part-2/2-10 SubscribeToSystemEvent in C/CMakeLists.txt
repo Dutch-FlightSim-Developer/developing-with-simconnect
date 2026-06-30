@@ -25,4 +25,5 @@ target_link_libraries(2-10-SubscribeToSystemEvent-in-C
 # Set output directory
 set_target_properties(2-10-SubscribeToSystemEvent-in-C PROPERTIES
     RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}"
+    CXX_CLANG_TIDY ""
 )

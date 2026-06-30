@@ -42,6 +42,12 @@ function(cmake_cpp_simconnect_setup_dependencies)
       "gtest_force_shared_crt ON")
   endif()
 
+  foreach(_gtest_target IN ITEMS gtest gtest_main gmock gmock_main)
+    if(TARGET ${_gtest_target})
+      target_compile_options(${_gtest_target} PRIVATE -Wno-character-conversion)
+    endif()
+  endforeach()
+
   if(NOT TARGET CLI11::CLI11)
     cpmaddpackage("gh:CLIUtils/CLI11@2.5.0")
   endif()

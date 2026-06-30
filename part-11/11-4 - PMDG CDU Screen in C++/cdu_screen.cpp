@@ -138,7 +138,7 @@ static void renderCell(const PMDG_NG3_CDU_Cell& cell)
     }
 
     const unsigned int colorIdx = (static_cast<std::size_t>(cell.Color) < CDU_FG_COLORS.size()) ? cell.Color : 0U;
-    std::cout << CDU_FG_COLORS[colorIdx]; // NOLINT(cppcoreguidelines-pro-bounds-constant-array-index)
+    std::cout << CDU_FG_COLORS[colorIdx]; // NOLINT(cppcoreguidelines-pro-bounds-constant-array-index, cppcoreguidelines-pro-bounds-avoid-unchecked-container-access)
 
     if ((cell.Flags & cduFlagUnused) != 0) {
         std::cout << ANSI_DIM;

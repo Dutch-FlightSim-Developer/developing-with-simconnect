@@ -376,7 +376,10 @@ public:
             }, frequency.isOnce());
         simConnectMessageHandler_.connection().requestClientData(clientDataId, definitionId, requestId, frequency, limits, onlyWhenChanged);
 
-        return frequency.isOnce() ? Request{ requestId } : Request{ requestId, [this, clientDataId, definitionId, requestId]() { this->stopClientDataRequest(clientDataId, definitionId, requestId); } };
+        if (frequency.isOnce()) {
+            return Request{ requestId };
+        }
+        return Request{ requestId, [this, clientDataId, definitionId, requestId]() { this->stopClientDataRequest(clientDataId, definitionId, requestId); } };
     }
 
 
@@ -429,7 +432,10 @@ public:
             }, frequency.isOnce());
         simConnectMessageHandler_.connection().requestClientDataTagged(clientDataId, definitionId, requestId, frequency, limits, onlyWhenChanged);
 
-        return frequency.isOnce() ? Request{ requestId } : Request{ requestId, [this, clientDataId, definitionId, requestId]() { this->stopClientDataRequest(clientDataId, definitionId, requestId); } };
+        if (frequency.isOnce()) {
+            return Request{ requestId };
+        }
+        return Request{ requestId, [this, clientDataId, definitionId, requestId]() { this->stopClientDataRequest(clientDataId, definitionId, requestId); } };
     }
 
 
@@ -486,7 +492,10 @@ public:
             }, frequency.isOnce());
         simConnectMessageHandler_.connection().requestClientData(clientDataId, definitionId, requestId, frequency, limits, onlyWhenChanged);
 
-        return frequency.isOnce() ? Request{ requestId } : Request{ requestId, [this, clientDataId, definitionId, requestId]() { this->stopClientDataRequest(clientDataId, definitionId, requestId); } };
+        if (frequency.isOnce()) {
+            return Request{ requestId };
+        }
+        return Request{ requestId, [this, clientDataId, definitionId, requestId]() { this->stopClientDataRequest(clientDataId, definitionId, requestId); } };
     }
 
 
@@ -540,7 +549,10 @@ public:
             }, frequency.isOnce());
         simConnectMessageHandler_.connection().requestClientDataTagged(clientDataId, definitionId, requestId, frequency, limits, onlyWhenChanged);
 
-        return frequency.isOnce() ? Request{ requestId } : Request{ requestId, [this, clientDataId, definitionId, requestId]() { this->stopClientDataRequest(clientDataId, definitionId, requestId); } };
+        if (frequency.isOnce()) {
+            return Request{ requestId };
+        }
+        return Request{ requestId, [this, clientDataId, definitionId, requestId]() { this->stopClientDataRequest(clientDataId, definitionId, requestId); } };
     }
 
 
@@ -605,11 +617,12 @@ public:
         }, frequency.isOnce());
         simConnectMessageHandler_.connection().requestClientData(clientDataId, defId, requestId, frequency, limits, onlyWhenChanged);
 
-        return frequency.isOnce()
-            ? Request{ requestId }
-            : Request{ requestId, [this, clientDataId, defId, requestId]() {
-                this->stopClientDataRequest(clientDataId, defId, requestId);
-            }};
+        if (frequency.isOnce()) {
+            return Request{ requestId };
+        }
+        return Request{ requestId, [this, clientDataId, defId, requestId]() {
+            this->stopClientDataRequest(clientDataId, defId, requestId);
+        }};
     }
 
 
@@ -763,11 +776,12 @@ public:
         }, frequency.isOnce());
         simConnectMessageHandler_.connection().requestClientData(clientDataId, defId, requestId, frequency, limits, onlyWhenChanged);
 
-        return frequency.isOnce()
-            ? Request{ requestId }
-            : Request{ requestId, [this, clientDataId, defId, requestId]() {
-                this->stopClientDataRequest(clientDataId, defId, requestId);
-            }};
+        if (frequency.isOnce()) {
+            return Request{ requestId };
+        }
+        return Request{ requestId, [this, clientDataId, defId, requestId]() {
+            this->stopClientDataRequest(clientDataId, defId, requestId);
+        }};
     }
 
     /**
@@ -810,11 +824,12 @@ public:
         }, frequency.isOnce());
         simConnectMessageHandler_.connection().requestClientDataTagged(clientDataId, defId, requestId, frequency, limits, onlyWhenChanged);
 
-        return frequency.isOnce()
-            ? Request{ requestId }
-            : Request{ requestId, [this, clientDataId, defId, requestId]() {
-                this->stopClientDataRequest(clientDataId, defId, requestId);
-            }};
+        if (frequency.isOnce()) {
+            return Request{ requestId };
+        }
+        return Request{ requestId, [this, clientDataId, defId, requestId]() {
+            this->stopClientDataRequest(clientDataId, defId, requestId);
+        }};
     }
 
 #pragma endregion // StatelessClientDataDefinition Client Data Requests

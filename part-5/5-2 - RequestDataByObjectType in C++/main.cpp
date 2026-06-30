@@ -23,7 +23,7 @@
 #include <map>
 #include <unordered_map>
 #include <iostream>
-#include <vector>
+#include <array>
 #include <string>
 #include <format>
 
@@ -293,31 +293,31 @@ void setupSimObjectInfoDefinition(DataDefinition<SimObjectInfo>& def) {
 
 void handleSimObjectDataMap(std::unordered_map<unsigned long, SimObjectInfo>& result) {
 	std::cout << "Received data for " << result.size() << " SimObjects\n";
-	std::vector<int> objectCount(static_cast<std::size_t>(SimObjectTypes::max) + 1, 0);
+	std::array<int, static_cast<std::size_t>(SimObjectTypes::max) + 1> objectCount{};
 	std::set<std::string> unknownCategories;
 	std::map<std::string, std::set<std::string>> titlesPerCategory;
 
 	for (const auto& [simObjectId, simObject] : result) {
 		if (simObject.category == "Airplane") {
 			std::cout << std::format("Adding airplane '{}'.\n", simObject.title);
-			++objectCount[SimObjectTypes::aircraft];
+			++objectCount[SimObjectTypes::aircraft];      // NOLINT(cppcoreguidelines-pro-bounds-avoid-unchecked-container-access)
 		}
 		else if (simObject.category == "Helicopter") {
 			std::cout << std::format("Adding helicopter '{}'.\n", simObject.title);
-			++objectCount[SimObjectTypes::helicopter];
+			++objectCount[SimObjectTypes::helicopter];    // NOLINT(cppcoreguidelines-pro-bounds-avoid-unchecked-container-access)
 		}
 		else if (simObject.category == "Boat") {
 			std::cout << std::format("Adding boat '{}'.\n", simObject.title);
-			++objectCount[SimObjectTypes::boat];
+			++objectCount[SimObjectTypes::boat];          // NOLINT(cppcoreguidelines-pro-bounds-avoid-unchecked-container-access)
 		}
 		else if (simObject.category == "GroundVehicle") {
 			std::cout << std::format("Adding ground vehicle '{}'.\n", simObject.title);
-			++objectCount[SimObjectTypes::ground];
+			++objectCount[SimObjectTypes::ground];        // NOLINT(cppcoreguidelines-pro-bounds-avoid-unchecked-container-access)
 		}
 #if MSFS_2024_SDK
-        else if (simObject.category == "Animal") { // NOLINT(readability-misleading-indentation)
+        else if (simObject.category == "Animal") {  // NOLINT(readability-misleading-indentation)
             std::cout << std::format("Adding animal '{}'.\n", simObject.title);
-            ++objectCount[SimObjectTypes::animal];
+            ++objectCount[SimObjectTypes::animal];  // NOLINT(cppcoreguidelines-pro-bounds-avoid-unchecked-container-access)
         }
 #endif
 		else {
@@ -340,12 +340,12 @@ void handleSimObjectDataMap(std::unordered_map<unsigned long, SimObjectInfo>& re
 	}
 	std::cout << "\n"
 		<< "Summary of SimObjects by type:\n"
-		<< "Aircraft ..... : " << objectCount[SimObjectTypes::aircraft] << "\n"
-		<< "Helicopters .. : " << objectCount[SimObjectTypes::helicopter] << "\n"
-		<< "Boats ........ : " << objectCount[SimObjectTypes::boat] << "\n"
-		<< "Ground Vehicles: " << objectCount[SimObjectTypes::ground] << "\n"
+		<< "Aircraft ..... : " << objectCount[SimObjectTypes::aircraft] << "\n"     // NOLINT(cppcoreguidelines-pro-bounds-avoid-unchecked-container-access)
+		<< "Helicopters .. : " << objectCount[SimObjectTypes::helicopter] << "\n"   // NOLINT(cppcoreguidelines-pro-bounds-avoid-unchecked-container-access)
+		<< "Boats ........ : " << objectCount[SimObjectTypes::boat] << "\n"         // NOLINT(cppcoreguidelines-pro-bounds-avoid-unchecked-container-access)
+		<< "Ground Vehicles: " << objectCount[SimObjectTypes::ground] << "\n"       // NOLINT(cppcoreguidelines-pro-bounds-avoid-unchecked-container-access)
 #if MSFS_2024_SDK
-		<< "Animals ...... : " << objectCount[SimObjectTypes::animal] << "\n"
+		<< "Animals ...... : " << objectCount[SimObjectTypes::animal] << "\n"       // NOLINT(cppcoreguidelines-pro-bounds-avoid-unchecked-container-access)
 #endif
 		<< "\n";
 	if (!unknownCategories.empty()) {

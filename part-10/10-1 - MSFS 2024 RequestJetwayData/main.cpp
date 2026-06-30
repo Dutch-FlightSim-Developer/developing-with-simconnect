@@ -253,7 +253,7 @@ auto main([[maybe_unused]] int argc, [[maybe_unused]] const char* argv[]) -> int
         std::cerr << "No airport selected. Please provide an airport ICAO code as the first argument.\n";
         return 1;
     }
-    const std::string airport(args[1]);
+    const std::string airport(args[1]); // NOLINT(cppcoreguidelines-pro-bounds-avoid-unchecked-container-access)
 
     // Connect to the simulator
     ThisConnection connection(appName);

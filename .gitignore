@@ -422,3 +422,16 @@ cmake_test_discovery_*.json
 /.claude
 .codex
 .clangd
+
+# MSFS Developer Mode / Project Editor build artifacts (any project, e.g. part-13's EFB)
+Packages/
+PackagesMetadata/
+_PackageInt/
+
+# EFB (Node/npm/TypeScript) app build output
+**/PackageSources/*/dist/
+
+# EFB (Node/npm/TypeScript) app dependencies copied in from the SDK - too large/binary to
+# check in, see the "One-time setup" section of the relevant EFB README for how to restore them
+**/PackageSources/efb_api/
+**/PackageSources/vendor/

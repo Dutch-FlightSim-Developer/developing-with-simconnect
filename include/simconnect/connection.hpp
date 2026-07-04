@@ -754,6 +754,84 @@ public:
 
 #pragma endregion
 
+#pragma region Communication (CommBus)
+
+#if MSFS_2024_SDK
+
+    /**
+     * Subscribe to a CommBus event.
+     *
+     * Subscribes this connection to receive SIMCONNECT_RECV_ID_COMM_BUS messages for the
+     * given event. CommBus event IDs share the same ID space as regular client events.
+     *
+     * @param evt The event to subscribe to.
+     * @returns A reference to the derived connection for chaining.
+     */
+    Derived& subscribeToCommBusEvent(SimConnect::event evt) {
+        guard_type guard(mutex_);
+
+        state(SimConnect_SubscribeToCommBusEvent(hSimConnect_, evt.id(), evt.name().c_str()));
+        if (failed()) {
+            logger_.error("SimConnect_SubscribeToCommBusEvent failed with error code 0x{:08X}.", state());
+        } else {
+            logger_.debug("Subscribed to CommBus event '{}' (sendId={})", evt.name(), fetchSendIdInternal());
+        }
+        return static_cast<Derived&>(*this);
+    }
+
+
+    /**
+     * Unsubscribe from a CommBus event.
+     *
+     * @param evt The event to unsubscribe from.
+     * @returns A reference to the derived connection for chaining.
+     */
+    Derived& unsubscribeFromCommBusEvent(SimConnect::event evt) {
+        guard_type guard(mutex_);
+
+        state(SimConnect_UnsubscribeToCommBusEvent(hSimConnect_, evt.id()));
+        if (failed()) {
+            logger_.error("SimConnect_UnsubscribeToCommBusEvent failed with error code 0x{:08X}.", state());
+        } else {
+            logger_.debug("Unsubscribed from CommBus event '{}' (sendId={})", evt.name(), fetchSendIdInternal());
+        }
+        return static_cast<Derived&>(*this);
+    }
+
+
+    /**
+     * Calls (broadcasts) a CommBus event with a string payload.
+     *
+     * Unlike regular SimConnect events or Client Data, there is no need to register or map
+     * the event name beforehand - just pick a name and broadcast to it. If nobody is
+     * subscribed, the call is a no-op. The payload is sent with a trailing null terminator
+     * so raw C/C++ receivers can treat the received buffer as a C string.
+     *
+     * @param eventName The name of the CommBus event to call.
+     * @param data The string payload to send with the event.
+     * @param broadcastTo The target platform(s) to broadcast the event to. Defaults to CommBusBroadcastTo::defaultFlag (JS + WASM + other SimConnect clients).
+     * @returns A reference to the derived connection for chaining.
+     */
+    Derived& callCommBusEvent(std::string_view eventName, std::string_view data, CommBusBroadcastToFlag broadcastTo = CommBusBroadcastTo::defaultFlag) {
+        guard_type guard(mutex_);
+
+        const std::string name(eventName);
+        const std::string payload(data);
+        const DWORD bufferSize = static_cast<DWORD>(payload.size() + 1); // include null terminator
+
+        state(SimConnect_CallCommBusEvent(hSimConnect_, name.c_str(), broadcastTo, bufferSize, payload.c_str()));
+        if (failed()) {
+            logger_.error("SimConnect_CallCommBusEvent failed with error code 0x{:08X}.", state());
+        } else {
+            logger_.debug("Called CommBus event '{}' with {} byte(s) of data (sendId={})", name, bufferSize, fetchSendIdInternal());
+        }
+        return static_cast<Derived&>(*this);
+    }
+
+#endif // MSFS_2024_SDK
+
+#pragma endregion // Communication (CommBus)
+
 #pragma region Input Groups
 
     /**

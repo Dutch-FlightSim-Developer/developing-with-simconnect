@@ -605,4 +605,24 @@ namespace FlowEventIds {
 
 #pragma endregion // Events
 
+#pragma region Communication (CommBus)
+
+#if MSFS_2024_SDK
+
+using CommBusBroadcastToFlag = SIMCONNECT_COMM_BUS_BROADCAST_TO;   ///< The type used for CommBus broadcast target flags.
+
+namespace CommBusBroadcastTo {
+    inline constexpr CommBusBroadcastToFlag js{ SIMCONNECT_COMM_BUS_BROADCAST_TO_JS };                                     ///< Broadcast to all subscribed JS gauges.
+    inline constexpr CommBusBroadcastToFlag wasm{ SIMCONNECT_COMM_BUS_BROADCAST_TO_WASM };                                 ///< Broadcast to all subscribed WASM gauges.
+    inline constexpr CommBusBroadcastToFlag simConnect{ SIMCONNECT_COMM_BUS_BROADCAST_TO_SIMCONNECT };                     ///< Broadcast to all subscribed SimConnect clients, except itself.
+    inline constexpr CommBusBroadcastToFlag simConnectSelfCall{ SIMCONNECT_COMM_BUS_BROADCAST_TO_SIMCONNECT_SELF_CALL };   ///< Broadcast to all SimConnect clients, including itself. Requires simConnect to also be set.
+    inline constexpr CommBusBroadcastToFlag defaultFlag{ SIMCONNECT_COMM_BUS_BROADCAST_TO_DEFAULT };                       ///< Broadcast to JS and WASM gauges, and SimConnect clients except itself.
+    inline constexpr CommBusBroadcastToFlag allSimConnect{ SIMCONNECT_COMM_BUS_BROADCAST_TO_ALL_SIMCONNECT };              ///< Broadcast to all SimConnect clients, including itself.
+    inline constexpr CommBusBroadcastToFlag all{ SIMCONNECT_COMM_BUS_BROADCAST_TO_ALL };                                   ///< Broadcast to JS and WASM gauges, and all SimConnect clients, including itself.
+}
+
+#endif // MSFS_2024_SDK
+
+#pragma endregion // Communication (CommBus)
+
 } // namespace SimConnect

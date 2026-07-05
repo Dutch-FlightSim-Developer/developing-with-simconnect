@@ -53,6 +53,8 @@ struct FlowEventHandlers {
     std::function<void()> planeCrash;                     ///< Aircraft crashed.
 };
 
+#else
+#error "flow_event_handlers.hpp requires the MSFS 2024 SDK (Flow Events are not available in earlier SDK versions)."
 #endif // MSFS_2024_SDK
 
 

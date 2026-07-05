@@ -167,6 +167,8 @@ public:
 
 };
 
+#else
+#error "comm_bus_handler.hpp requires the MSFS 2024 SDK (CommBus is not available in earlier SDK versions)."
 #endif // MSFS_2024_SDK
 
 } // namespace SimConnect

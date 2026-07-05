@@ -716,47 +716,55 @@ public:
 
 #pragma region Flow Events
 
-#if MSFS_2024_SDK
-
     /**
      * Subscribe to all flow events.
+     *
+     * @note Requires the MSFS 2024 SDK - fails to compile (static_assert) if called from a build
+     * targeting an older SDK, rather than silently not existing.
      * @returns A reference to the derived connection for chaining.
      */
     Derived& subscribeToFlowEvents() {
         guard_type guard(mutex_);
 
+#if MSFS_2024_SDK
         state(SimConnect_SubscribeToFlowEvent(hSimConnect_));
         if (failed()) {
             logger_.error("SimConnect_SubscribeToFlowEvent failed with error code 0x{:08X}.", state());
         } else {
             logger_.debug("Subscribed to flow events (sendId={})", fetchSendIdInternal());
         }
+#else
+        static_assert(dependent_false<Derived>, "subscribeToFlowEvents requires the MSFS 2024 SDK.");
+#endif
         return static_cast<Derived&>(*this);
     }
 
     /**
      * Unsubscribe from flow events.
+     *
+     * @note Requires the MSFS 2024 SDK - fails to compile (static_assert) if called from a build
+     * targeting an older SDK, rather than silently not existing.
      * @returns A reference to the derived connection for chaining.
      */
     Derived& unsubscribeFromFlowEvents() {
         guard_type guard(mutex_);
 
+#if MSFS_2024_SDK
         state(SimConnect_UnsubscribeToFlowEvent(hSimConnect_));
         if (failed()) {
             logger_.error("SimConnect_UnsubscribeToFlowEvent failed with error code 0x{:08X}.", state());
         } else {
             logger_.debug("Unsubscribed from flow events (sendId={})", fetchSendIdInternal());
         }
+#else
+        static_assert(dependent_false<Derived>, "unsubscribeFromFlowEvents requires the MSFS 2024 SDK.");
+#endif
         return static_cast<Derived&>(*this);
     }
-
-#endif // MSFS_2024_SDK
 
 #pragma endregion
 
 #pragma region Communication (CommBus)
-
-#if MSFS_2024_SDK
 
     /**
      * Subscribe to a CommBus event.
@@ -767,13 +775,16 @@ public:
      * event and mapping a client event to a sim event with the same numeric ID produces no
      * SIMCONNECT_EXCEPTION_EVENT_ID_DUPLICATE, regardless of registration order.
      *
+     * @note Requires the MSFS 2024 SDK - fails to compile (static_assert) if called from a build
+     * targeting an older SDK, rather than silently not existing.
      * @param id The CommBus event ID to correlate incoming SIMCONNECT_RECV_ID_COMM_BUS messages with.
      * @param eventName The name of the CommBus event to subscribe to.
      * @returns A reference to the derived connection for chaining.
      */
-    Derived& subscribeToCommBusEvent(CommBusEventId id, std::string_view eventName) {
+    Derived& subscribeToCommBusEvent([[maybe_unused]] CommBusEventId id, [[maybe_unused]] std::string_view eventName) {
         guard_type guard(mutex_);
 
+#if MSFS_2024_SDK
         const std::string name(eventName);
         state(SimConnect_SubscribeToCommBusEvent(hSimConnect_, id, name.c_str()));
         if (failed()) {
@@ -781,6 +792,9 @@ public:
         } else {
             logger_.debug("Subscribed to CommBus event '{}' (sendId={})", name, fetchSendIdInternal());
         }
+#else
+        static_assert(dependent_false<Derived>, "subscribeToCommBusEvent requires the MSFS 2024 SDK.");
+#endif
         return static_cast<Derived&>(*this);
     }
 
@@ -788,18 +802,24 @@ public:
     /**
      * Unsubscribe from a CommBus event.
      *
+     * @note Requires the MSFS 2024 SDK - fails to compile (static_assert) if called from a build
+     * targeting an older SDK, rather than silently not existing.
      * @param id The CommBus event ID to unsubscribe.
      * @returns A reference to the derived connection for chaining.
      */
-    Derived& unsubscribeFromCommBusEvent(CommBusEventId id) {
+    Derived& unsubscribeFromCommBusEvent([[maybe_unused]] CommBusEventId id) {
         guard_type guard(mutex_);
 
+#if MSFS_2024_SDK
         state(SimConnect_UnsubscribeToCommBusEvent(hSimConnect_, id));
         if (failed()) {
             logger_.error("SimConnect_UnsubscribeToCommBusEvent failed with error code 0x{:08X}.", state());
         } else {
             logger_.debug("Unsubscribed from CommBus event ID {} (sendId={})", id, fetchSendIdInternal());
         }
+#else
+        static_assert(dependent_false<Derived>, "unsubscribeFromCommBusEvent requires the MSFS 2024 SDK.");
+#endif
         return static_cast<Derived&>(*this);
     }
 
@@ -812,14 +832,18 @@ public:
      * subscribed, the call is a no-op. The payload is sent with a trailing null terminator
      * so raw C/C++ receivers can treat the received buffer as a C string.
      *
+     * @note Requires the MSFS 2024 SDK - fails to compile (static_assert) if called from a build
+     * targeting an older SDK, rather than silently not existing.
      * @param eventName The name of the CommBus event to call.
      * @param data The string payload to send with the event.
      * @param broadcastTo The target platform(s) to broadcast the event to. Defaults to CommBusBroadcastTo::defaultFlag (JS + WASM + other SimConnect clients).
      * @returns A reference to the derived connection for chaining.
      */
-    Derived& callCommBusEvent(std::string_view eventName, std::string_view data, CommBusBroadcastToFlag broadcastTo = CommBusBroadcastTo::defaultFlag) {
+    Derived& callCommBusEvent([[maybe_unused]] std::string_view eventName, [[maybe_unused]] std::string_view data,
+        [[maybe_unused]] CommBusBroadcastToFlag broadcastTo = CommBusBroadcastTo::defaultFlag) {
         guard_type guard(mutex_);
 
+#if MSFS_2024_SDK
         const std::string name(eventName);
         const std::string payload(data);
         const DWORD bufferSize = static_cast<DWORD>(payload.size() + 1); // include null terminator
@@ -830,10 +854,11 @@ public:
         } else {
             logger_.debug("Called CommBus event '{}' with {} byte(s) of data (sendId={})", name, bufferSize, fetchSendIdInternal());
         }
+#else
+        static_assert(dependent_false<Derived>, "callCommBusEvent requires the MSFS 2024 SDK.");
+#endif
         return static_cast<Derived&>(*this);
     }
-
-#endif // MSFS_2024_SDK
 
 #pragma endregion // Communication (CommBus)
 

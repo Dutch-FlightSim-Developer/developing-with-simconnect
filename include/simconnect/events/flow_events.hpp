@@ -164,6 +164,8 @@ private:
     }
 };
 
+#else
+#error "flow_events.hpp requires the MSFS 2024 SDK (Flow Events are not available in earlier SDK versions)."
 #endif // MSFS_2024_SDK
 
 

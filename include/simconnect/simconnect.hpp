@@ -45,6 +45,18 @@ inline constexpr unsigned long unused{ SIMCONNECT_UNUSED };                     
  */
 inline constexpr unsigned long noId{ 0 };
 
+/**
+ * Always false, but depends on a template parameter so it's only evaluated at instantiation time.
+ *
+ * Use as the condition of a static_assert placed in the "#else" branch of an "#if MSFS_2024_SDK"
+ * inside a template member function body, to fail compilation only where that specific member is
+ * actually instantiated (i.e. called) - unlike a bare "static_assert(false, ...)", which is
+ * ill-formed no diagnostic required even when never reached, and unlike "#error", which fires
+ * unconditionally the moment the enclosing header is preprocessed, regardless of use.
+ */
+template <class...>
+inline constexpr bool dependent_false = false;
+
 #pragma region Messages and Exceptions
 
 using MessageId = unsigned long;                                                                ///< The type used for message IDs, SIMCONNECT_RECV_ID.
@@ -650,8 +662,6 @@ namespace FlowEventIds {
 
 #pragma region Communication (CommBus)
 
-#if MSFS_2024_SDK
-
 /**
  * The type used for CommBus event IDs.
  *
@@ -659,12 +669,25 @@ namespace FlowEventIds {
  * (SimConnect::EventId). Confirmed by testing: subscribing a CommBus event and mapping a client
  * event to a sim event with the same numeric ID produces no SIMCONNECT_EXCEPTION_EVENT_ID_DUPLICATE,
  * regardless of registration order.
+ *
+ * @note CommBus itself requires the MSFS 2024 SDK. The fallback type below (and the placeholder
+ * constants further down) exist only so Connection's CommBus method *signatures* stay valid under
+ * any SDK version; the method *bodies* static_assert on actual use if built against an older SDK.
  */
+#if MSFS_2024_SDK
 using CommBusEventId = SIMCONNECT_CLIENT_EVENT_ID;
+#else
+using CommBusEventId = unsigned long;
+#endif
 
+#if MSFS_2024_SDK
 using CommBusBroadcastToFlag = SIMCONNECT_COMM_BUS_BROADCAST_TO;   ///< The type used for CommBus broadcast target flags.
+#else
+using CommBusBroadcastToFlag = unsigned long;                      ///< Placeholder; CommBus requires the MSFS 2024 SDK.
+#endif
 
 namespace CommBusBroadcastTo {
+#if MSFS_2024_SDK
     inline constexpr CommBusBroadcastToFlag js{ SIMCONNECT_COMM_BUS_BROADCAST_TO_JS };                                     ///< Broadcast to all subscribed JS gauges.
     inline constexpr CommBusBroadcastToFlag wasm{ SIMCONNECT_COMM_BUS_BROADCAST_TO_WASM };                                 ///< Broadcast to all subscribed WASM gauges.
     inline constexpr CommBusBroadcastToFlag simConnect{ SIMCONNECT_COMM_BUS_BROADCAST_TO_SIMCONNECT };                     ///< Broadcast to all subscribed SimConnect clients, except itself.
@@ -672,9 +695,16 @@ namespace CommBusBroadcastTo {
     inline constexpr CommBusBroadcastToFlag defaultFlag{ SIMCONNECT_COMM_BUS_BROADCAST_TO_DEFAULT };                       ///< Broadcast to JS and WASM gauges, and SimConnect clients except itself.
     inline constexpr CommBusBroadcastToFlag allSimConnect{ SIMCONNECT_COMM_BUS_BROADCAST_TO_ALL_SIMCONNECT };              ///< Broadcast to all SimConnect clients, including itself.
     inline constexpr CommBusBroadcastToFlag all{ SIMCONNECT_COMM_BUS_BROADCAST_TO_ALL };                                   ///< Broadcast to JS and WASM gauges, and all SimConnect clients, including itself.
+#else
+    inline constexpr CommBusBroadcastToFlag js{ noId };
+    inline constexpr CommBusBroadcastToFlag wasm{ noId };
+    inline constexpr CommBusBroadcastToFlag simConnect{ noId };
+    inline constexpr CommBusBroadcastToFlag simConnectSelfCall{ noId };
+    inline constexpr CommBusBroadcastToFlag defaultFlag{ noId };
+    inline constexpr CommBusBroadcastToFlag allSimConnect{ noId };
+    inline constexpr CommBusBroadcastToFlag all{ noId };
+#endif
 }
-
-#endif // MSFS_2024_SDK
 
 #pragma endregion // Communication (CommBus)
 

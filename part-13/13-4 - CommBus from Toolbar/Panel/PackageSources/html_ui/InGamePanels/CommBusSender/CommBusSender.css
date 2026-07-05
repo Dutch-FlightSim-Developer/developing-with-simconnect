@@ -1,0 +1,64 @@
+/*
+ * ingame-ui wraps its light-DOM children in framework-generated .ingameUiContent /
+ * .ingameUiWrapper divs. Without forcing these to fill the frame, they default to zero/collapsed
+ * height, leaving only the title bar visible - confirmed against FSDT GSX Pro's shipped
+ * FSDT_GSX_Panel.css, which applies this same override for its own panel.
+ */
+ingame-ui#dfs_commbus_sender_panel {
+	display: flex;
+	flex-direction: column;
+	width: 340px !important;
+	height: 260px !important;
+	min-width: 340px !important;
+	min-height: 260px !important;
+}
+ingame-ui#dfs_commbus_sender_panel .ingameUiContent {
+	display: flex !important;
+	flex-direction: column !important;
+	width: 100% !important;
+	height: 100% !important;
+	min-height: 0 !important;
+	min-width: 0 !important;
+	overflow: hidden !important;
+	align-items: stretch !important;
+	flex: 1 1 auto !important;
+}
+ingame-ui#dfs_commbus_sender_panel .ingameUiWrapper {
+	display: flex !important;
+	flex-direction: column !important;
+	width: 100% !important;
+	height: 100% !important;
+	min-height: 0 !important;
+	min-width: 0 !important;
+	overflow: hidden !important;
+	align-items: stretch !important;
+	flex: 1 1 auto !important;
+}
+
+.dfs-commbus-sender {
+	display: flex;
+	flex-direction: column;
+	gap: 10px;
+	padding: 14px;
+	color: #fff;
+}
+
+.dfs-commbus-sender label {
+	font-size: 0.9em;
+}
+
+.dfs-text-input {
+	width: 100%;
+	box-sizing: border-box;
+}
+
+.dfs-checkbox-label {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+}
+
+.dfs-status {
+	font-size: 0.8em;
+	opacity: 0.7;
+}

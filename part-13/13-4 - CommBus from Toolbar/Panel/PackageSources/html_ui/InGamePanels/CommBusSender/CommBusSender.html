@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta charset="utf-8" />
+		<meta http-equiv="Cache-control" content="NO-CACHE">
+		<link rel="stylesheet" href="/SCSS/common.css" />
+		<link rel="stylesheet" href="CommBusSender.css" />
+		<script type="text/javascript" src="/JS/coherent.js"></script>
+		<script type="text/javascript" src="/JS/common.js"></script>
+		<script type="text/javascript" src="/JS/buttons.js"></script>
+		<script type="text/javascript" src="/JS/Services/ToolBarPanels.js"></script>
+		<link rel="import" href="/templates/ingameUi/ingameUi.html" />
+		<link rel="import" href="/templates/ingameUiHeader/ingameUiHeader.html" />
+		<link rel="import" href="/templates/NewPushButton/NewPushButton.html" />
+		<script type="text/javascript" src="CommBusSender.js"></script>
+	</head>
+
+	<body class="border-box">
+		<ingamepanel-commbus-sender>
+
+			<!-- 'panel-id' has to match the ID in PackageSources\InGamePanels\dutchflightsim_commbussender_panel.xml -->
+			<ingame-ui
+				id="dfs_commbus_sender_panel"
+				panel-id="PANEL_DFS_COMMBUS_SENDER"
+				title="CommBus Sender"
+				class="ingameUiFrame panelInvisible"
+				auto-inside=""
+				resize="both"
+				data-input-group="INGAME-UI"
+				min-width="280"
+				min-height="200"
+			>
+				<div class="dfs-commbus-sender">
+					<label for="dfs-message">Message</label>
+					<input type="text" id="dfs-message" class="dfs-text-input" placeholder="Type a message..." />
+
+					<label class="dfs-checkbox-label" for="dfs-flag">
+						<input type="checkbox" id="dfs-flag" />
+						Flag
+					</label>
+
+					<new-push-button id="dfs-send-button" class="fullWidth small" onclick="onSendClicked(event);">Send</new-push-button>
+
+					<div class="dfs-status" id="dfs-status">Registering CommBus listener...</div>
+				</div>
+			</ingame-ui>
+		</ingamepanel-commbus-sender>
+	</body>
+</html>

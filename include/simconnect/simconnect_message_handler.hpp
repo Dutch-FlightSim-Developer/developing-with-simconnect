@@ -61,7 +61,7 @@ public:
 private:
     static constexpr MessageId maxRecvId = []() consteval {
         if constexpr (simulatorVersion == SimulatorVersion::MSFS2024) {
-            return Messages::flowEvent;
+            return Messages::maxMessageId;
         } else if constexpr (simulatorVersion == SimulatorVersion::MSFS2020) {
             return Messages::enumerateInputEventParams;
         } else {  // FSX or P3D

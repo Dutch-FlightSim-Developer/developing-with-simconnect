@@ -762,19 +762,24 @@ public:
      * Subscribe to a CommBus event.
      *
      * Subscribes this connection to receive SIMCONNECT_RECV_ID_COMM_BUS messages for the
-     * given event. CommBus event IDs share the same ID space as regular client events.
+     * given event. CommBus event IDs occupy their own ID namespace, separate from regular
+     * client event IDs (SimConnect::EventId) - confirmed by testing: subscribing a CommBus
+     * event and mapping a client event to a sim event with the same numeric ID produces no
+     * SIMCONNECT_EXCEPTION_EVENT_ID_DUPLICATE, regardless of registration order.
      *
-     * @param evt The event to subscribe to.
+     * @param id The CommBus event ID to correlate incoming SIMCONNECT_RECV_ID_COMM_BUS messages with.
+     * @param eventName The name of the CommBus event to subscribe to.
      * @returns A reference to the derived connection for chaining.
      */
-    Derived& subscribeToCommBusEvent(SimConnect::event evt) {
+    Derived& subscribeToCommBusEvent(CommBusEventId id, std::string_view eventName) {
         guard_type guard(mutex_);
 
-        state(SimConnect_SubscribeToCommBusEvent(hSimConnect_, evt.id(), evt.name().c_str()));
+        const std::string name(eventName);
+        state(SimConnect_SubscribeToCommBusEvent(hSimConnect_, id, name.c_str()));
         if (failed()) {
             logger_.error("SimConnect_SubscribeToCommBusEvent failed with error code 0x{:08X}.", state());
         } else {
-            logger_.debug("Subscribed to CommBus event '{}' (sendId={})", evt.name(), fetchSendIdInternal());
+            logger_.debug("Subscribed to CommBus event '{}' (sendId={})", name, fetchSendIdInternal());
         }
         return static_cast<Derived&>(*this);
     }
@@ -783,17 +788,17 @@ public:
     /**
      * Unsubscribe from a CommBus event.
      *
-     * @param evt The event to unsubscribe from.
+     * @param id The CommBus event ID to unsubscribe.
      * @returns A reference to the derived connection for chaining.
      */
-    Derived& unsubscribeFromCommBusEvent(SimConnect::event evt) {
+    Derived& unsubscribeFromCommBusEvent(CommBusEventId id) {
         guard_type guard(mutex_);
 
-        state(SimConnect_UnsubscribeToCommBusEvent(hSimConnect_, evt.id()));
+        state(SimConnect_UnsubscribeToCommBusEvent(hSimConnect_, id));
         if (failed()) {
             logger_.error("SimConnect_UnsubscribeToCommBusEvent failed with error code 0x{:08X}.", state());
         } else {
-            logger_.debug("Unsubscribed from CommBus event '{}' (sendId={})", evt.name(), fetchSendIdInternal());
+            logger_.debug("Unsubscribed from CommBus event ID {} (sendId={})", id, fetchSendIdInternal());
         }
         return static_cast<Derived&>(*this);
     }

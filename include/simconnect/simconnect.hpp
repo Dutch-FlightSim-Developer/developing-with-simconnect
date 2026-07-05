@@ -201,6 +201,25 @@ namespace Messages {
     inline constexpr MessageId commBus{ SIMCONNECT_RECV_ID_COMM_BUS };
     using CommBusMsg = SIMCONNECT_RECV_COMM_BUS;
   #endif
+
+    /**
+     * Highest SIMCONNECT_RECV_ID_* value defined by the MSFS 2024 SDK.
+     *
+     * @note The SDK provides no "last" sentinel of its own - this must be bumped by hand
+     * whenever a future SDK header adds SIMCONNECT_RECV_ID_* entries after cameraWorldLocker.
+     * Used to size SimConnectMessageHandler's dispatch array; if this falls behind the SDK,
+     * registering a handler for a message type past it silently writes out of bounds.
+     *
+     * @note Only meaningful when compiling against the MSFS 2024 SDK - the fallback below is
+     * unused (simconnect_message_handler.hpp only reads this constant on the MSFS2024 branch of
+     * its own if constexpr) but must still exist so this header compiles under any SDK version.
+     * Mirrors the Messages::flowEvent pattern above.
+     */
+  #if MSFS_2024_SDK
+    inline constexpr MessageId maxMessageId{ cameraWorldLocker };
+  #else
+    inline constexpr MessageId maxMessageId{ nullMsg };
+  #endif
 }
 
 using ExceptionCode = unsigned long;                                                            ///< The type used for exception codes.
@@ -583,6 +602,11 @@ using FlowEventId = unsigned long;                   ///< The type used for flow
 
 namespace FlowEventIds {
 
+  // Flow Events require the MSFS 2024 SDK; the raw SIMCONNECT_FLOW_EVENT_* constants below
+  // don't exist in older SDK headers. The #else branch keeps every name valid under any SDK
+  // version (mirrors the Messages::flowEvent pattern) - values there are placeholders, never
+  // meaningful outside an MSFS 2024 build.
+#if MSFS_2024_SDK
   inline constexpr FlowEventId none{ SIMCONNECT_FLOW_EVENT_NONE };    ///< Constant representing no flow event.
   inline constexpr FlowEventId fltLoad{ SIMCONNECT_FLOW_EVENT_FLT_LOAD };    ///< Flight load flow event.
   inline constexpr FlowEventId fltLoaded{ SIMCONNECT_FLOW_EVENT_FLT_LOADED };  ///< Flight loaded flow event.
@@ -600,6 +624,25 @@ namespace FlowEventIds {
   inline constexpr FlowEventId flightStart{ SIMCONNECT_FLOW_EVENT_FLIGHT_START };  ///< Flight start flow event.
   inline constexpr FlowEventId flightEnd{ SIMCONNECT_FLOW_EVENT_FLIGHT_END };  ///< Flight end flow event.
   inline constexpr FlowEventId planeCrash{ SIMCONNECT_FLOW_EVENT_PLANE_CRASH };  ///< Plane crash flow event.
+#else
+  inline constexpr FlowEventId none{ noId };
+  inline constexpr FlowEventId fltLoad{ noId };
+  inline constexpr FlowEventId fltLoaded{ noId };
+  inline constexpr FlowEventId teleportStart{ noId };
+  inline constexpr FlowEventId teleportDone{ noId };
+  inline constexpr FlowEventId backOnTrackStart{ noId };
+  inline constexpr FlowEventId backOnTrackDone{ noId };
+  inline constexpr FlowEventId skipStart{ noId };
+  inline constexpr FlowEventId skipDone{ noId };
+  inline constexpr FlowEventId backToMainMenu{ noId };
+  inline constexpr FlowEventId rtcStart{ noId };
+  inline constexpr FlowEventId rtcEnd{ noId };
+  inline constexpr FlowEventId replayStart{ noId };
+  inline constexpr FlowEventId replayEnd{ noId };
+  inline constexpr FlowEventId flightStart{ noId };
+  inline constexpr FlowEventId flightEnd{ noId };
+  inline constexpr FlowEventId planeCrash{ noId };
+#endif
 
 }
 
@@ -608,6 +651,16 @@ namespace FlowEventIds {
 #pragma region Communication (CommBus)
 
 #if MSFS_2024_SDK
+
+/**
+ * The type used for CommBus event IDs.
+ *
+ * @note CommBus event IDs occupy their own ID namespace, separate from regular client event IDs
+ * (SimConnect::EventId). Confirmed by testing: subscribing a CommBus event and mapping a client
+ * event to a sim event with the same numeric ID produces no SIMCONNECT_EXCEPTION_EVENT_ID_DUPLICATE,
+ * regardless of registration order.
+ */
+using CommBusEventId = SIMCONNECT_CLIENT_EVENT_ID;
 
 using CommBusBroadcastToFlag = SIMCONNECT_COMM_BUS_BROADCAST_TO;   ///< The type used for CommBus broadcast target flags.
 

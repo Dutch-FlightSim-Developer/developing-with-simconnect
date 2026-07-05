@@ -9,9 +9,8 @@
     "jsxFragmentFactory": "FSComponent.Fragment",
 
     "module": "ES2015",
-    "moduleResolution": "node",
+    "moduleResolution": "bundler",
     "rootDir": ".",
-    "baseUrl": ".",
     "resolveJsonModule": true,
     "noEmit": true,
 

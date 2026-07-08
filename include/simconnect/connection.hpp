@@ -771,9 +771,11 @@ public:
      *
      * Subscribes this connection to receive SIMCONNECT_RECV_ID_COMM_BUS messages for the
      * given event. CommBus event IDs occupy their own ID namespace, separate from regular
-     * client event IDs (SimConnect::EventId) - confirmed by testing: subscribing a CommBus
+     * client event IDs (SimConnect::EventId) - confirmed by testing (subscribing a CommBus
      * event and mapping a client event to a sim event with the same numeric ID produces no
-     * SIMCONNECT_EXCEPTION_EVENT_ID_DUPLICATE, regardless of registration order.
+     * SIMCONNECT_EXCEPTION_EVENT_ID_DUPLICATE, regardless of registration order) and by Asobo
+     * devsupport: this is intentional, not accidental type reuse, though a dedicated type may
+     * replace SIMCONNECT_CLIENT_EVENT_ID for this parameter in a future SDK.
      *
      * @note Requires the MSFS 2024 SDK - fails to compile (static_assert) if called from a build
      * targeting an older SDK, rather than silently not existing.

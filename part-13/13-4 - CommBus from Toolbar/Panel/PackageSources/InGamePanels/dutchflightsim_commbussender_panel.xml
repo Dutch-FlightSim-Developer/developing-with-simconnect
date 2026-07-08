@@ -10,6 +10,11 @@
 		Name="CommBus Sender"
 		url="html_ui/InGamePanels/CommBusSender/CommBusSender.html"
 		icon="DFS_COMMBUS_SENDER">
+
+		<minWidth>280</minWidth>
+		<minHeight>200</minHeight>
+		<defaultWidth>340</defaultWidth>
+		<defaultHeight>260</defaultHeight>
 	</InGamePanels.InGamePanelDefinition>
 
 </SimBase.Document>

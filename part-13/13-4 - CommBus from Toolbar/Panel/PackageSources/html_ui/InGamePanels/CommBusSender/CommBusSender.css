@@ -1,16 +1,15 @@
 /*
  * ingame-ui wraps its light-DOM children in framework-generated .ingameUiContent /
- * .ingameUiWrapper divs. Without forcing these to fill the frame, they default to zero/collapsed
- * height, leaving only the title bar visible - confirmed against FSDT GSX Pro's shipped
- * FSDT_GSX_Panel.css, which applies this same override for its own panel.
+ * .ingameUiWrapper divs. With content-fit="true" and minWidth/minHeight/defaultWidth/
+ * defaultHeight set on the panel's InGamePanelDefinition XML, the frame itself is sized
+ * correctly - these just need to fill 100% of it (per Asobo devsupport, see
+ * https://devsupport.flightsimulator.com/t/ingame-ui-content-fit-true-doesnt-auto-size-to-content-in-a-toolbar-panel-ingamepanels/18144/2).
  */
 ingame-ui#dfs_commbus_sender_panel {
 	display: flex;
 	flex-direction: column;
-	width: 340px !important;
-	height: 260px !important;
-	min-width: 340px !important;
-	min-height: 260px !important;
+	width: 100%;
+	height: 100%;
 }
 ingame-ui#dfs_commbus_sender_panel .ingameUiContent {
 	display: flex !important;

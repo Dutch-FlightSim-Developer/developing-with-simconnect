@@ -41,7 +41,7 @@ import { FSComponent, Subject, VNode } from "@microsoft/msfs-sdk";
 
 import "./CommBusMessageViewer.scss";
 
-/** The CommBus event name broadcast by the 13-3 C++ sender. Must match COMMBUS_HELLO_EVENT in shared.hpp. */
+/** The CommBus event name broadcast by the 13-3 C++ sender. Must match COMMBUS_HELLO_EVENT in main.cpp. */
 const COMMBUS_HELLO_EVENT = "DutchFlightSim.Tutorial.Hello";
 
 /** BASE_URL is defined by build.js and points at this app's coui:// folder once packaged. */

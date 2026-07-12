@@ -99,7 +99,7 @@ public:
 
     /**
      * Returns the correlation ID from the message. For CommBus messages, this is the
-     * CommBusEventId passed to subscribeToCommBus().
+     * CommBusEventId passed to subscribeToEvent().
      *
      * @param msg The message to get the correlation ID from.
      * @returns The correlation ID from the message.
@@ -119,7 +119,7 @@ public:
      * @return A Request that unsubscribes when destroyed or stopped.
      */
     [[nodiscard]]
-    Request subscribeToCommBus(std::string_view eventName, std::function<void(std::string_view)> handler) {
+    Request subscribeToEvent(std::string_view eventName, std::function<void(std::string_view)> handler) {
         const auto id = nextCommBusEventId();
 
         this->registerHandler(id, [this, id, handler](const Messages::MsgBase& msg) {
@@ -163,6 +163,19 @@ public:
             }
             simConnectMessageHandler_.connection().unsubscribeFromCommBusEvent(id);
         }};
+    }
+
+
+    /**
+     * Broadcasts a CommBus event with a string payload.
+     *
+     * @param eventName The CommBus event name to broadcast.
+     * @param data The payload to send.
+     * @param broadcastTo The target platform(s) to broadcast the event to. Defaults to CommBusBroadcastTo::defaultFlag (JS + WASM + other SimConnect clients).
+     */
+    void sendEvent(std::string_view eventName, std::string_view data,
+        CommBusBroadcastToFlag broadcastTo = CommBusBroadcastTo::defaultFlag) {
+        simConnectMessageHandler_.connection().callCommBusEvent(eventName, data, broadcastTo);
     }
 
 };

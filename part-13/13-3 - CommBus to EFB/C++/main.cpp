@@ -19,7 +19,7 @@
 //
 // A small one-shot CLI tool: joins its command-line arguments into a single message and
 // broadcasts it once on the CommBus, using the abstraction library's
-// Connection::callCommBusEvent() (see include/simconnect/connection.hpp). Unlike
+// CommBusHandler::sendEvent() (see include/simconnect/comm_bus_handler.hpp). Unlike
 // ClientData, there is no shared memory area or data definition to set up first - just
 // pick an event name and call it.
 //
@@ -39,10 +39,9 @@
 #include <simconnect/simconnect.hpp>
 #include <simconnect/windows_event_connection.hpp>
 #include <simconnect/windows_event_handler.hpp>
+#include <simconnect/comm_bus_handler.hpp>
 
 #include <simconnect/util/console_logger.hpp>
-
-#include "shared.hpp"
 
 
 using namespace SimConnect;
@@ -52,6 +51,14 @@ using namespace std::chrono_literals;
 #if MSFS_2024_SDK == 0
 #error "The CommBus API requires the MSFS 2024 SDK. Use the 'Debug (MSFS 2024)' or 'Release (MSFS 2024)' configuration."
 #endif
+
+
+/**
+ * The CommBus event name used by the sender and the companion EFB app.
+ * This is the same event name used by the 13-1 CommBus broadcast example, so both the
+ * C example's listener and the EFB app can receive messages sent from here.
+ */
+constexpr static const char* COMMBUS_HELLO_EVENT = "DutchFlightSim.Tutorial.Hello";
 
 
 /**
@@ -320,7 +327,8 @@ void runTest(int argc, const char* argv[]) // NOLINT(cppcoreguidelines-avoid-c-a
 
   std::cout << "Connecting to simulator...\n";
   if (connection.open()) {
-    connection.callCommBusEvent(COMMBUS_HELLO_EVENT, message);
+    CommBusHandler commBusHandler(handler);
+    commBusHandler.sendEvent(COMMBUS_HELLO_EVENT, message);
     std::cout << std::format("Broadcast on '{}': '{}'\n", COMMBUS_HELLO_EVENT, message);
 
     // Give the sim a moment to deliver the message and report back any exception before

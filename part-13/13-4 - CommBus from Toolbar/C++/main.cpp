@@ -260,7 +260,7 @@ static void handleException(const Messages::ExceptionMsg &msg)
  * strict warnings-as-errors C++20 settings (a real const-member assignment in its own
  * headers, not just a suppressible warning).
  *
- * @param payload The reassembled CommBus payload (see CommBusHandler::subscribeToCommBus).
+ * @param payload The reassembled CommBus payload (see CommBusHandler::subscribeToEvent).
  */
 static void handleHelloJson(std::string_view payload)
 {
@@ -292,7 +292,7 @@ void runTest()
   std::cout << "Connecting to simulator...\n";
   if (connection.open()) {
     CommBusHandler commBusHandler(handler);
-    auto subscription = commBusHandler.subscribeToCommBus(COMMBUS_HELLOJSON_EVENT, handleHelloJson);
+    auto subscription = commBusHandler.subscribeToEvent(COMMBUS_HELLOJSON_EVENT, handleHelloJson);
 
     std::cout << std::format("Subscribed to '{}'. Waiting for messages...\n", COMMBUS_HELLOJSON_EVENT);
     handler.handleUntilClosed();

@@ -4,7 +4,7 @@ project(13-3-CommBusToEFB-Cpp LANGUAGES CXX)
 
 # Create executable from local source
 add_executable(13-3-CommBusToEFB-Sender
-    sender.cpp
+    main.cpp
 )
 
 # Link to project options (includes SimConnect SDK paths and libraries)

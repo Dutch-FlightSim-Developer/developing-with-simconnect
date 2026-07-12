@@ -24,6 +24,7 @@
 
 #include <exception>
 #include <iostream>
+#include <regex>
 #include <string>
 #include <string_view>
 #include <format>
@@ -247,80 +248,31 @@ static void handleException(const Messages::ExceptionMsg &msg)
 
 
 /**
- * Extract a top-level string field's value from a flat JSON object, e.g. {"message":"hi"}.
- *
- * @note Minimal and non-validating, written for this demo's fixed, flat payload shape only -
- * does not handle escaped quotes or nested structures. A general-purpose JSON parser isn't
- * warranted for a two-field demo payload; the MSFS SDK's bundled RapidJSON was tried first
- * but doesn't compile under this project's strict warnings-as-errors C++20 settings (a real
- * const-member assignment in its own headers, not just a suppressible warning).
- *
- * @param json The JSON text to search.
- * @param field The field name to look for.
- * @return The field's string value, or an empty string if not found.
- */
-static std::string extractJsonString(std::string_view json, std::string_view field) // NOLINT(bugprone-easily-swappable-parameters)
-{
-  const std::string key = std::format("\"{}\"", field);
-  const auto keyPos = json.find(key);
-  if (keyPos == std::string_view::npos) { return {}; }
-
-  const auto colonPos = json.find(':', keyPos + key.size());
-  if (colonPos == std::string_view::npos) { return {}; }
-
-  const auto quoteStart = json.find('"', colonPos + 1);
-  if (quoteStart == std::string_view::npos) { return {}; }
-
-  const auto quoteEnd = json.find('"', quoteStart + 1);
-  if (quoteEnd == std::string_view::npos) { return {}; }
-
-  return std::string{ json.substr(quoteStart + 1, quoteEnd - quoteStart - 1) };
-}
-
-
-/**
- * Extract a top-level boolean field's value from a flat JSON object, e.g. {"flag":true}.
- * Same minimal, non-validating scope as extractJsonString().
- *
- * @param json The JSON text to search.
- * @param field The field name to look for.
- * @return The field's boolean value, or false if not found or not literally "true".
- */
-static bool extractJsonBool(std::string_view json, std::string_view field) // NOLINT(bugprone-easily-swappable-parameters)
-{
-  const std::string key = std::format("\"{}\"", field);
-  const auto keyPos = json.find(key);
-  if (keyPos == std::string_view::npos) { return false; }
-
-  const auto colonPos = json.find(':', keyPos + key.size());
-  if (colonPos == std::string_view::npos) { return false; }
-
-  const auto valueStart = json.find_first_not_of(" \t", colonPos + 1);
-  if (valueStart == std::string_view::npos) { return false; }
-
-  return json.substr(valueStart).starts_with("true");
-}
-
-
-/**
  * Parse and print a "DutchFlightSim.Tutorial.HelloJson" payload.
  *
  * Expected shape: {"message": string, "flag": bool}. Malformed or unexpected payloads are
  * reported and otherwise ignored - this is a demo listener, not a validating one.
  *
+ * @note Minimal and non-validating, written for this demo's fixed, flat payload shape only -
+ * assumes "message" precedes "flag" and neither field contains escaped quotes or nested
+ * structures. A general-purpose JSON parser isn't warranted for a two-field demo payload;
+ * the MSFS SDK's bundled RapidJSON was tried first but doesn't compile under this project's
+ * strict warnings-as-errors C++20 settings (a real const-member assignment in its own
+ * headers, not just a suppressible warning).
+ *
  * @param payload The reassembled CommBus payload (see CommBusHandler::subscribeToCommBus).
  */
 static void handleHelloJson(std::string_view payload)
 {
-  if (!payload.starts_with('{') || !payload.ends_with('}')) {
+  static const std::regex pattern{ R"re("message"\s*:\s*"([^"]*)"\s*,\s*"flag"\s*:\s*(true|false))re" };
+
+  std::match_results<std::string_view::const_iterator> match;
+  if (!std::regex_search(payload.cbegin(), payload.cend(), match, pattern)) {
     std::cerr << std::format("[Failed to parse JSON payload: '{}']\n", payload);
     return;
   }
 
-  const std::string message = extractJsonString(payload, "message");
-  const bool flag = extractJsonBool(payload, "flag");
-
-  std::cout << std::format("Received: message='{}', flag={}\n", message, flag);
+  std::cout << std::format("Received: message='{}', flag={}\n", match[1].str(), match[2].str() == "true"); // NOLINT(cppcoreguidelines-pro-bounds-avoid-unchecked-container-access)
 }
 
 

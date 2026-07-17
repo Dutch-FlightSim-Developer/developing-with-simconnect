@@ -1,21 +1,27 @@
 /*
- * ingame-ui wraps its light-DOM children in framework-generated .ingameUiContent /
- * .ingameUiWrapper divs. With content-fit="true" and minWidth/minHeight/defaultWidth/
- * defaultHeight set on the panel's InGamePanelDefinition XML, the frame itself is sized
- * correctly - these just need to fill 100% of it (per Asobo devsupport, see
- * https://devsupport.flightsimulator.com/t/ingame-ui-content-fit-true-doesnt-auto-size-to-content-in-a-toolbar-panel-ingamepanels/18144/2).
+ * content-fit="true" (per the devsupport thread title itself) does not reliably auto-size
+ * the frame to its content in a toolbar InGamePanel - tried it both ways: without an explicit
+ * frame size it collapsed to the title bar, and forcing the inner wrappers to 100% blew up to
+ * the full screen height instead (percentage heights need a definite-size ancestor, which the
+ * content-fit frame apparently isn't). Falling back to a fixed frame size matching the XML's
+ * defaultWidth/defaultHeight; resize="both" plus min-width/min-height still let the user resize
+ * within the XML's minWidth/minHeight bounds.
  */
 ingame-ui#dfs_commbus_sender_panel {
 	display: flex;
 	flex-direction: column;
-	width: 100%;
-	height: 100%;
+  align-items:center;
+  justify-content: center;
+
+	width: 340px !important;
+	height: 50% !important;
+	min-width: 340px !important;
 }
 ingame-ui#dfs_commbus_sender_panel .ingameUiContent {
 	display: flex !important;
 	flex-direction: column !important;
 	width: 100% !important;
-	height: 100% !important;
+	height: 50% !important;
 	min-height: 0 !important;
 	min-width: 0 !important;
 	overflow: hidden !important;
@@ -26,7 +32,7 @@ ingame-ui#dfs_commbus_sender_panel .ingameUiWrapper {
 	display: flex !important;
 	flex-direction: column !important;
 	width: 100% !important;
-	height: 100% !important;
+	height: 50% !important;
 	min-height: 0 !important;
 	min-width: 0 !important;
 	overflow: hidden !important;

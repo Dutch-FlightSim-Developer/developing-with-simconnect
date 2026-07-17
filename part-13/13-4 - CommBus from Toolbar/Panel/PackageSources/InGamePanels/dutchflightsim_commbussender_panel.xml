@@ -9,12 +9,24 @@
 		id="PANEL_DFS_COMMBUS_SENDER"
 		Name="CommBus Sender"
 		url="html_ui/InGamePanels/CommBusSender/CommBusSender.html"
-		icon="DFS_COMMBUS_SENDER">
+		icon="DFS_COMMBUS_SENDER"
+    minWidth="25"
+    minHeight="18"
+    defaultWidth="24.5"
+    defaultHeight="18"
+    defaultTop="25"
+    defaultRight="2"
+    resizeDirections="Both"
+  >
 
-		<minWidth>280</minWidth>
-		<minHeight>200</minHeight>
-		<defaultWidth>340</defaultWidth>
-		<defaultHeight>260</defaultHeight>
+    <minWidth>25</minWidth>
+    <minHeight>18</minHeight>
+    <defaultWidth>24.5</defaultWidth>
+    <defaultHeight>18</defaultHeight>
+    <defaultTop>25</defaultTop>
+    <defaultRight>2</defaultRight>
+    <resizeDirections>Both</resizeDirections>
+
 	</InGamePanels.InGamePanelDefinition>
 
 </SimBase.Document>

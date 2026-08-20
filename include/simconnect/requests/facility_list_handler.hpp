@@ -39,7 +39,7 @@ using WaypointHandler = std::function<void(std::string_view ident, std::string_v
 
 #pragma pack(push, 1)
 struct NdbDetails : public SimConnect::LatLonAltMagVar {
-    float frequency;
+    unsigned long frequency;
 
     inline float frequencyKHz() const noexcept {
         constexpr float kHzFactor = 1'000.0F;
@@ -52,7 +52,7 @@ using NdbHandler = std::function<void(std::string_view ident, std::string_view r
 
 #pragma pack(push, 1)
 struct VorDetails : public SimConnect::LatLonAltMagVar {
-    float frequency;
+    unsigned long frequency;
     unsigned long flags;
     float localizerCourse;
     LatLonAlt glideslopePosition;

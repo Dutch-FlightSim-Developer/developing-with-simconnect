@@ -22,7 +22,6 @@
 
 #include <simconnect/requests/system_state_handler.hpp>
 #include <simconnect/events/system_events.hpp>
-#include <simconnect/events/flow_events.hpp>
 
 #include <atomic>
 #include <chrono>

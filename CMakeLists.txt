@@ -158,8 +158,10 @@ add_subdirectory(part-8)
 add_subdirectory(part-9)
 add_subdirectory(part-10)
 add_subdirectory(part-11)
-add_subdirectory(part-12)
-add_subdirectory(part-13)
+if(MSFS_SDK_VERSION STREQUAL "2024")
+  add_subdirectory(part-12)  # Flow Events - not available in the MSFS 2020 SDK
+  add_subdirectory(part-13)  # CommBus - not available in the MSFS 2020 SDK
+endif()
 add_subdirectory(sandboxes)
 
 

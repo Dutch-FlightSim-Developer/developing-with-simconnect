@@ -196,9 +196,11 @@ static void handleException(const Messages::ExceptionMsg &msg) {
   case Exceptions::setInputEventFailed:
     std::cerr << "The input event name was not found. (SetInputEvent)\n";
     break;
+#if MSFS_2024_SDK
   case Exceptions::internal:
     std::cerr << "An internal SimConnect error has occurred.\n";
     break;
+#endif
   default:
     std::cerr << std::format("An unknown exception code was received: {}.\n", msg.dwException);
     break;

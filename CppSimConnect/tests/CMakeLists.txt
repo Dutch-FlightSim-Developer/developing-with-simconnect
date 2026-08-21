@@ -37,9 +37,12 @@ file(GLOB TEST_SOURCES
     TestPeriodLimits.cpp
     TestSimObjectType.cpp
     TestSimpleHandler.cpp
-    TestFlowEvents.cpp
     SimObjectRepositoryTests.cpp
 )
+
+if(MSFS_SDK_VERSION STREQUAL "2024")
+  list(APPEND TEST_SOURCES TestFlowEvents.cpp)
+endif()
 
 # Create test executable
 add_executable(unit_tests ${TEST_SOURCES})

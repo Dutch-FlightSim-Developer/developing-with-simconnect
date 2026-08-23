@@ -32,6 +32,7 @@
 #include <simconnect/util/null_logger.hpp>
 #include <simconnect/util/statefull_object.hpp>
 
+#include <cstddef>
 #include <map>
 #include <set>
 #include <span>
@@ -1052,6 +1053,90 @@ public:
             logger_.error("SimConnect_ClearInputGroup failed with error code 0x{:08X}.", state());
         } else {
             logger_.debug("Cleared input group {} (sendId={})", groupId, fetchSendIdInternal());
+        }
+        return static_cast<Derived&>(*this);
+    }
+
+#pragma endregion
+
+#pragma region Input Events
+
+    /**
+     * Requests an enumeration of the input events declared by the loaded aircraft.
+     *
+     * @param requestId The request ID.
+     * @return The connection reference for chaining.
+     */
+    Derived& enumerateInputEvents(RequestId requestId) {
+        guard_type guard(mutex_);
+
+        state(SimConnect_EnumerateInputEvents(hSimConnect_, requestId));
+        if (failed()) {
+            logger_.error("SimConnect_EnumerateInputEvents failed with error code 0x{:08X}.", state());
+        } else {
+            logger_.debug("Requested enumeration of input events (requestId={}, sendId={})", requestId, fetchSendIdInternal());
+        }
+        return static_cast<Derived&>(*this);
+    }
+
+
+    /**
+     * Requests the current value of an input event.
+     *
+     * @param requestId The request ID.
+     * @param hash The hash of the input event.
+     * @return The connection reference for chaining.
+     */
+    Derived& getInputEvent(RequestId requestId, InputEventHash hash) {
+        guard_type guard(mutex_);
+
+        state(SimConnect_GetInputEvent(hSimConnect_, requestId, hash));
+        if (failed()) {
+            logger_.error("SimConnect_GetInputEvent failed with error code 0x{:08X}.", state());
+        } else {
+            logger_.debug("Requested value of input event {:016X} (requestId={}, sendId={})", hash, requestId, fetchSendIdInternal());
+        }
+        return static_cast<Derived&>(*this);
+    }
+
+
+    /**
+     * Requests an enumeration of the parameters an input event expects.
+     *
+     * @param hash The hash of the input event.
+     * @return The connection reference for chaining.
+     */
+    Derived& enumerateInputEventParams(InputEventHash hash) {
+        guard_type guard(mutex_);
+
+        state(SimConnect_EnumerateInputEventParams(hSimConnect_, hash));
+        if (failed()) {
+            logger_.error("SimConnect_EnumerateInputEventParams failed with error code 0x{:08X}.", state());
+        } else {
+            logger_.debug("Requested parameters for input event {:016X} (sendId={})", hash, fetchSendIdInternal());
+        }
+        return static_cast<Derived&>(*this);
+    }
+
+
+    /**
+     * Sets the value of an input event. The caller is responsible for packing `value` to match the
+     * parameter types expected by the input event (see enumerateInputEventParams()); SimConnect does
+     * not validate this and a mismatch will only surface as a generic exception.
+     *
+     * @param hash The hash of the input event.
+     * @param value The raw packed value to send.
+     * @return The connection reference for chaining.
+     */
+    Derived& setInputEvent(InputEventHash hash, std::span<const std::byte> value) {
+        guard_type guard(mutex_);
+
+        state(SimConnect_SetInputEvent(hSimConnect_, hash, static_cast<DWORD>(value.size()), // NOLINT(cppcoreguidelines-pro-type-const-cast)
+            const_cast<std::byte*>(value.data())));
+        if (failed()) {
+            logger_.error("SimConnect_SetInputEvent failed with error code 0x{:08X}.", state());
+        } else {
+            logger_.debug("Set input event {:016X} ({} bytes, sendId={})", hash, value.size(), fetchSendIdInternal());
         }
         return static_cast<Derived&>(*this);
     }

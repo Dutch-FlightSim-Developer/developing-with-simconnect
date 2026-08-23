@@ -18,6 +18,8 @@
 #include <simconnect.hpp>
 
 #include <array>
+#include <cstdint>
+#include <string>
 #include <string_view>
 #include <algorithm>
 
@@ -659,6 +661,32 @@ namespace FlowEventIds {
 }
 
 #pragma endregion // Events
+
+#pragma region Input Events
+
+using InputEventHash = std::uint64_t;           ///< The type used for input event hashes.
+
+using InputEventType = unsigned long;           ///< The type used for input event value types.
+
+namespace InputEventTypes {
+
+  inline constexpr InputEventType doubleValue{ SIMCONNECT_INPUT_EVENT_TYPE_DOUBLE };  ///< The input event expects a double value.
+  inline constexpr InputEventType stringValue{ SIMCONNECT_INPUT_EVENT_TYPE_STRING };  ///< The input event expects a string value.
+
+}
+
+/**
+ * A declared input event, as returned by SimConnect_EnumerateInputEvents.
+ */
+struct InputEvent {
+    std::string name;         ///< The name of the input event.
+    InputEventHash hash;      ///< The hash identifying the input event.
+    InputEventType type;      ///< The type of value the input event expects.
+
+    constexpr operator InputEventHash() const noexcept { return hash; }
+};
+
+#pragma endregion // Input Events
 
 #pragma region Communication (CommBus)
 

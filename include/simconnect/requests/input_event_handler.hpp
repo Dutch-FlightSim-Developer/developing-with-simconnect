@@ -125,6 +125,24 @@ public:
      */
     [[nodiscard]]
     Request enumerateInputEvents(std::function<void(const InputEvent&)> handler, std::function<void()> onDone = nullptr) {
+        return enumerateInputEvents([handler](InputEventHash hash, std::string_view name, InputEventType type) {
+            handler(InputEvent{ std::string(name), hash, type });
+        }, std::move(onDone));
+    }
+
+
+    /**
+     * Requests the enumeration of input events declared by the loaded aircraft, invoking the
+     * provided handler for each one with its fields as separate parameters. Avoids constructing
+     * an InputEvent (and copying its name into a std::string) per entry; prefer this over the
+     * InputEvent-taking overload when enumerating large lists on a hot path.
+     *
+     * @param handler The handler to invoke for each declared input event.
+     * @param onDone An optional callback to invoke when the enumeration is complete.
+     * @return A Request object that can be used to stop the request.
+     */
+    [[nodiscard]]
+    Request enumerateInputEvents(std::function<void(InputEventHash hash, std::string_view name, InputEventType type)> handler, std::function<void()> onDone = nullptr) {
         auto requestId = simConnectMessageHandler_.connection().requests().nextRequestID();
 
         this->registerHandler(requestId, [handler, onDone](const Messages::MsgBase& msg) {
@@ -132,7 +150,7 @@ public:
 
             for (unsigned long i = 0; i < eventsMsg.dwArraySize; ++i) {
                 const auto& item = eventsMsg.rgData[i];
-                handler(InputEvent{ std::string(&item.Name[0]), item.Hash, static_cast<InputEventType>(item.eType) });
+                handler(item.Hash, std::string_view(&item.Name[0]), static_cast<InputEventType>(item.eType));
             }
 
             if (eventsMsg.dwEntryNumber == (eventsMsg.dwOutOf - 1)) { // 0 to dwOutOf-1

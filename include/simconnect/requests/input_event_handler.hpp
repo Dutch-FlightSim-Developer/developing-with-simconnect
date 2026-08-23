@@ -16,6 +16,7 @@
  */
 
 #include <functional>
+#include <memory>
 #include <string>
 #include <string_view>
 #include <utility>
@@ -126,7 +127,7 @@ public:
     [[nodiscard]]
     Request enumerateInputEvents(std::function<void(const InputEvent&)> handler, std::function<void()> onDone = nullptr) {
         return enumerateInputEvents([handler](InputEventHash hash, std::string_view name, InputEventType type) {
-            handler(InputEvent{ std::string(name), hash, type });
+            handler(InputEvent{ .name = std::string(name), .hash = hash, .type = type });
         }, std::move(onDone));
     }
 
@@ -211,6 +212,57 @@ public:
      */
     void enumerateInputEventParams(InputEventHash hash, std::function<void(std::string_view)> handler) {
         paramsHandler_.enumerateInputEventParams(hash, std::move(handler));
+    }
+
+
+    /**
+     * Finds a single declared input event by exact name. This is the common case for a real
+     * add-on wiring up one known event, as opposed to enumerateInputEvents()'s per-entry
+     * scan (better suited to diagnostics/tooling that don't know the exact name up front).
+     *
+     * @param name The exact (case-sensitive) name of the input event to find.
+     * @param onFound Called with the matching event, if one is declared.
+     * @param onNotFound Called once enumeration completes with no match found.
+     * @return A Request object that can be used to stop the underlying enumeration.
+     */
+    [[nodiscard]]
+    Request findInputEvent(std::string_view name, std::function<void(const InputEvent&)> onFound, std::function<void()> onNotFound = nullptr) {
+        auto found = std::make_shared<bool>(false);
+        return enumerateInputEvents(
+            [name = std::string(name), found, onFound](InputEventHash hash, std::string_view candidateName, InputEventType type) {
+                if (!*found && candidateName == name) {
+                    *found = true;
+                    onFound(InputEvent{ .name = std::string(candidateName), .hash = hash, .type = type });
+                }
+            },
+            [found, onNotFound]() {
+                if (!*found && onNotFound) {
+                    onNotFound();
+                }
+            });
+    }
+
+
+    /**
+     * Finds a single declared input event by exact name, then fetches its parameters - the
+     * common case of "look it up and tell me how to call it" in one step.
+     *
+     * @param name The exact (case-sensitive) name of the input event to find.
+     * @param onFound Called with the matching event and its raw ';'-separated parameter type
+     *                string, if one is declared.
+     * @param onNotFound Called once enumeration completes with no match found.
+     * @return A Request object that can be used to stop the underlying enumeration. Note this
+     *         does not cover the parameter fetch triggered internally once a match is found.
+     */
+    [[nodiscard]]
+    Request findInputEvent(std::string_view name, std::function<void(const InputEvent&, std::string_view)> onFound, std::function<void()> onNotFound = nullptr) {
+        return findInputEvent(name,
+            [this, onFound](const InputEvent& event) {
+                enumerateInputEventParams(event.hash, [event, onFound](std::string_view params) {
+                    onFound(event, params);
+                });
+            },
+            std::move(onNotFound));
     }
 
 };

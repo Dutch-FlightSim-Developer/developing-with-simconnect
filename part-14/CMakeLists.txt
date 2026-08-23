@@ -2,3 +2,4 @@
 
 add_subdirectory("14-1 - Enumerate InputEvents and Parameters in C")
 add_subdirectory("14-2 - Enumerate InputEvents and Parameters in C++")
+add_subdirectory("14-3 - Get and Set InputEvent Value in C++")

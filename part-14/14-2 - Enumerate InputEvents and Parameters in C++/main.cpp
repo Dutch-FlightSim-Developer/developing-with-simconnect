@@ -307,31 +307,32 @@ static void printParams(std::string_view value)
 
 
 /**
- * Connect to the simulator, filter declared input events by `pattern` (a regex; empty matches everything),
- * and either list the matches or - if there's exactly one - print its parameters.
+ * Print a single line describing a declared input event, without its parameters.
  *
- * @param pattern The regex pattern to filter declared input event names by.
- * @return 0 on a resolved match (single or multiple), 1 otherwise (no match, bad pattern, connection failure).
+ * @param event The event to print.
  */
-static int runTest(std::string_view pattern)
+static void printEvent(const InputEvent& event)
 {
-  WindowsEventConnection<false, ConsoleLogger> connection;
-  WindowsEventHandler<false, ConsoleLogger> handler(connection);
-  handler.autoClosing(true);
+  std::cout << std::format("Event: '{}' (Hash: 0x{:016X}, Type: {})\n",
+    event.name, event.hash, event.type == InputEventTypes::doubleValue ? "Double" : "String");
+}
 
-  bool done{ false };
-  int exitCode{ 1 };
 
-  handler.registerDefaultHandler([](const Messages::MsgBase& msg) {
-    std::cerr << std::format("Ignoring message of type {} (length {} bytes)\n", msg.dwID, msg.dwSize);
-  });
-  handler.registerHandler<Messages::OpenMsg>(Messages::open, handleOpen);
-  handler.registerHandler<Messages::QuitMsg>(Messages::quit, handleClose);
-  handler.registerHandler<Messages::ExceptionMsg>(Messages::exception, [&done](const Messages::ExceptionMsg& msg) {
-    handleException(msg);
-    done = true;
-  });
-
+/**
+ * List every declared input event matching `pattern` (a regex; empty matches everything). Unlike
+ * the default (non-scan) mode, this always just lists - even a single match's parameters are not
+ * fetched, since the point here is surveying what's declared, not looking up one known event.
+ *
+ * @param handler The message handler to pump while waiting for the enumeration to complete.
+ * @param inputEvents The input event handler to enumerate through.
+ * @param pattern The regex pattern to filter declared input event names by.
+ * @param done Set to true once the enumeration completes (by this function) or an exception
+ *             arrived (by the caller's exception handler) - either way, pumping should stop.
+ * @return 0 if at least one event matched, 1 otherwise (no match, bad pattern).
+ */
+template <class Handler>
+static int scanInputEvents(Handler& handler, InputEventHandler<Handler>& inputEvents, std::string_view pattern, bool& done)
+{
   std::regex regexPattern;
   const bool havePattern{ !pattern.empty() };
   if (havePattern) {
@@ -344,15 +345,10 @@ static int runTest(std::string_view pattern)
     }
   }
 
-  if (!connection.open()) {
-    std::cerr << "Failed to connect to simulator.\n";
-    return 1;
-  }
+  std::cout << std::format("[Scanning input events{}]\n", havePattern ? std::format(" matching '{}'", pattern) : "");
 
-  InputEventHandler<decltype(handler)> inputEvents(handler);
+  int exitCode{ 1 };
   std::vector<InputEvent> matches;
-
-  std::cout << std::format("[Requesting input events{}]\n", havePattern ? std::format(" matching '{}'", pattern) : "");
 
   auto request = inputEvents.enumerateInputEvents(
     [&matches, &regexPattern, havePattern](InputEventHash hash, std::string_view name, InputEventType type) {
@@ -360,37 +356,16 @@ static int runTest(std::string_view pattern)
         matches.push_back(InputEvent{ .name = std::string(name), .hash = hash, .type = type });
       }
     },
-    [&matches, &inputEvents, &done, &exitCode]() {
+    [&matches, &done, &exitCode]() {
       if (matches.empty()) {
         std::cerr << "No declared input event matches.\n";
-        done = true;
-        return;
-      }
-      if (matches.size() > 1) {
+      } else {
         for (const auto& event : matches) {
-          std::cout << std::format("Event: '{}' (Hash: 0x{:016X}, Type: {})\n",
-            event.name, event.hash, event.type == InputEventTypes::doubleValue ? "Double" : "String");
+          printEvent(event);
         }
         exitCode = 0;
-        done = true;
-        return;
       }
-
-      const auto& event = matches.front();
-      std::cout << std::format("Event: '{}' (Hash: 0x{:016X})\n", event.name, event.hash);
-      std::cout << (event.type == InputEventTypes::doubleValue
-        ? "This event expects a double value.\n"
-        : "This event expects a string value.\n");
-
-      inputEvents.enumerateInputEventParams(event.hash, [&done, &exitCode, name = event.name](std::string_view value) {
-        if (value.empty()) {
-          std::cout << std::format("No parameters found for event '{}'.\n", name);
-        } else {
-          printParams(value);
-        }
-        exitCode = 0;
-        done = true;
-      });
+      done = true;
     });
 
   static constexpr auto timeout = 10s;
@@ -401,14 +376,94 @@ static int runTest(std::string_view pattern)
 }
 
 
+/**
+ * Look up a single declared input event by exact name and print its parameters - the common case
+ * of a real add-on wiring up one known event, as opposed to scanInputEvents()'s survey.
+ *
+ * @param handler The message handler to pump while waiting for the lookup to complete.
+ * @param inputEvents The input event handler to look the event up through.
+ * @param name The exact (case-sensitive) name of the input event to find.
+ * @param done Set to true once the lookup completes (by this function) or an exception arrived
+ *             (by the caller's exception handler) - either way, pumping should stop.
+ * @return 0 if found, 1 otherwise.
+ */
+template <class Handler>
+static int lookupInputEvent(Handler& handler, InputEventHandler<Handler>& inputEvents, std::string_view name, bool& done)
+{
+  std::cout << std::format("[Looking up input event '{}']\n", name);
+
+  int exitCode{ 1 };
+
+  auto request = inputEvents.findInputEvent(name,
+    [&done, &exitCode](const InputEvent& event, std::string_view value) {
+      printEvent(event);
+      if (value.empty()) {
+        std::cout << std::format("No parameters found for event '{}'.\n", event.name);
+      } else {
+        printParams(value);
+      }
+      exitCode = 0;
+      done = true;
+    },
+    [&done]() {
+      std::cerr << "No declared input event with that name.\n";
+      done = true;
+    });
+
+  static constexpr auto timeout = 10s;
+  handler.handleUntilOrTimeout([&done]() { return done; }, timeout);
+  request.stop();
+
+  return exitCode;
+}
+
+
+/**
+ * Connect to the simulator and either scan for input events matching a regex (--scan), or look
+ * up a single event by exact name (the default).
+ *
+ * @param pattern The regex pattern (--scan) or exact name (default) to look up.
+ * @param scan Whether to scan (list all matches) instead of looking up a single exact name.
+ * @return 0 on a resolved match, 1 otherwise (no match, bad pattern, connection failure).
+ */
+static int runTest(std::string_view pattern, bool scan)
+{
+  WindowsEventConnection<false, ConsoleLogger> connection;
+  WindowsEventHandler<false, ConsoleLogger> handler(connection);
+  handler.autoClosing(true);
+
+  bool done{ false };
+
+  handler.registerDefaultHandler([](const Messages::MsgBase& msg) {
+    std::cerr << std::format("Ignoring message of type {} (length {} bytes)\n", msg.dwID, msg.dwSize);
+  });
+  handler.registerHandler<Messages::OpenMsg>(Messages::open, handleOpen);
+  handler.registerHandler<Messages::QuitMsg>(Messages::quit, handleClose);
+  handler.registerHandler<Messages::ExceptionMsg>(Messages::exception, [&done](const Messages::ExceptionMsg& msg) {
+    handleException(msg);
+    done = true;
+  });
+
+  if (!connection.open()) {
+    std::cerr << "Failed to connect to simulator.\n";
+    return 1;
+  }
+
+  InputEventHandler<decltype(handler)> inputEvents(handler);
+
+  return scan ? scanInputEvents(handler, inputEvents, pattern, done) : lookupInputEvent(handler, inputEvents, pattern, done);
+}
+
+
 auto main(int argc, const char* argv[]) -> int // NOLINT(bugprone-exception-escape)
 {
   const auto args{ gatherArgs(argc, argv) };
   const auto nameArg{ args.find("Arg1") };
   const std::string pattern{ (nameArg != args.end()) ? nameArg->second : std::string{} };
+  const bool scan{ args.contains("scan") };
 
   try {
-    return runTest(pattern);
+    return runTest(pattern, scan);
   }
   catch (const std::exception& e) {
     std::cerr << "Error: " << e.what() << '\n';

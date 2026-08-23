@@ -98,7 +98,7 @@ ctest --preset <test-preset> -R <test-name>
 
 ## Formatting and Linting
 
-- **clang-format**: 120-column limit, 2-space indent, right-aligned pointers, sorted includes
+- **clang-format**: 120-column limit, 4-space indent, right-aligned pointers, sorted includes
 - **clang-tidy**: enabled on Clang presets; disabled on MSVC presets (MSVC limitations); configuration in `.clang-tidy`
 - Run clang-tidy via Clang debug presets; MSVC developer-mode presets use warnings-as-errors instead
 

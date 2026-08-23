@@ -435,3 +435,8 @@ _PackageInt/
 # check in, see the "One-time setup" section of the relevant EFB README for how to restore them
 **/PackageSources/efb_api/
 **/PackageSources/vendor/
+
+# Legacy event catalogs scraped from MSFS SDK docs (scripts/extract_msfs_events.py) -
+# Microsoft-copyrighted content, not ours to redistribute. Generate locally as needed.
+/msfs-events/2020/
+/msfs-events/2024/

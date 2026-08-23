@@ -21,6 +21,7 @@
 #include <format>
 #include <chrono>
 
+#include <simconnect.hpp>
 #include <simconnect/simconnect.hpp>
 #include <simconnect/windows_event_connection.hpp>
 #include <simconnect/windows_event_handler.hpp>

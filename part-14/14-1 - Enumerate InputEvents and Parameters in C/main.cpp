@@ -28,11 +28,13 @@
 
 #pragma warning(pop)
 
+#include <functional>
 #include <iostream>
 #include <format>
 #include <string>
 #include <vector>
 #include <chrono>
+#include <regex>
 #include <map>
 
 
@@ -56,14 +58,6 @@ static HANDLE hSimConnect{ nullptr };
 static HANDLE hEvent{ nullptr };
 
 static std::map<std::string, std::string> args;
-
-static std::string targetName;
-static bool haveHash{ false };
-static UINT64 targetHash{ 0 };
-static DWORD declaredEventCount{ 0 };
-
-static bool done{ false };
-static int exitCode{ 0 };
 
 
 /**
@@ -231,20 +225,6 @@ static void handleException(const SIMCONNECT_RECV_EXCEPTION& msg)
 #endif
         // No default; we want an error if we miss one
     }
-
-    // This example makes a single request at a time; any exception ends the run.
-    if (!haveHash) {
-        // The most common cause here is an aircraft that declares zero input events -
-        // a known SDK issue (acknowledged by Asobo) where enumeration raises an
-        // exception instead of returning an empty list.
-        std::cerr << std::format("Could not enumerate input events for the current aircraft "
-            "(it may declare none at all - see SimConnect exception above).\n");
-    }
-    else {
-        std::cerr << std::format("Could not retrieve parameters for input event '{}'.\n", targetName);
-    }
-    exitCode = 1;
-    done = true;
 }
 
 
@@ -274,75 +254,6 @@ static void handleOpen(const SIMCONNECT_RECV_OPEN& msg)
 static void handleClose()
 {
     std::cerr << "[Simulator is shutting down]\n";
-    exitCode = 1;
-    done = true;
-}
-
-
-/**
- * Handle one page of the SimConnect_EnumerateInputEvents response, looking for an
- * exact (case-sensitive) match on the requested name. Once found, immediately
- * requests its parameters; further pages are then ignored.
- *
- * @param msg The input events list page to handle.
- */
-static void handleInputEventsList(const SIMCONNECT_RECV_ENUMERATE_INPUT_EVENTS& msg)
-{
-    declaredEventCount += msg.dwArraySize;
-
-    if (!haveHash) {
-        for (DWORD i{ 0 }; i < msg.dwArraySize; ++i) {
-            const SIMCONNECT_INPUT_EVENT_DESCRIPTOR& item{ msg.rgData[i] };
-            if (targetName == item.Name) {
-                haveHash = true;
-                targetHash = item.Hash;
-                SimConnect_EnumerateInputEventParams(hSimConnect, targetHash);
-                break;
-            }
-        }
-    }
-
-    const bool isLastPage{ (msg.dwEntryNumber + 1) >= msg.dwOutOf };
-    if (isLastPage && !haveHash) {
-        std::cerr << std::format("No declared input event named '{}' (searched {} declared event{}).\n",
-            targetName, declaredEventCount, declaredEventCount == 1 ? "" : "s");
-        exitCode = 1;
-        done = true;
-    }
-}
-
-
-/**
- * Handle the SimConnect_EnumerateInputEventParams response: parse the ';'-separated
- * type list and print it in a human-readable form.
- *
- * @param msg The input event parameters response to handle.
- */
-static void handleInputEventParams(const SIMCONNECT_RECV_ENUMERATE_INPUT_EVENT_PARAMS& msg)
-{
-    std::vector<std::string> paramTypes;
-    std::string value{ msg.Value };
-    std::size_t start{ 0 };
-    while (start <= value.size()) {
-        const std::size_t sep{ value.find(';', start) };
-        const std::string token{ value.substr(start, sep == std::string::npos ? std::string::npos : sep - start) };
-        if (!token.empty()) {
-            paramTypes.push_back(token);
-        }
-        if (sep == std::string::npos) {
-            break;
-        }
-        start = sep + 1;
-    }
-
-    std::cout << std::format("Input event '{}' (Hash=0x{:016X}) has {} parameter{}:\n",
-        targetName, msg.Hash, paramTypes.size(), paramTypes.size() == 1 ? "" : "s");
-    for (std::size_t i{ 0 }; i < paramTypes.size(); ++i) {
-        std::cout << std::format("  [{}] {}\n", i, paramTypes[i]);
-    }
-
-    exitCode = 0;
-    done = true;
 }
 
 
@@ -403,19 +314,22 @@ inline const Recv* toRecvPtr(const void* ptr) { return reinterpret_cast<const Re
 
 
 /**
- * Handle incoming SimConnect messages until the lookup completes (found, not found,
- * or an exception occurred) or the given duration elapses.
+ * Handle incoming SimConnect messages until the handler tells us we're done, or the given duration elapses.
  *
+ * @param handleMsg A function that will be called for each event returned.
  * @param duration How long to keep waiting for a resolution. Pass 0s to wait indefinitely.
  */
-static void handleMessages(std::chrono::seconds duration)
+template <SIMCONNECT_RECV_ID RecvID, typename RecvType>
+static void handleInputEventMessages(std::function<bool(const RecvType&)> handleMsg, std::chrono::seconds duration = 5s)
 {
     bool haveNoDeadline{ duration.count() == 0 };
 
     std::chrono::steady_clock::time_point startTime = std::chrono::steady_clock::now();
     std::chrono::steady_clock::time_point endTime = startTime + duration;
 
-    while (!done && (haveNoDeadline || (std::chrono::steady_clock::now() <= endTime))) {
+    bool connected{ true };
+
+    while (connected && (haveNoDeadline || (std::chrono::steady_clock::now() <= endTime))) {
         auto waitResult = ::WaitForSingleObject(hEvent, 100);
         if (waitResult == WAIT_TIMEOUT) {
             continue;
@@ -430,10 +344,11 @@ static void handleMessages(std::chrono::seconds duration)
         SIMCONNECT_RECV* pData{ nullptr };
         DWORD cbData{ 0 };
 
-        for (HRESULT hr{ S_OK }; !done && SUCCEEDED(hr = SimConnect_GetNextDispatch(hSimConnect, &pData, &cbData)); ) {
+        for (HRESULT hr{ S_OK }; connected && SUCCEEDED(hr = SimConnect_GetNextDispatch(hSimConnect, &pData, &cbData)); ) {
             switch (pData->dwID) {
             case SIMCONNECT_RECV_ID_EXCEPTION:
                 handleException(*toRecvPtr<SIMCONNECT_RECV_EXCEPTION>(pData));
+                connected = false;
                 break;
 
             case SIMCONNECT_RECV_ID_OPEN:
@@ -442,14 +357,11 @@ static void handleMessages(std::chrono::seconds duration)
 
             case SIMCONNECT_RECV_ID_QUIT:
                 handleClose();
+                connected = false;
                 break;
 
-            case SIMCONNECT_RECV_ID_ENUMERATE_INPUT_EVENTS:
-                handleInputEventsList(*toRecvPtr<SIMCONNECT_RECV_ENUMERATE_INPUT_EVENTS>(pData));
-                break;
-
-            case SIMCONNECT_RECV_ID_ENUMERATE_INPUT_EVENT_PARAMS:
-                handleInputEventParams(*toRecvPtr<SIMCONNECT_RECV_ENUMERATE_INPUT_EVENT_PARAMS>(pData));
+            case RecvID:
+                connected = handleMsg(*toRecvPtr<RecvType>(pData));
                 break;
 
             default:
@@ -458,10 +370,69 @@ static void handleMessages(std::chrono::seconds duration)
             }
         }
     }
-    if (!done) {
-        std::cerr << "[Timed out waiting for a response.]\n";
-        exitCode = 1;
+}
+
+
+/**
+ * Request and gather the input events. use the pattern as a regex to filter the events. If the pattern is empty, all events are gathered.
+ *
+ * @param events The input events.
+ */
+static void gatherInputEvents(std::vector<SIMCONNECT_INPUT_EVENT_DESCRIPTOR>& events, std::string_view pattern)
+{
+    std::regex regexPattern;
+    if (!pattern.empty()) {
+        try {
+            regexPattern = std::regex(pattern.begin(), pattern.end());
+        }
+        catch (const std::regex_error& e) {
+            std::cerr << std::format("Invalid regex pattern '{}': {}\n", pattern, e.what());
+            return;
+        }
     }
+    std::cerr << std::format("[Requesting input events{}]\n", pattern.empty() ? "" : std::format(" matching '{}'", pattern));
+
+    HRESULT hr = SimConnect_EnumerateInputEvents(hSimConnect, REQUEST_INPUT_EVENTS);
+    if (FAILED(hr)) {
+        std::cerr << std::format("Failed to request input events: 0x{:08X}\n", hr);
+        return;
+    }
+    handleInputEventMessages<SIMCONNECT_RECV_ID_ENUMERATE_INPUT_EVENTS, SIMCONNECT_RECV_ENUMERATE_INPUT_EVENTS>(
+        [&events, &regexPattern, havePattern = !pattern.empty()](const SIMCONNECT_RECV_ENUMERATE_INPUT_EVENTS& eventMsg) {
+            for (std::size_t i = 0; i < eventMsg.dwArraySize; ++i) {
+                const SIMCONNECT_INPUT_EVENT_DESCRIPTOR& event = eventMsg.rgData[i];
+                if (!havePattern || std::regex_match(event.Name, regexPattern)) {
+                    events.push_back(event);
+                }
+            }
+            return (eventMsg.dwEntryNumber + 1) < eventMsg.dwOutOf; // Continue if there are more messages to come
+        });
+}
+
+
+/**
+ * Request and gather the input event parameters for the given event hash.
+ * 
+ * @param hash The hash of the input event to gather parameters for.
+ * @return The parameters for the input event, or an empty string if none were found.
+ */
+static std::string getEventParams(UINT64 hash)
+{
+    std::cerr << std::format("[Requesting parameters for event with hash 0x{:016X}]\n", hash);
+
+    HRESULT hr = SimConnect_EnumerateInputEventParams(hSimConnect, hash);
+    if (FAILED(hr)) {
+        std::cerr << std::format("Failed to request input event parameters: 0x{:08X}\n", hr);
+        return "";
+    }
+    std::string params;
+    handleInputEventMessages<SIMCONNECT_RECV_ID_ENUMERATE_INPUT_EVENT_PARAMS, SIMCONNECT_RECV_ENUMERATE_INPUT_EVENT_PARAMS>(
+        [&params](const SIMCONNECT_RECV_ENUMERATE_INPUT_EVENT_PARAMS& event) {
+            params = event.Value;
+            return false; // Stop after the first message, as there should only be one
+        });
+
+    return params;
 }
 
 
@@ -506,22 +477,71 @@ auto main(int argc, const char* argv[]) -> int
 {
     gatherArgs(argc, argv);
 
+    std::string targetName;
+
     const auto nameArg{ args.find("Arg1") };
     if (nameArg == args.end() || nameArg->second.empty()) {
-        std::cerr << std::format("Usage: {} <input-event-name>\n", args["Arg0"]);
-        return -1;
+        targetName = "";
     }
-    targetName = nameArg->second;
+    else {
+        targetName = nameArg->second;
+    }
 
     if (!connect()) {
         return -1;
     }
 
-    SimConnect_EnumerateInputEvents(hSimConnect, REQUEST_INPUT_EVENTS);
+    std::vector<SIMCONNECT_INPUT_EVENT_DESCRIPTOR> events;
 
-    handleMessages(30s);
+    gatherInputEvents(events, targetName);
+    if (events.size() == 1) {
+        for (const auto& event : events) {
+            std::cerr << std::format("Event: '{}' (Hash: 0x{:016X})\n", std::string_view(event.Name), event.Hash);
+        }
+        switch (events[0].eType) {
+        case SIMCONNECT_INPUT_EVENT_TYPE_DOUBLE:
+            std::cerr << "This event expects a double value.\n";
+            break;
+        case SIMCONNECT_INPUT_EVENT_TYPE_STRING:
+            std::cerr << "This event expects a string value.\n";
+            break;
+        default:
+            std::cerr << "This event expects an unknown value type.\n";
+            break;
+        }
+
+        std::string params = getEventParams(events[0].Hash);
+        if (!params.empty()) {
+            // Split the parameters by semicolon and print them
+            std::cerr << "Parameters:\n";
+            size_t start = 0;
+            size_t end = params.find(';');
+            while (end != std::string::npos) {
+                std::string param = params.substr(start, end - start);
+                if (!param.empty()) {
+                    std::cerr << std::format("- {}\n", param);
+                }
+                start = end + 1;
+                end = params.find(';', start);
+            }
+            if (start < params.length()) {
+                std::string param = params.substr(start);
+                if (!param.empty()) {
+                    std::cerr << std::format("- {}\n", param);
+                }
+            }
+        }
+        else {
+            std::cerr << std::format("No parameters found for event '{}'.\n", std::string_view(events[0].Name));
+        }
+    }
+    else {
+        for (const auto& event : events) {
+            std::cerr << std::format("Event: '{}' (Hash: 0x{:016X}, Type: {})\n", std::string_view(event.Name), event.Hash, (event.eType == 0 ? "Double" : (event.eType == 1 ? "String" : "Unknown")));
+        }
+    }
 
     disconnect();
 
-    return exitCode;
+    return events.empty() ? 1 : 0;
 }

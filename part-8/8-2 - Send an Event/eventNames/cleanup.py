@@ -58,6 +58,13 @@ def evaluate_operand(operand, symbols):
 
     raise ValueError(f"Undefined symbol: {operand}")
 
+# PMDG SDK doc: every control event is sent as an (Event, Parameter) pair - a single
+# unsigned int. Non-Boolean switches document their position values on the corresponding
+# data-struct field elsewhere in the header (not reliably name-matchable to the EVT_*
+# define), so we can't state exact positions here - point at the PDF instead.
+DEFAULT_PARAM_DESCRIPTION = ("Switch position/value, or a MOUSE_FLAG_* constant - see the "
+                              "PMDG SDK documentation (PDF) for exact positions")
+
 def extract_defines_from_header(filename):
     """Extract #define lines for THIRD_PARTY_EVENT_ID_MIN and EVT_* constants, plus CDU_EVT_OFFSET_* constants"""
     defines = []
@@ -77,9 +84,11 @@ def extract_defines_from_header(filename):
                     if (const_name == 'THIRD_PARTY_EVENT_ID_MIN' or
                         const_name.startswith('EVT_') or
                         const_name.startswith('CDU_EVT_OFFSET_')):
-                        # Remove any trailing comment
-                        value_expr = re.sub(r'//.*$', '', value_expr).strip()
-                        defines.append((const_name, value_expr))
+                        # Split off the trailing comment (kept as the event's description)
+                        m = re.match(r'^(.*?)(?://\s*(.*))?$', value_expr)
+                        value_expr = m.group(1).strip()
+                        comment = (m.group(2) or '').strip()
+                        defines.append((const_name, value_expr, comment))
 
     return defines
 
@@ -94,32 +103,34 @@ def resolve_dependencies(defines):
         resolved_count = len(unresolved)
         still_unresolved = []
 
-        for const_name, value_expr in unresolved:
+        for const_name, value_expr, comment in unresolved:
             try:
                 value = evaluate(value_expr, symbols)
                 symbols[const_name] = value
-                yield const_name, value
+                yield const_name, value, comment
             except ValueError:
                 # Can't resolve yet, try again later
-                still_unresolved.append((const_name, value_expr))
+                still_unresolved.append((const_name, value_expr, comment))
 
         unresolved = still_unresolved
 
     # Report any that couldn't be resolved
-    for const_name, value_expr in unresolved:
+    for const_name, value_expr, comment in unresolved:
         print(f"Error: Could not resolve {const_name} = {value_expr}", file=sys.stderr)
 
 def build_catalog(defines, source, category):
-    """Build an msfs-events-style catalog dict from resolved (name, value) pairs"""
-    events = [
-        {
+    """Build an msfs-events-style catalog dict from resolved (name, value, comment) triples"""
+    events = []
+    for const_name, value, comment in resolve_dependencies(defines):
+        # A comment that spells out "parameter" is documenting the value itself (e.g. an
+        # MCP SET formula) - use it for the param description too, instead of the generic text.
+        param_description = comment if 'parameter' in comment.lower() else DEFAULT_PARAM_DESCRIPTION
+        events.append({
             "name": const_name,
             "eventId": f"#{value}",
-            "params": [],
-            "description": ""
-        }
-        for const_name, value in resolve_dependencies(defines)
-    ]
+            "params": [{"index": 0, "type": "DWORD", "description": param_description}],
+            "description": comment
+        })
     return {
         "source": source,
         "category": category,
@@ -133,7 +144,7 @@ def render_json(defines, source, category):
 
 def render_txt(defines):
     """Flat 'NAME value' lines - the format part-8's 8-2 example loads via --names"""
-    lines = [f"{const_name} {value}" for const_name, value in resolve_dependencies(defines)]
+    lines = [f"{const_name} {value}" for const_name, value, _comment in resolve_dependencies(defines)]
     text = '\n'.join(lines) + ('\n' if lines else '')
     return text, len(lines)
 

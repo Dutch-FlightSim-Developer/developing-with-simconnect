@@ -900,8 +900,12 @@ static int setValue(Handler& handler, Connection& connection, std::string_view r
 
 /**
  * Map and transmit a classic client event - covers both legacy MSFS "KEY_*" events and PMDG's
- * "#<number>" third-party events, since SimConnect accepts either form as the event-name string
- * passed to MapClientEventToSimEvent.
+ * "#<number>" third-party events. A leading "KEY_" is stripped before mapping: that prefix is the
+ * legacy gauge-header C-macro naming convention (e.g. `#define KEY_FLAPS_1 ...`), not part of the
+ * actual SimConnect event-name string - MapClientEventToSimEvent wants the bare name ("FLAPS_1"),
+ * confirmed against 8-2's proven raw-C example and live-tested (a "KEY_"-prefixed name gets
+ * rejected with SIMCONNECT_EXCEPTION_NAME_UNRECOGNIZED). PMDG's "#<number>" strings never start
+ * with "KEY_", so the strip is a no-op for them.
  *
  * @param handler The message handler to pump while giving a possible failure exception a
  *                grace window to arrive.
@@ -915,7 +919,13 @@ static int setValue(Handler& handler, Connection& connection, std::string_view r
 template <class Handler, class Connection>
 static int sendClientEvent(Handler& handler, Connection& connection, std::string_view eventIdString, unsigned long data, bool& done)
 {
-  auto evt = connection.event(eventIdString);
+  std::string_view mapName{ eventIdString };
+  if (mapName.starts_with("KEY_")) {
+    static constexpr std::size_t keyPrefixLength{ 4 };
+    mapName.remove_prefix(keyPrefixLength);
+  }
+
+  auto evt = connection.event(mapName);
   connection.mapClientEvent(evt);
   connection.transmitClientEventWithPriority(SimObject::userAircraft, evt, Events::standardPriority, data);
 
@@ -1036,6 +1046,33 @@ static int runTest(std::string_view name, std::optional<std::string_view> newVal
 }
 
 
+/**
+ * Walk upward from `start` looking for a directory containing ".git", to locate the repo root
+ * regardless of how deep the build output nests the executable - CMake/ninja
+ * (out/build/<preset>/part-14/14-4.../) and MSBuild (part-14/14-4.../x64/<config>/) nest it to
+ * different depths, so a fixed number of ".." segments can't cover both.
+ *
+ * @param start The directory to start searching from (typically the executable's own directory).
+ * @return The repo root, or std::nullopt if no ".git" marker was found within the search bound.
+ */
+static std::optional<std::filesystem::path> findRepoRoot(const std::filesystem::path& start)
+{
+  std::error_code ec;
+  auto dir{ std::filesystem::absolute(start, ec) };
+  if (ec) { return std::nullopt; }
+
+  static constexpr int maxLevels{ 8 };
+  for (int level{ 0 }; level < maxLevels; ++level) {
+    std::error_code existsEc;
+    if (std::filesystem::exists(dir / ".git", existsEc)) { return dir; }
+    const auto parent{ dir.parent_path() };
+    if (parent == dir) { break; } // Reached filesystem root.
+    dir = parent;
+  }
+  return std::nullopt;
+}
+
+
 auto main(int argc, const char* argv[]) -> int // NOLINT(bugprone-exception-escape)
 {
   const auto args{ gatherArgs(argc, argv) };
@@ -1051,12 +1088,16 @@ auto main(int argc, const char* argv[]) -> int // NOLINT(bugprone-exception-esca
     (valueArg != args.end()) ? std::optional<std::string_view>(valueArg->second) : std::nullopt
   };
 
-  std::filesystem::path catalogDir{
+  static constexpr std::string_view catalogYear{
 #if MSFS_2024_SDK
-    "../../msfs-events/2024"
+    "2024"
 #else
-    "../../msfs-events/2020"
+    "2020"
 #endif
+  };
+  const auto repoRoot{ findRepoRoot(std::filesystem::path(args.at("Arg0")).parent_path()) };
+  std::filesystem::path catalogDir{
+    repoRoot ? (*repoRoot / "msfs-events" / catalogYear) : (std::filesystem::path{ "msfs-events" } / catalogYear)
   };
   const auto catalogDirArg{ args.find("catalog-dir") };
   if (catalogDirArg != args.end() && !catalogDirArg->second.empty()) {

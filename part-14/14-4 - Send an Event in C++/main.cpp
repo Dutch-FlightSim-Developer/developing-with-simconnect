@@ -969,8 +969,8 @@ static int sendClientEvent(Handler& handler, Connection& connection, std::string
  * a loaded JSON catalog or (with no catalog entry) as a literal client-event id string.
  *
  * @param name The exact (case-sensitive) name, or literal client-event id, to look up.
- * @param newValue The value to set/send, or std::nullopt to get (input event) / just report what
- *                 is known (client event) instead.
+ * @param newValue The value to set/send. std::nullopt means: get the current value (input event),
+ *                 or send with a default of 0 (client event).
  * @param catalogOptions Where to look for JSON catalogs, and which PMDG ones to include, when
  *                        `name` is not a declared input event.
  * @return 0 on success, 1 otherwise (not found, connection failure, unsupported shape, bad value).
@@ -1034,19 +1034,6 @@ static int runTest(std::string_view name, std::optional<std::string_view> newVal
   const auto found{ catalog.find(std::string(name)) };
   const bool haveCatalogEntry{ found != catalog.end() };
 
-  if (!newValue) {
-    if (haveCatalogEntry) {
-      std::cout << std::format(
-        "'{}' is a client event (id '{}', {} parameter(s) documented). Provide a value to send it.\n",
-        name, found->second.eventId, found->second.paramCount);
-    } else {
-      std::cout << std::format(
-        "'{}' is not a declared input event or a known catalog entry - provide a value to send it as a literal "
-        "client-event id.\n", name);
-    }
-    return 0;
-  }
-
   if (haveCatalogEntry && found->second.paramCount > 1) {
     std::cerr << std::format(
       "'{}' takes {} parameters - only single-parameter client events are currently supported.\n",
@@ -1054,7 +1041,9 @@ static int runTest(std::string_view name, std::optional<std::string_view> newVal
     return 1;
   }
 
-  const auto data{ parseUnsignedValue(*newValue) };
+  // No value given - default to 0, matching 8-2's raw-C example (a plain toggle/trigger event
+  // ignores the data value; a positional/mouse-flag event needs an explicit one).
+  const auto data{ newValue ? parseUnsignedValue(*newValue) : std::optional<unsigned long>(0) };
   if (!data) {
     std::cerr << std::format("'{}' is not a valid numeric value.\n", *newValue);
     return 1;

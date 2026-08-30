@@ -836,86 +836,73 @@ static std::optional<unsigned long> parseUnsignedValue(std::string_view text)
 
 
 /**
- * Look the input event up, get its current value, and print it.
+ * Look `name` up in the catalog options' year-scoped JSON catalog. A local map lookup, no
+ * SimConnect round trip - checked first in `runTest`, before the live input-event enumeration,
+ * so a name that's statically known skips that wait entirely.
  *
- * @param handler The message handler to pump while waiting for the value to arrive.
- * @param inputEvents The input event handler to fetch the value through.
- * @param event The event to fetch the value of.
- * @param done Set to true once the fetch completes (by this function) or an exception arrived
- *             (by the caller's exception handler) - either way, pumping should stop.
- * @return 0 on success, 1 otherwise.
+ * @param catalogOptions Where to look, and which PMDG catalogs (if any) to include.
+ * @param name The event name to look up.
+ * @return The matching catalog entry, or std::nullopt if not found.
  */
-template <class Handler>
-static int getValue(Handler& handler, InputEventHandler<Handler>& inputEvents, const InputEvent& event, bool& done)
+static std::optional<CatalogEntry> lookupCatalogEntry(const CatalogOptions& catalogOptions, std::string_view name)
 {
-  int exitCode{ 1 };
-
-  if (event.type == InputEventTypes::doubleValue) {
-    inputEvents.getInputEvent(event.hash, [&done, &exitCode, name = event.name](double value) {
-      std::cout << std::format("Current value of '{}': {}\n", name, value);
-      exitCode = 0;
-      done = true;
-    });
-  }
-  else {
-    inputEvents.getInputEvent(event.hash, [&done, &exitCode, name = event.name](const std::string& value) {
-      std::cout << std::format("Current value of '{}': '{}'\n", name, value);
-      exitCode = 0;
-      done = true;
-    });
-  }
-
-  static constexpr auto timeout = 10s;
-  handler.handleUntilOrTimeout([&done]() { return done; }, timeout);
-
-  return exitCode;
+  const auto catalog{ loadCatalogs(catalogOptions) };
+  const auto found{ catalog.find(std::string(name)) };
+  return (found != catalog.end()) ? std::optional<CatalogEntry>(found->second) : std::nullopt;
 }
 
 
 /**
- * Parse `newValue` and set the input event to it. Only supported for input events with a single
- * FLOAT64 parameter - anything else is rejected with a clear message rather than guessed at.
+ * Give a possible failure exception a short grace window to arrive, then report whether one did.
+ * Neither SetInputEvent nor TransmitClientEvent generates a success response of its own - an
+ * exception is the only way a failure is ever reported back.
  *
- * @param handler The message handler to pump while giving a possible failure exception a
- *                grace window to arrive.
+ * @param handler The message handler to pump.
+ * @param done Set to true by the caller's exception handler if one arrives during the wait.
+ * @return 0 if nothing arrived (assumed success), 1 if an exception fired.
+ */
+template <class Handler>
+static int waitForFailure(Handler& handler, bool& done)
+{
+  static constexpr auto grace = 1s;
+  handler.handleUntilOrTimeout([&done]() { return done; }, grace);
+  return done ? 1 : 0;
+}
+
+
+/**
+ * Validate that `event` accepts a single FLOAT64 parameter, parse `valueText`, and issue
+ * SetInputEvent. Only a single-FLOAT64-parameter event is supported - anything else is rejected
+ * with a clear message rather than guessed at. Does not wait for a possible failure exception;
+ * the caller does that once, after dispatching (see waitForFailure).
+ *
  * @param connection The connection to send the raw SetInputEvent call through.
  * @param rawParams The event's raw ';'-separated parameter type string, to validate against.
  * @param event The event to set the value of.
- * @param newValue The new value, as given on the command line.
- * @param done Set to true if an exception arrived (by the caller's exception handler) - checked
- *             after the grace window to tell a failure from an assumed success.
- * @return 0 on success, 1 otherwise (unsupported shape, bad value, exception).
+ * @param valueText The new value, as given on the command line (or the "0" default).
+ * @return The parsed value if the call was issued, or std::nullopt on an unsupported shape or
+ *         unparseable value (nothing sent in that case).
  */
-template <class Handler, class Connection>
-static int setValue(Handler& handler, Connection& connection, std::string_view rawParams, const InputEvent& event, std::string_view newValue, bool& done)
+template <class Connection>
+static std::optional<double> setValue(Connection& connection, std::string_view rawParams, const InputEvent& event, std::string_view valueText)
 {
   const auto params = splitParams(rawParams);
   if (event.type != InputEventTypes::doubleValue || params.size() != 1 || params.front() != "FLOAT64") {
     std::cerr << std::format(
       "'{}' has an unsupported parameter shape for set (only a single FLOAT64 parameter is currently supported).\n", event.name);
-    return 1;
+    return std::nullopt;
   }
 
   double parsedValue{};
-  const auto [ptr, ec] = std::from_chars(newValue.data(), newValue.data() + newValue.size(), parsedValue); // NOLINT(cppcoreguidelines-pro-bounds-pointer-arithmetic)
+  const auto [ptr, ec] = std::from_chars(valueText.data(), valueText.data() + valueText.size(), parsedValue); // NOLINT(cppcoreguidelines-pro-bounds-pointer-arithmetic)
   if (ec != std::errc{}) {
-    std::cerr << std::format("'{}' is not a valid number.\n", newValue);
-    return 1;
+    std::cerr << std::format("'{}' is not a valid number.\n", valueText);
+    return std::nullopt;
   }
 
   const std::span<const std::byte> bytes{ reinterpret_cast<const std::byte*>(&parsedValue), sizeof(parsedValue) }; //NOLINT(cppcoreguidelines-pro-type-reinterpret-cast)
   connection.setInputEvent(event.hash, bytes);
-
-  // SetInputEvent generates no success response - only exceptions tell us it failed. Give any
-  // exception a short grace window to arrive before assuming it worked.
-  static constexpr auto setGrace = 2s;
-  handler.handleUntilOrTimeout([&done]() { return done; }, setGrace);
-  if (done) {
-    return 1; // The exception handler already printed why.
-  }
-
-  std::cout << std::format("Set '{}' to {}.\n", event.name, parsedValue);
-  return 0;
+  return parsedValue;
 }
 
 
@@ -926,19 +913,15 @@ static int setValue(Handler& handler, Connection& connection, std::string_view r
  * actual SimConnect event-name string - MapClientEventToSimEvent wants the bare name ("FLAPS_1"),
  * confirmed against 8-2's proven raw-C example and live-tested (a "KEY_"-prefixed name gets
  * rejected with SIMCONNECT_EXCEPTION_NAME_UNRECOGNIZED). PMDG's "#<number>" strings never start
- * with "KEY_", so the strip is a no-op for them.
+ * with "KEY_", so the strip is a no-op for them. Does not wait for a possible failure exception;
+ * the caller does that once, after dispatching (see waitForFailure).
  *
- * @param handler The message handler to pump while giving a possible failure exception a
- *                grace window to arrive.
  * @param connection The connection to map and transmit the event through.
  * @param eventIdString The SimConnect event-name string ("KEY_*" or "#<number>").
  * @param data The single data value to send with the event.
- * @param done Set to true if an exception arrived (by the caller's exception handler) - checked
- *             after the grace window to tell a failure from an assumed success.
- * @return 0 on success, 1 otherwise (exception).
  */
-template <class Handler, class Connection>
-static int sendClientEvent(Handler& handler, Connection& connection, std::string_view eventIdString, unsigned long data, bool& done)
+template <class Connection>
+static void sendClientEvent(Connection& connection, std::string_view eventIdString, unsigned long data)
 {
   std::string_view mapName{ eventIdString };
   if (mapName.starts_with("KEY_")) {
@@ -949,30 +932,48 @@ static int sendClientEvent(Handler& handler, Connection& connection, std::string
   auto evt = connection.event(mapName);
   connection.mapClientEvent(evt);
   connection.transmitClientEventWithPriority(SimObject::userAircraft, evt, Events::standardPriority, data);
-
-  // TransmitClientEvent generates no success response - only exceptions tell us it failed. Give
-  // any exception a short grace window to arrive before assuming it worked.
-  static constexpr auto sendGrace = 2s;
-  handler.handleUntilOrTimeout([&done]() { return done; }, sendGrace);
-  if (done) {
-    return 1; // The exception handler already printed why.
-  }
-
-  std::cout << std::format("Sent client event '{}' with value {}.\n", eventIdString, data);
-  return 0;
 }
 
 
 /**
- * Connect to the simulator and look `name` up: first as a declared input event on the current
- * aircraft (get/set, as in 14-3), then - if not declared - as a classic client event, either from
- * a loaded JSON catalog or (with no catalog entry) as a literal client-event id string.
+ * Parse `valueText`, dispatch a classic client event, then report the outcome after giving a
+ * possible failure exception a grace window to arrive.
  *
- * @param name The exact (case-sensitive) name, or literal client-event id, to look up.
- * @param newValue The value to set/send. std::nullopt means: get the current value (input event),
- *                 or send with a default of 0 (client event).
- * @param catalogOptions Where to look for JSON catalogs, and which PMDG ones to include, when
- *                        `name` is not a declared input event.
+ * @param handler The message handler to pump for the post-send exception grace window.
+ * @param connection The connection to map and transmit the event through.
+ * @param eventIdString The SimConnect event-name string ("KEY_*" or "#<number>"), or a literal
+ *                       typed name if no catalog entry matched.
+ * @param done Set to true if an exception arrived (by the caller's exception handler).
+ * @param valueText The value to send, as given on the command line (or the "0" default).
+ * @return 0 on success, 1 otherwise (bad value, exception).
+ */
+template <class Handler, class Connection>
+static int sendAndReportClientEvent(Handler& handler, Connection& connection, std::string_view eventIdString, bool& done, std::string_view valueText)
+{
+  const auto data{ parseUnsignedValue(valueText) };
+  if (!data) {
+    std::cerr << std::format("'{}' is not a valid numeric value.\n", valueText);
+    return 1;
+  }
+
+  sendClientEvent(connection, eventIdString, *data);
+
+  const int result{ waitForFailure(handler, done) };
+  if (result == 0) {
+    std::cout << std::format("Sent client event '{}' with value {}.\n", eventIdString, *data);
+  }
+  return result;
+}
+
+
+/**
+ * Connect to the simulator and send `name`: first checked against the year-scoped JSON catalog
+ * (a local lookup, no SimConnect round trip); if that misses, checked as a declared input event
+ * on the current aircraft; if that misses too, treated as a literal client-event id string.
+ *
+ * @param name The exact (case-sensitive) name, or literal client-event id, to send.
+ * @param newValue The value to send - defaults to "0" if not given on the command line.
+ * @param catalogOptions Where to look for JSON catalogs, and which PMDG ones to include.
  * @return 0 on success, 1 otherwise (not found, connection failure, unsupported shape, bad value).
  */
 static int runTest(std::string_view name, std::optional<std::string_view> newValue, const CatalogOptions& catalogOptions)
@@ -998,11 +999,25 @@ static int runTest(std::string_view name, std::optional<std::string_view> newVal
     return 1;
   }
 
-  InputEventHandler<decltype(handler)> inputEvents(handler);
+  const std::string valueText{ newValue.value_or("0") };
 
-  // First: is this a declared input event on the current aircraft? (A zero-declared-events
-  // aircraft raises an exception here rather than an empty result - the exception handler above
-  // sets `done`, and we fall through to the catalog below exactly as if nothing had been found.)
+  // Catalog first - cheap and local. Only fall through to the live input-event enumeration below
+  // if nothing matches here.
+  if (const auto catalogEntry{ lookupCatalogEntry(catalogOptions, name) }) {
+    if (catalogEntry->paramCount > 1) {
+      std::cerr << std::format(
+        "'{}' takes {} parameters - only single-parameter client events are currently supported.\n",
+        name, catalogEntry->paramCount);
+      return 1;
+    }
+    return sendAndReportClientEvent(handler, connection, catalogEntry->eventId, done, valueText);
+  }
+
+  // Not in the catalog - is it a declared input event on the current aircraft? (A zero-declared-
+  // events aircraft raises an exception here rather than an empty result - the exception handler
+  // above sets `done`, and we fall through to the literal client-event fallback below exactly as
+  // if nothing had been found.)
+  InputEventHandler<decltype(handler)> inputEvents(handler);
   std::cout << std::format("[Looking up input event '{}']\n", name);
 
   bool foundInputEvent{ false };
@@ -1018,41 +1033,25 @@ static int runTest(std::string_view name, std::optional<std::string_view> newVal
     },
     [&done]() { done = true; });
 
-  static constexpr auto timeout = 10s;
-  handler.handleUntilOrTimeout([&done]() { return done; }, timeout);
+  static constexpr auto lookupTimeout = 10s;
+  handler.handleUntilOrTimeout([&done]() { return done; }, lookupTimeout);
   lookupRequest.stop();
+  done = false;
 
   if (foundInputEvent) {
-    done = false;
-    return newValue ? setValue(handler, connection, rawParams, event, *newValue, done)
-                     : getValue(handler, inputEvents, event, done);
+    const auto parsedValue{ setValue(connection, rawParams, event, valueText) };
+    if (!parsedValue) { return 1; }
+
+    const int result{ waitForFailure(handler, done) };
+    if (result == 0) {
+      std::cout << std::format("Set '{}' to {}.\n", event.name, *parsedValue);
+    }
+    return result;
   }
 
-  // Not a declared input event - fall back to the client-event catalog (year-scoped), or treat
-  // the typed name itself as a literal client-event id if no catalog entry matches.
-  const auto catalog{ loadCatalogs(catalogOptions) };
-  const auto found{ catalog.find(std::string(name)) };
-  const bool haveCatalogEntry{ found != catalog.end() };
-
-  if (haveCatalogEntry && found->second.paramCount > 1) {
-    std::cerr << std::format(
-      "'{}' takes {} parameters - only single-parameter client events are currently supported.\n",
-      name, found->second.paramCount);
-    return 1;
-  }
-
-  // No value given - default to 0, matching 8-2's raw-C example (a plain toggle/trigger event
-  // ignores the data value; a positional/mouse-flag event needs an explicit one).
-  const auto data{ newValue ? parseUnsignedValue(*newValue) : std::optional<unsigned long>(0) };
-  if (!data) {
-    std::cerr << std::format("'{}' is not a valid numeric value.\n", *newValue);
-    return 1;
-  }
-
-  const std::string eventIdString{ haveCatalogEntry ? found->second.eventId : std::string(name) };
-
-  done = false;
-  return sendClientEvent(handler, connection, eventIdString, *data, done);
+  // Not a declared input event and no catalog entry either - treat the typed name as a literal
+  // client-event id string.
+  return sendAndReportClientEvent(handler, connection, name, done, valueText);
 }
 
 
@@ -1089,7 +1088,7 @@ auto main(int argc, const char* argv[]) -> int // NOLINT(bugprone-exception-esca
   const auto nameArg{ args.find("Arg1") };
   if (nameArg == args.end() || nameArg->second.empty()) {
     std::cerr << std::format(
-      "Usage: {} <event-name> [value] [--catalog-dir=<path>] [--pmdg-737] [--pmdg-777]\n", args.at("Arg0"));
+      "Usage: {} <event-name> [value=0] [--catalog-dir=<path>] [--pmdg-737] [--pmdg-777]\n", args.at("Arg0"));
     return 1;
   }
   const std::string name{ nameArg->second };

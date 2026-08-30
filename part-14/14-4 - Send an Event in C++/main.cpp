@@ -853,6 +853,57 @@ static std::optional<CatalogEntry> lookupCatalogEntry(const CatalogOptions& cata
 
 
 /**
+ * A declared input event, as found by lookupInputEvent(): the event itself plus its raw
+ * ';'-separated parameter type string (see SimConnect_EnumerateInputEventParams).
+ */
+struct DeclaredInputEvent {
+  InputEvent event;        ///< The declared event.
+  std::string rawParams;   ///< Its raw ';'-separated parameter type string.
+};
+
+
+/**
+ * Look `name` up as a declared input event on the current aircraft, fetching its parameter shape
+ * too if found. A zero-declared-events aircraft raises an exception here rather than returning an
+ * empty result - the caller's exception handler (registered on `handler`) sets `done`, and this
+ * returns not-found exactly as if nothing had been declared.
+ *
+ * @param handler The message handler to pump while waiting for the lookup to complete.
+ * @param inputEvents The input event handler to look the event up through.
+ * @param name The exact (case-sensitive) name to look up.
+ * @param done Shared with the caller's exception handler; reset to false before returning.
+ * @return The declared event and its parameter shape, or std::nullopt if not declared (or the
+ *         aircraft raised the zero-declared-events exception).
+ */
+template <class Handler>
+static std::optional<DeclaredInputEvent> lookupInputEvent(Handler& handler, InputEventHandler<Handler>& inputEvents, std::string_view name, bool& done)
+{
+  std::cout << std::format("[Looking up input event '{}']\n", name);
+
+  bool foundInputEvent{ false };
+  InputEvent event{};
+  std::string rawParams;
+
+  auto lookupRequest = inputEvents.findInputEvent(name,
+    [&foundInputEvent, &event, &rawParams, &done](const InputEvent& foundEvent, std::string_view params) {
+      foundInputEvent = true;
+      event = foundEvent;
+      rawParams = std::string(params);
+      done = true;
+    },
+    [&done]() { done = true; });
+
+  static constexpr auto lookupTimeout = 10s;
+  handler.handleUntilOrTimeout([&done]() { return done; }, lookupTimeout);
+  lookupRequest.stop();
+  done = false;
+
+  if (!foundInputEvent) { return std::nullopt; }
+  return DeclaredInputEvent{ .event = event, .rawParams = rawParams };
+}
+
+
+/**
  * Give a possible failure exception a short grace window to arrive, then report whether one did.
  * Neither SetInputEvent nor TransmitClientEvent generates a success response of its own - an
  * exception is the only way a failure is ever reported back.
@@ -1013,38 +1064,15 @@ static int runTest(std::string_view name, std::optional<std::string_view> newVal
     return dispatchClientEvent(handler, connection, catalogEntry->eventId, done, valueText);
   }
 
-  // Not in the catalog - is it a declared input event on the current aircraft? (A zero-declared-
-  // events aircraft raises an exception here rather than an empty result - the exception handler
-  // above sets `done`, and we fall through to the literal client-event fallback below exactly as
-  // if nothing had been found.)
+  // Not in the catalog - is it a declared input event on the current aircraft?
   InputEventHandler<decltype(handler)> inputEvents(handler);
-  std::cout << std::format("[Looking up input event '{}']\n", name);
-
-  bool foundInputEvent{ false };
-  InputEvent event{};
-  std::string rawParams;
-
-  auto lookupRequest = inputEvents.findInputEvent(name,
-    [&foundInputEvent, &event, &rawParams, &done](const InputEvent& foundEvent, std::string_view params) {
-      foundInputEvent = true;
-      event = foundEvent;
-      rawParams = std::string(params);
-      done = true;
-    },
-    [&done]() { done = true; });
-
-  static constexpr auto lookupTimeout = 10s;
-  handler.handleUntilOrTimeout([&done]() { return done; }, lookupTimeout);
-  lookupRequest.stop();
-  done = false;
-
-  if (foundInputEvent) {
-    const auto parsedValue{ setValue(connection, rawParams, event, valueText) };
+  if (const auto declared{ lookupInputEvent(handler, inputEvents, name, done) }) {
+    const auto parsedValue{ setValue(connection, declared->rawParams, declared->event, valueText) };
     if (!parsedValue) { return 1; }
 
     const int result{ waitForFailure(handler, done) };
     if (result == 0) {
-      std::cout << std::format("Set '{}' to {}.\n", event.name, *parsedValue);
+      std::cout << std::format("Set '{}' to {}.\n", declared->event.name, *parsedValue);
     }
     return result;
   }

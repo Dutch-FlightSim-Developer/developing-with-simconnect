@@ -948,7 +948,7 @@ static void sendClientEvent(Connection& connection, std::string_view eventIdStri
  * @return 0 on success, 1 otherwise (bad value, exception).
  */
 template <class Handler, class Connection>
-static int sendAndReportClientEvent(Handler& handler, Connection& connection, std::string_view eventIdString, bool& done, std::string_view valueText)
+static int dispatchClientEvent(Handler& handler, Connection& connection, std::string_view eventIdString, bool& done, std::string_view valueText)
 {
   const auto data{ parseUnsignedValue(valueText) };
   if (!data) {
@@ -1010,7 +1010,7 @@ static int runTest(std::string_view name, std::optional<std::string_view> newVal
         name, catalogEntry->paramCount);
       return 1;
     }
-    return sendAndReportClientEvent(handler, connection, catalogEntry->eventId, done, valueText);
+    return dispatchClientEvent(handler, connection, catalogEntry->eventId, done, valueText);
   }
 
   // Not in the catalog - is it a declared input event on the current aircraft? (A zero-declared-
@@ -1051,7 +1051,7 @@ static int runTest(std::string_view name, std::optional<std::string_view> newVal
 
   // Not a declared input event and no catalog entry either - treat the typed name as a literal
   // client-event id string.
-  return sendAndReportClientEvent(handler, connection, name, done, valueText);
+  return dispatchClientEvent(handler, connection, name, done, valueText);
 }
 
 

@@ -329,6 +329,17 @@ struct CatalogEntry {
 
 
 /**
+ * Which JSON catalog files to load, and from where (see loadCatalogs). Bundled into one struct
+ * rather than passing the two PMDG flags as adjacent bool parameters.
+ */
+struct CatalogOptions {
+  std::filesystem::path dir;   ///< Directory of *.json catalog files to search.
+  bool loadPmdg737{ false };   ///< Include pmdg-737.json, if present.
+  bool loadPmdg777{ false };   ///< Include pmdg-777.json, if present.
+};
+
+
+/**
  * Skip whitespace starting at `pos`.
  *
  * @param text The JSON text.
@@ -766,29 +777,39 @@ static void loadCatalogFile(const std::filesystem::path& path, std::unordered_ma
 
 
 /**
- * Load every *.json catalog file in `dir` (non-recursive) into a single name -> entry map. A
- * missing directory is a normal case (catalogs are gitignored, generated locally per SDK year)
- * rather than an error - it just means the map comes back empty.
+ * Load every *.json catalog file in `options.dir` (non-recursive) into a single name -> entry
+ * map. A missing directory is a normal case (catalogs are gitignored, generated locally per SDK
+ * year) rather than an error - it just means the map comes back empty.
  *
- * @param dir The catalog directory to scan - typically the active SDK year's msfs-events folder.
+ * PMDG catalogs are aircraft-specific: event *names* collide across aircraft (e.g.
+ * EVT_OH_LIGHTS_TAXI exists on both the 737 and 777, at different numeric offsets), so silently
+ * merging both would let one aircraft's file overwrite the other's entry with a value that's
+ * meaningless - or means something else entirely - on the aircraft actually loaded. Neither
+ * pmdg-737.json nor pmdg-777.json is loaded unless explicitly requested, one at a time.
+ *
+ * @param options Which directory to scan and which PMDG catalogs (if any) to include.
  * @return The merged name -> entry map.
  */
-static std::unordered_map<std::string, CatalogEntry> loadCatalogs(const std::filesystem::path& dir)
+static std::unordered_map<std::string, CatalogEntry> loadCatalogs(const CatalogOptions& options)
 {
   std::unordered_map<std::string, CatalogEntry> catalog;
 
   std::error_code ec;
-  if (!std::filesystem::is_directory(dir, ec)) {
-    std::cerr << std::format("[No catalog directory at '{}' - skipping.]\n", dir.string());
+  if (!std::filesystem::is_directory(options.dir, ec)) {
+    std::cerr << std::format("[No catalog directory at '{}' - skipping.]\n", options.dir.string());
     return catalog;
   }
 
-  for (const auto& entry : std::filesystem::directory_iterator(dir)) {
-    if (entry.is_regular_file() && entry.path().extension() == ".json") {
-      loadCatalogFile(entry.path(), catalog);
-    }
+  for (const auto& entry : std::filesystem::directory_iterator(options.dir)) {
+    if (!entry.is_regular_file() || entry.path().extension() != ".json") { continue; }
+
+    const auto filename{ entry.path().filename().string() };
+    if (filename == "pmdg-737.json" && !options.loadPmdg737) { continue; }
+    if (filename == "pmdg-777.json" && !options.loadPmdg777) { continue; }
+
+    loadCatalogFile(entry.path(), catalog);
   }
-  std::cerr << std::format("[Loaded {} catalog event(s) from '{}']\n", catalog.size(), dir.string());
+  std::cerr << std::format("[Loaded {} catalog event(s) from '{}']\n", catalog.size(), options.dir.string());
   return catalog;
 }
 
@@ -950,11 +971,11 @@ static int sendClientEvent(Handler& handler, Connection& connection, std::string
  * @param name The exact (case-sensitive) name, or literal client-event id, to look up.
  * @param newValue The value to set/send, or std::nullopt to get (input event) / just report what
  *                 is known (client event) instead.
- * @param catalogDir The directory of *.json catalog files to search when `name` is not a
- *                   declared input event.
+ * @param catalogOptions Where to look for JSON catalogs, and which PMDG ones to include, when
+ *                        `name` is not a declared input event.
  * @return 0 on success, 1 otherwise (not found, connection failure, unsupported shape, bad value).
  */
-static int runTest(std::string_view name, std::optional<std::string_view> newValue, const std::filesystem::path& catalogDir)
+static int runTest(std::string_view name, std::optional<std::string_view> newValue, const CatalogOptions& catalogOptions)
 {
   WindowsEventConnection<false, ConsoleLogger> connection;
   WindowsEventHandler<false, ConsoleLogger> handler(connection);
@@ -1009,7 +1030,7 @@ static int runTest(std::string_view name, std::optional<std::string_view> newVal
 
   // Not a declared input event - fall back to the client-event catalog (year-scoped), or treat
   // the typed name itself as a literal client-event id if no catalog entry matches.
-  const auto catalog{ loadCatalogs(catalogDir) };
+  const auto catalog{ loadCatalogs(catalogOptions) };
   const auto found{ catalog.find(std::string(name)) };
   const bool haveCatalogEntry{ found != catalog.end() };
 
@@ -1078,7 +1099,8 @@ auto main(int argc, const char* argv[]) -> int // NOLINT(bugprone-exception-esca
   const auto args{ gatherArgs(argc, argv) };
   const auto nameArg{ args.find("Arg1") };
   if (nameArg == args.end() || nameArg->second.empty()) {
-    std::cerr << std::format("Usage: {} <event-name> [value] [--catalog-dir=<path>]\n", args.at("Arg0"));
+    std::cerr << std::format(
+      "Usage: {} <event-name> [value] [--catalog-dir=<path>] [--pmdg-737] [--pmdg-777]\n", args.at("Arg0"));
     return 1;
   }
   const std::string name{ nameArg->second };
@@ -1096,16 +1118,18 @@ auto main(int argc, const char* argv[]) -> int // NOLINT(bugprone-exception-esca
 #endif
   };
   const auto repoRoot{ findRepoRoot(std::filesystem::path(args.at("Arg0")).parent_path()) };
-  std::filesystem::path catalogDir{
-    repoRoot ? (*repoRoot / "msfs-events" / catalogYear) : (std::filesystem::path{ "msfs-events" } / catalogYear)
+  CatalogOptions catalogOptions{
+    .dir = repoRoot ? (*repoRoot / "msfs-events" / catalogYear) : (std::filesystem::path{ "msfs-events" } / catalogYear),
+    .loadPmdg737 = args.contains("pmdg-737"),
+    .loadPmdg777 = args.contains("pmdg-777"),
   };
   const auto catalogDirArg{ args.find("catalog-dir") };
   if (catalogDirArg != args.end() && !catalogDirArg->second.empty()) {
-    catalogDir = catalogDirArg->second;
+    catalogOptions.dir = catalogDirArg->second;
   }
 
   try {
-    return runTest(name, newValue, catalogDir);
+    return runTest(name, newValue, catalogOptions);
   }
   catch (const std::exception& e) {
     std::cerr << "Error: " << e.what() << '\n';
